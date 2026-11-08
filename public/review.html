@@ -71,10 +71,16 @@ else try { const t = localStorage.getItem('reviewtool.theme'); if (t) document.d
 
   .canvas { display: grid; gap: 1.1rem; margin-top: .9rem; }
   /* One screenshot at a time, before or after, swapped in place so differences jump out. */
-  .flip figcaption { align-items: center; gap: .7rem; margin-bottom: .45rem; }
-  .flip .seg { display: inline-flex; width: auto; }
-  .flip .seg button { padding: .25rem .9rem; font-size: .92em; }
-  .flip .seg button small { font-weight: 400; opacity: .75; margin-left: .3rem; }
+  /* Before and after: a bar under the screenshot, before on the left half, after on the right. Hovering a half shows
+     that screenshot, so moving along the bar flips between them; a click or tap does the same. */
+  .swapbar { display: grid; grid-template-columns: 1fr 1fr; height: 40px; border: 1px solid var(--pico-muted-border-color); border-top: 0; border-radius: 0 0 var(--pico-border-radius) var(--pico-border-radius); overflow: hidden; }
+  .swapbar button { all: unset; display: flex; align-items: center; justify-content: center; gap: .4rem; font-size: .92em; color: var(--pico-muted-color); cursor: pointer; user-select: none; }
+  .swapbar button + button { border-left: 1px solid var(--pico-muted-border-color); }
+  .swapbar button[aria-pressed="true"] { color: var(--pico-color); font-weight: 600; background: color-mix(in srgb, var(--pico-muted-border-color) 55%, transparent); }
+  .swapbar button small { font-weight: 400; opacity: .7; }
+  .swapbar button:disabled { cursor: default; opacity: .5; }
+  .swapbar button:focus-visible { outline: 2px solid var(--pico-primary); outline-offset: -2px; }
+  .flip .frame { border-radius: var(--pico-border-radius) var(--pico-border-radius) 0 0; }
   .flip.phone { max-width: 400px; }
   /* Previous and next page: arrows at the screenshot's edges, shown while the pointer is over it. */
   .view { position: relative; }
@@ -110,7 +116,8 @@ else try { const t = localStorage.getItem('reviewtool.theme'); if (t) document.d
   .chat #composer, .chat #sendBtn, .chat #agentState, .chat #offCanvas { display: none !important; }
   /* Compact, so the whole review fits a short frame above the chat's input: one strip with the page and Approve, and
      the screenshot scaled to the height that is left. */
-  /* Fixed bars (44 + 52 = 96px, which "reviewtool embed" counts on), and the screenshot fills exactly what is left. */
+  /* Fixed bars (44 + 52 above, 40 below = 136px, which "reviewtool embed" counts on), and the screenshot fills exactly
+     what is left. */
   .chat { --bar-h: 44px; }
   .chat .topbar { height: 44px; min-height: 0; box-sizing: border-box; padding-block: 0; }
   .chat .rail { height: 52px; box-sizing: border-box; }
@@ -120,16 +127,14 @@ else try { const t = localStorage.getItem('reviewtool.theme'); if (t) document.d
   .chat #approveBtn { flex: none; padding-block: .35rem; }
   .chat main { padding: 0; }
   .chat .canvas { margin-top: 0; }
-  .chat .flip figcaption { display: none; } /* its toggle sits in the strip */
-  .chat .rail-head .seg { display: inline-flex; width: auto; flex: none; }
-  .chat .rail-head .seg button { padding: .35rem .8rem; }
+  .chat .swapbar { border: 0; border-top: 1px solid var(--pico-muted-border-color); border-radius: 0; }
   /* Desktop screenshots run edge to edge; one taller than the frame scrolls inside it. */
   .chat .flip, .chat .flip.phone { max-width: none; }
-  .chat .frame { border: 0; border-radius: 0; background: transparent; height: calc(100vh - 96px); max-height: none; overflow-y: auto; scrollbar-width: none; }
+  .chat .frame { border: 0; border-radius: 0; background: transparent; height: calc(100vh - 136px); max-height: none; overflow-y: auto; scrollbar-width: none; }
   /* Phone screenshots would be very tall at full width: scaled to the height that is left, centred. */
   .chat .flip.phone .frame { overflow: hidden; }
   .chat .flip.phone .stage { width: fit-content; max-width: 100%; margin-inline: auto; }
-  .chat .flip.phone .stage > img { width: auto; max-width: 100%; max-height: calc(100vh - 96px); }
+  .chat .flip.phone .stage > img { width: auto; max-width: 100%; max-height: calc(100vh - 136px); }
   .pin.draft:hover { background: var(--revert); }
   .mark { display: inline-grid; place-items: center; min-width: 1.35em; height: 1.35em; padding: 0 .3em; border-radius: .7em .7em .7em .2em; background: var(--pin); color: #fff; font-size: .78em; font-weight: 700; vertical-align: .08em; cursor: pointer; }
   .resolved .mark { background: #8a9592; }
@@ -292,15 +297,7 @@ const slug = decodeURIComponent(location.pathname.split('/').filter(Boolean)[1] 
 const CHAT = new URLSearchParams(location.search).get('chat') === '1';
 if (CHAT) {
   document.documentElement.classList.add('chat');
-  // One strip: the page, before or after, and Approve.
-  const seg = document.createElement('div');
-  seg.className = 'seg';
-  seg.id = 'chatSeg';
-  seg.setAttribute('role', 'group');
-  seg.setAttribute('aria-label', 'Before or after');
-  seg.innerHTML = '<button class="secondary outline" data-show="before" title="Show the before (Space)">Before</button><button class="secondary outline" data-show="after" title="Show the after (Space)">After</button>';
-  seg.addEventListener('click', (e) => { const b = e.target.closest('button[data-show]'); if (b && !b.disabled) setShowing(b.dataset.show); });
-  document.querySelector('.rail-head').append(seg, $('approveBtn'));
+  document.querySelector('.rail-head').append($('approveBtn')); // one strip: the page and Approve
 }
 const PIN_LABEL = { before: 'before', after: 'after', previous: 'last round', mobile: 'phone' };
 const VERDICT_TEXT = { approve: 'Approved', update: 'Needs update', revert: 'Revert' };
@@ -633,14 +630,9 @@ function setShowing(which) {
     const frame = fig.querySelector('.frame');
     frame.dataset.img = show === 'before' && fig.dataset.beforePins !== 'true' ? '' : show;
     frame.classList.toggle('nopin', !frame.dataset.img);
-    for (const b of fig.querySelectorAll('.seg button')) b.setAttribute('aria-pressed', b.dataset.show === show);
+    for (const b of fig.querySelectorAll('.swapbar button')) b.setAttribute('aria-pressed', b.dataset.show === show);
   }
   showing = which;
-  const fig = $('canvas').querySelector('.flip');
-  for (const b of $('chatSeg')?.querySelectorAll('button') ?? []) {
-    b.setAttribute('aria-pressed', b.dataset.show === fig?.dataset.show);
-    b.disabled = b.dataset.show === 'before' && fig?.dataset.hasBefore !== 'true';
-  }
   placePopover();
 }
 const swap = () => setShowing(showing === 'after' ? 'before' : 'after');
@@ -695,11 +687,14 @@ function updatePins() {
 
 function flipHtml(p, r) {
   const { base, cmp } = r;
-  const tab = (f, which, missing) => `<button class="secondary outline" data-show="${which}"${missing ? ' disabled title="No before screenshot"' : ` title="Show the ${which} (Space)"`}>${which === 'after' ? 'After' : 'Before'}${f?.sub ? `<small>${esc(f.sub)}</small>` : ''}</button>`;
+  const missing = p.change?.status === 'new' ? 'New page, nothing before' : 'No before screenshot';
+  const half = (f, which) => (which === 'before' && !f
+    ? `<button data-show="before" disabled>${missing}</button>`
+    : `<button data-show="${which}" title="Hover or click to see the ${which} (Space swaps)">${which === 'after' ? 'After' : 'Before'}${f?.sub ? `<small>${esc(f.sub)}</small>` : ''}</button>`);
   const img = (f, which) => (f?.file ? `<img class="shot ${which}" src="${imgUrl(f.file)}" alt="${esc(`${which}: ${p.title}`)}" draggable="false">` : '');
   return `${r.title ? `<h3 class="rowtitle">${r.title}</h3>` : ''}<figure class="flip${r.narrow ? ' phone' : ''}" data-show="after" data-has-before="${!!cmp}" data-before-pins="${!!cmp && !cmp.noPin}">
-    <figcaption><div class="seg" role="group" aria-label="Before or after">${tab(cmp, 'before', !cmp)}${tab(base, 'after')}</div>${cmp ? '<small class="muted">Space swaps</small>' : `<small class="muted">${p.change?.status === 'new' ? 'New page, nothing to compare with' : 'No before screenshot'}</small>`}</figcaption>
     <div class="view"><div class="frame" data-img="after" title="Click to mark a spot"><div class="stage">${img(cmp, 'before')}${img(base, 'after')}${outlinesHtml(p, 'after')}${pinsHtml(p, 'after')}${cmp && !cmp.noPin ? pinsHtml(p, cmp.key) : ''}</div></div>${stepButtons(p)}</div>
+    <div class="swapbar" role="group" aria-label="Before or after">${half(cmp, 'before')}${half(base, 'after')}</div>
   </figure>`;
 }
 
@@ -716,7 +711,9 @@ function stepButtons(p) {
 }
 
 function bindCanvas() {
-  for (const seg of $('canvas').querySelectorAll('.seg')) seg.addEventListener('click', (e) => { const b = e.target.closest('button[data-show]'); if (b && !b.disabled) setShowing(b.dataset.show); });
+  for (const b of $('canvas').querySelectorAll('.swapbar button:not(:disabled)')) {
+    for (const ev of ['pointerenter', 'click', 'focus']) b.addEventListener(ev, () => { if (showing !== b.dataset.show || ev === 'click') setShowing(b.dataset.show); });
+  }
   for (const f of $('canvas').querySelectorAll('.frame')) f.addEventListener('scroll', () => requestAnimationFrame(placePopover));
 }
 
