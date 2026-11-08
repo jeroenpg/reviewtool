@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Review</title>
 <link rel="icon" href="/favicon.svg">
+<script>try { const t = localStorage.getItem('reviewtool.theme'); if (t) document.documentElement.dataset.theme = t; } catch {}</script>
 <link rel="stylesheet" href="/vendor/pico.zinc.min.css">
 <link rel="stylesheet" href="/app.css">
 <style>
@@ -159,6 +160,7 @@
   <span class="progress" id="progress"><progress id="progressBar" value="0" max="1"></progress><span id="progressText"></span></span>
   <span class="agentstate" id="agentState" hidden><span class="pulse"></span><span id="agentText"></span></span>
   <button class="secondary outline small" id="meBtn">Set your name</button>
+  <button class="secondary outline small" id="themeBtn"></button>
   <button class="secondary outline small" id="helpBtn" aria-label="Keyboard shortcuts">?</button>
   <button id="sendBtn"><span id="sendLabel">Send to agent</span><span class="n" id="sendCount" hidden></span></button>
 </header>
@@ -858,6 +860,22 @@ $('phoneBtn').addEventListener('click', () => { ui.phone = !ui.phone; render(); 
 $('zoomBtn').addEventListener('click', () => { ui.zoom = ui.zoom === 'fit' ? 'full' : 'fit'; render(); });
 $('generalBtn').addEventListener('click', () => { draftPin = null; openThread = openThread === 'general' ? null : 'general'; renderPopover(); });
 $('helpBtn').addEventListener('click', () => $('help').showModal());
+// Theme: follow the system, or force light or dark.
+const THEMES = { auto: ['◐', 'Theme: follows your system'], light: ['☀', 'Theme: light'], dark: ['☾', 'Theme: dark'] };
+function applyTheme(theme) {
+  if (theme === 'auto') delete document.documentElement.dataset.theme;
+  else document.documentElement.dataset.theme = theme;
+  pref.set('theme', theme === 'auto' ? '' : theme);
+  $('themeBtn').textContent = THEMES[theme][0];
+  $('themeBtn').title = `${THEMES[theme][1]} (click to change)`;
+  $('themeBtn').setAttribute('aria-label', THEMES[theme][1]);
+}
+applyTheme(pref.get('theme', '') || 'auto');
+$('themeBtn').addEventListener('click', () => {
+  const order = ['auto', 'light', 'dark'];
+  const now = document.documentElement.dataset.theme || 'auto';
+  applyTheme(order[(order.indexOf(now) + 1) % order.length]);
+});
 $('helpClose').addEventListener('click', () => $('help').close());
 $('meBtn').addEventListener('click', () => { $('meInput').value = pref.get('me', ''); $('meDlg').showModal(); $('meInput').focus(); });
 $('meCancel').addEventListener('click', () => $('meDlg').close());

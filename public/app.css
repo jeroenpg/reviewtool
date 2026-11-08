@@ -15,9 +15,11 @@
   --new: #7c3aed;
   --bar-h: 52px;
 }
+/* Dark follows the system unless the reviewer picked a theme (Pico reads data-theme on <html>). */
 @media (prefers-color-scheme: dark) {
-  :root { --approve: #4ade80; --update: #fbbf24; --revert: #f87171; --pin: #fb923c; --new: #a78bfa; }
+  :root:not([data-theme="light"]) { --approve: #4ade80; --update: #fbbf24; --revert: #f87171; --pin: #fb923c; --new: #a78bfa; }
 }
+:root[data-theme="dark"] { --approve: #4ade80; --update: #fbbf24; --revert: #f87171; --pin: #fb923c; --new: #a78bfa; }
 html, body { height: 100%; }
 body { margin: 0; }
 input, select, textarea, button, [role="group"], fieldset, form { margin-bottom: 0 !important; }

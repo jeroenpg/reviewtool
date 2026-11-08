@@ -95,7 +95,7 @@ Rules for manifests:
 
 The app has two columns that stay put: the pages of the round on the left, and the page you are reviewing. On a
 phone they stack, and the page list becomes a picker. It is built on
-[Pico CSS](https://picocss.com), which ships inside the package, and follows your light or dark setting.
+[Pico CSS](https://picocss.com), which ships inside the package, and follows your light or dark setting; the ◐ button in the top bar switches between following the system, light and dark.
 
 - **Opens where you are needed.** A review opens on the first page that needs you: no verdict yet, an answer from
   the agent to check, or a new reply. <kbd>N</kbd> jumps to the next one.
