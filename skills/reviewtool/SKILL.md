@@ -1,6 +1,6 @@
 ---
 name: reviewtool
-description: Run a screenshot review with the user in rounds. Publish before/after screenshots of UI changes to the reviewtool web app, read the comments the user pins on them, fix the issues and reply to each comment, publish the next round, and put the review log on the pull request. Use when the user wants to review UI changes visually, asks for a review round or the review tool, or leaves feedback in it ("I left comments", "check the review").
+description: Run a screenshot review with the user in rounds. Publish before/after screenshots of UI changes to the reviewtool web app, wait until the user sends their feedback, read the comments they pin on the screenshots, fix the issues and reply to each comment, publish the next round (reviewtool shows which pages changed), and put the review log on the pull request. Use when the user wants to review UI changes visually, asks for a review round or the review tool, or leaves feedback in it ("I left comments", "check the review").
 ---
 
 # Screenshot review rounds with reviewtool
@@ -65,12 +65,39 @@ reviewtool round <name> /tmp/round.json --as Claude
 reviewtool url <name>
 ```
 
-- **Keep page ids the same across rounds.** The "Last round" view and the "new" badges match pages by id.
+- **Keep page ids the same across rounds.** Change detection, the "Last round" view and the "new" badges match
+  pages by id.
 - **Look at every screenshot before you publish it.** Do not publish captures with error toasts, spinners, or the
   wrong page or user.
-- Give the user the link from `reviewtool url`, and tell them how many pages the round has and what changed.
+- **Read the change summary `round` prints**, for example `(5 changed, 1 new, 30 unchanged since round 3)`.
+  reviewtool compares every screenshot with the same page in the previous round, pixel by pixel, and boxes what
+  changed. If a page you fixed shows as unchanged, your fix did not reach the screenshot; recapture before you tell the
+  user. If a page you did not touch shows as changed, find out why. `reviewtool rounds <name>` lists the change per
+  page.
+- Give the user the link from `reviewtool url`, and tell them how many pages the round has and which ones changed.
+  The user can approve the unchanged pages they approved last round in one click, so they only look at what changed.
 
-## 3. Read the feedback
+## 3. Wait for the user to send feedback
+
+The user reviews in the browser and presses **Send to agent** when they are done. Wait for that; do not poll
+`feedback` in a loop, and do not start fixing half-finished feedback.
+
+```sh
+reviewtool wait <name> --as Claude
+```
+
+`wait` blocks until the user sends, marks the feedback as picked up (the app then shows "Claude is working on your
+feedback"), prints it like `feedback` does, plus the user's note, and exits 0. While it waits, the app shows the user
+"Claude is waiting for your feedback".
+
+- **Claude Code:** run it as a background command (`run_in_background`, timeout up to 2 hours); you are notified when
+  it exits. Meanwhile, tell the user the round is ready and that you are waiting for them to press Send to agent.
+- **Agents that can only run commands in the foreground:** use `--timeout` below your command limit, for example
+  `reviewtool wait <name> --timeout 540`. Exit code 2 means nothing was sent yet; run it again.
+- Sent feedback stays pending until an agent picks it up, so nothing is lost if no one was waiting at that moment.
+- If the user tells you in the chat that they are done instead, skip the wait and read `reviewtool feedback <name>`.
+
+## 4. Read the feedback
 
 ```sh
 reviewtool feedback <name>          # threads waiting for you: open, and the user spoke last
@@ -91,7 +118,7 @@ Verdicts mean:
 - **Needs update**: keep the change and apply the comments.
 - **Revert**: put the page back the way it was before.
 
-## 4. Fix, then reply to every thread
+## 5. Fix, then reply to every thread
 
 Fix the issues. Then reply to each thread with what you did, in plain words the user can check on the next round's
 screenshot:
@@ -108,10 +135,10 @@ reviewtool reply <name> <comment-id> "Moved snooze to the end of the row; it rep
 - To leave a note on a page without a thread, for example "this page also changed because of X", use
   `reviewtool comment <name> <page-id> "..." --as Claude`.
 
-Then capture the screenshots again and publish the next round (step 2), and tell the user it is ready. Repeat until
-there is nothing waiting and the pages are approved.
+Then capture the screenshots again, publish the next round (step 2) and wait again (step 3). Repeat until the user
+sends feedback with every page approved and nothing waiting.
 
-## 5. Put the log on the pull request
+## 6. Put the log on the pull request
 
 When the PR exists, and again whenever a round finishes:
 

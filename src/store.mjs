@@ -7,6 +7,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { extname, join, resolve } from 'node:path';
+import { compareImages } from './diff.mjs';
 
 export const VERDICTS = ['approve', 'update', 'revert'];
 export const IMAGE_FILE = /^[a-f0-9]{20}\.(png|jpe?g|webp|gif)$/;
@@ -108,6 +109,8 @@ export class Store {
           threads: threads(feedback.comments).length,
           open: needsReply(feedback.comments).length,
           latestRoundAt: latest?.createdAt ?? null,
+          waiting: this.waiting(slug),
+          pendingSubmission: feedback.submissions.some((x) => !x.pickedUpAt),
           updatedAt: [review.createdAt, latest?.createdAt, ...feedback.comments.map((c) => c.at)].filter(Boolean).sort().at(-1),
         };
       })
@@ -122,7 +125,7 @@ export class Store {
     const review = { slug, title: title || slug, repo, pr: pr == null ? null : Number(pr), branch, createdAt: now() };
     writeJson(join(dir, 'review.json'), review);
     writeJson(join(dir, 'rounds.json'), []);
-    writeJson(join(dir, 'feedback.json'), { verdicts: {}, comments: [] });
+    writeJson(join(dir, 'feedback.json'), { verdicts: {}, comments: [], submissions: [] });
     return review;
   }
 
@@ -144,10 +147,12 @@ export class Store {
 
   get(slug) {
     const dir = this.mustDir(slug);
+    const feedback = readJson(join(dir, 'feedback.json'), { verdicts: {}, comments: [] });
+    feedback.submissions ??= [];
     return {
       review: readJson(join(dir, 'review.json')),
       rounds: readJson(join(dir, 'rounds.json'), []),
-      feedback: readJson(join(dir, 'feedback.json'), { verdicts: {}, comments: [] }),
+      feedback,
     };
   }
 
@@ -190,6 +195,12 @@ export class Store {
       const img = (field) => (p[field] ? this.importImage(slug, resolve(baseDir, p[field])) : p[field] === null ? null : undefined);
       return { p, before: img('before'), after: img('after'), mobile: img('mobile'), mobileBefore: img('mobileBefore') };
     });
+    // Compare with the previous round outside the lock too; pixel diffs of large screenshots take a moment.
+    const basis = readJson(join(dir, 'rounds.json'), []).at(-1);
+    const changes = new Map(imported.map(({ p, after, mobile }) => {
+      const prev = basis?.pages.find((x) => x.id === p.id);
+      return [p.id, { change: this.changeSince(slug, basis, prev, after), mobileChange: mobile ? this.changeSince(slug, basis, prev, mobile, 'mobile') : null }];
+    }));
     return withLock(dir, () => {
       const rounds = readJson(join(dir, 'rounds.json'), []);
       const previous = rounds.at(-1);
@@ -212,6 +223,8 @@ export class Store {
             mobile: mobile ?? null,
             mobileBefore: mobileBefore === undefined ? (prev?.mobileBefore ?? null) : mobileBefore,
             note: p.note || '',
+            // Another round landing in between (rare) would leave the comparison against a stale basis; redo it then.
+            ...(previous?.n === basis?.n ? changes.get(p.id) : { change: this.changeSince(slug, previous, prev, after), mobileChange: mobile ? this.changeSince(slug, previous, prev, mobile, 'mobile') : null }),
           };
         }),
       };
@@ -219,6 +232,19 @@ export class Store {
       writeJson(join(dir, 'rounds.json'), rounds);
       return round;
     });
+  }
+
+  /** How a screenshot differs from the same page's screenshot in the previous round. */
+  changeSince(slug, previousRound, prevPage, file, field = 'after') {
+    if (!previousRound) return null;
+    if (!prevPage) return { status: 'new', ratio: null, boxes: [] };
+    if (!prevPage[field]) return { status: 'unknown', ratio: null, boxes: [] };
+    if (prevPage[field] === file) return { status: 'same', ratio: 0, boxes: [] };
+    try {
+      return compareImages(this.imagePath(slug, prevPage[field]), this.imagePath(slug, file));
+    } catch {
+      return { status: 'unknown', ratio: null, boxes: [] };
+    }
   }
 
   mutateFeedback(slug, fn) {
@@ -297,6 +323,66 @@ export class Store {
       return true;
     });
   }
+
+  /**
+   * The reviewer is done for now: everything since the last submission goes to the agent. An agent blocked in
+   * `reviewtool wait` picks it up; until then it stays pending.
+   */
+  submit(slug, { round, by = null, note = '' } = {}) {
+    if (typeof note !== 'string' || note.length > 20_000) throw new ReviewError('note must be text');
+    return this.mutateFeedback(slug, (feedback, rounds) => {
+      const n = round == null || round === 'latest' ? rounds.at(-1)?.n : Number(round);
+      if (!rounds.some((r) => r.n === n)) throw new ReviewError(`no round ${round}`, 404);
+      const changes = unsent(feedback);
+      const submission = {
+        id: newId(feedback.submissions ?? []),
+        round: n,
+        by: by ? String(by).slice(0, 60) : null,
+        note: note.trim(),
+        comments: changes.comments.length,
+        verdicts: changes.verdicts.length,
+        at: now(),
+        pickedUpAt: null,
+        pickedUpBy: null,
+      };
+      (feedback.submissions ??= []).push(submission);
+      return submission;
+    });
+  }
+
+  /** Marks the oldest submission no agent has picked up yet as picked up, and returns it (or null). */
+  pickUp(slug, by = 'Agent') {
+    return this.mutateFeedback(slug, (feedback) => {
+      const s = (feedback.submissions ?? []).find((x) => !x.pickedUpAt);
+      if (!s) return null;
+      s.pickedUpAt = now();
+      s.pickedUpBy = String(by).slice(0, 60);
+      return s;
+    });
+  }
+
+  /** Heartbeat of an agent blocked in `reviewtool wait`, so the app can show that someone is waiting. */
+  setWaiting(slug, waiter) {
+    const file = join(this.mustDir(slug), 'waiting.json');
+    if (waiter) writeJson(file, { ...waiter, beat: now() });
+    else rmSync(file, { force: true });
+  }
+
+  waiting(slug) {
+    const w = readJson(join(this.mustDir(slug), 'waiting.json'), null);
+    return w && Date.now() - new Date(w.beat).getTime() < WAIT_FRESH_MS ? w : null;
+  }
+}
+
+const WAIT_FRESH_MS = 15_000;
+
+/** Human comments, replies and verdicts made after the last submission. */
+export function unsent(feedback) {
+  const since = (feedback.submissions ?? []).at(-1)?.at ?? '';
+  return {
+    comments: feedback.comments.filter((c) => c.kind === 'human' && c.at > since),
+    verdicts: Object.entries(feedback.verdicts).filter(([, v]) => v.at > since).map(([key, v]) => ({ key, ...v })),
+  };
 }
 
 function findPage(rounds, round, page) {

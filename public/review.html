@@ -209,6 +209,33 @@
   dialog table { border-collapse: collapse; width: 100%; }
   dialog td { padding: 4px 0; vertical-align: top; }
   dialog td:first-child { width: 120px; white-space: nowrap; }
+  /* Agent status and sending feedback */
+  .agentstate { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--muted); white-space: nowrap; }
+  .agentstate .pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--line-strong); flex: none; }
+  .agentstate.waiting { color: var(--approve); font-weight: 600; }
+  .agentstate.waiting .pulse { background: var(--approve); animation: beat 1.6s infinite; }
+  .agentstate.working .pulse { background: var(--update); animation: beat 1.6s infinite; }
+  .agentstate.sent .pulse { background: var(--accent); }
+  @keyframes beat { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 55%, transparent); } 70%, 100% { box-shadow: 0 0 0 7px transparent; } }
+  .sendbtn { background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 8px; padding: 6px 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .sendbtn:hover { filter: brightness(1.08); }
+  .sendbtn.quiet { background: var(--surface); color: var(--ink); border: 1px solid var(--line); font-weight: 500; }
+  .sendbtn .n { background: rgb(255 255 255 / .24); border-radius: 9px; padding: 0 7px; font-size: 11.5px; }
+  .sendbtn.quiet .n { background: var(--surface-2); }
+  dialog.send { width: min(480px, calc(100vw - 32px)); }
+  dialog.send h2 { font-size: 16px; margin-bottom: 4px; }
+  dialog.send ul { margin: 10px 0 12px; padding-left: 18px; display: grid; gap: 3px; }
+  dialog.send .who { margin: 0 0 10px; font-size: 12.5px; }
+  /* Changes between rounds */
+  .chg { font-size: 10.5px; font-weight: 600; border-radius: 5px; padding: 1px 5px; white-space: nowrap; }
+  .chg.changed { background: var(--update-soft); color: var(--update); }
+  .chg.minor { color: var(--muted); border: 1px solid var(--line); }
+  .chg.same { color: var(--muted); font-weight: 500; }
+  .changes { position: absolute; inset: 0; pointer-events: none; }
+  .changes i { position: absolute; border: 2px solid var(--new); background: color-mix(in srgb, var(--new) 10%, transparent); border-radius: 3px; box-shadow: 0 0 0 1px rgb(255 255 255 / .6); }
+  .changebar { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; margin-top: 10px; font-size: 12.5px; color: var(--muted); }
+  .changebar b { color: var(--ink); font-weight: 600; }
+  .changebar label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
   .toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--surface); padding: 8px 14px; border-radius: 8px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 30; }
   .toast.show { opacity: 1; }
 
@@ -243,6 +270,8 @@
   <div class="spacer"></div>
   <span class="ring" id="ring" title="Pages with a verdict in this round"><svg viewBox="0 0 24 24"><circle class="track" cx="12" cy="12" r="9"></circle><circle class="fill" cx="12" cy="12" r="9" stroke-dasharray="56.5" stroke-dashoffset="56.5"></circle></svg><span id="ringText"></span></span>
   <label class="me muted">as <input id="me" maxlength="60" placeholder="your name" aria-label="Your name"></label>
+  <span class="agentstate" id="agentState" hidden><span class="pulse"></span><span id="agentText"></span></span>
+  <button class="sendbtn" id="sendBtn" title="Tell the agent you are done for now">Send to agent<span class="n" id="sendCount" hidden></span></button>
   <button class="iconbtn" id="panelToggle" title="Comments (])" aria-label="Toggle comments">💬</button>
   <button class="iconbtn" id="helpBtn" title="Shortcuts (?)" aria-label="Shortcuts">?</button>
 </header>
@@ -272,6 +301,7 @@
           <button data-v="revert" title="Put this page back the way it was">Revert <kbd>3</kbd></button>
         </div>
       </div>
+      <div class="changebar" id="changeBar" hidden></div>
       <p class="page-note" id="note" hidden></p>
       <div class="toolbar">
         <div class="seg" id="pairs" role="group" aria-label="Compare with">
@@ -299,6 +329,13 @@
 </div>
 
 <div class="popover" id="popover" hidden></div>
+<dialog id="sendDlg" class="send">
+  <h2>Send your feedback to the agent</h2>
+  <p class="muted who" id="sendWho"></p>
+  <ul id="sendSummary"></ul>
+  <textarea id="sendNote" placeholder="Anything else for the agent? (optional)"></textarea>
+  <div class="actions"><button class="btn" id="sendCancel">Keep reviewing</button><button class="btn primary" id="sendConfirm">Send to agent</button></div>
+</dialog>
 <dialog id="help">
   <h2>Keyboard</h2>
   <table>
@@ -310,6 +347,8 @@
     <tr><td><kbd>P</kbd> <kbd>Z</kbd></td><td>Phone screenshots · zoom Fit/100%</td></tr>
     <tr><td><kbd>[</kbd> <kbd>]</kbd></td><td>Page list · comments panel</td></tr>
     <tr><td><kbd>O</kbd></td><td>Round overview</td></tr>
+    <tr><td><kbd>H</kbd></td><td>Show or hide what changed since the last round</td></tr>
+    <tr><td><kbd>Shift</kbd>+<kbd>S</kbd></td><td>Send your feedback to the agent</td></tr>
     <tr><td><kbd>Ctrl</kbd>+<kbd>Enter</kbd></td><td>Send the comment you are writing</td></tr>
     <tr><td><kbd>Esc</kbd></td><td>Close the comment popover</td></tr>
   </table>
@@ -352,6 +391,7 @@ const ui = {
   phone: false,
   zoom: 'fit',
   filter: 'all',
+  changes: pref.get('changes', '1') === '1',
   search: '',
   rail: pref.get('rail', 'open') === 'open',
   panel: pref.get('panel', window.innerWidth >= 1250 ? 'open' : 'closed') === 'open',
@@ -389,7 +429,20 @@ const waiting = (t) => t.status !== 'resolved' && last(t).kind === 'human';
 const answered = (t) => t.status !== 'resolved' && last(t).kind === 'agent';
 const isNew = (m) => m.kind === 'agent' && m.at > lastVisit;
 const hasNew = (t) => [t, ...t.replies].some(isNew);
-const needsMe = (p) => !verdictOf(roundN, p.id) || threadsOf(null, p.id).some(answered) || threadsOf(null, p.id).some(hasNew);
+// Unchanged: the after (and the phone shot, when there is one) is pixel for pixel last round's. A tiny change still
+// counts as a change, so nothing that moved is ever skipped.
+const unchanged = (p) => p.change?.status === 'same' && (!p.mobile || p.mobileChange?.status === 'same');
+const changedKind = (p) => (p.change ? (unchanged(p) ? 'same' : p.change.status === 'new' ? 'new' : 'changed') : null);
+// Unchanged and approved last round: nothing to look at again.
+const settled = (p) => unchanged(p) && verdictOf(roundN - 1, p.id) === 'approve';
+const needsMe = (p) => (!verdictOf(roundN, p.id) && !settled(p)) || threadsOf(null, p.id).some(answered) || threadsOf(null, p.id).some(hasNew);
+const lastSubmission = () => data.feedback.submissions?.at(-1) ?? null;
+function unsentChanges() {
+  const since = lastSubmission()?.at ?? '';
+  const comments = data.feedback.comments.filter((c) => c.kind === 'human' && c.at > since);
+  const verdicts = Object.entries(data.feedback.verdicts).filter(([, v]) => v.at > since);
+  return { comments, verdicts };
+}
 const numbering = (p) => new Map(threadsOf(roundN, p.id).map((t, i) => [t.id, i + 1]));
 
 function shots(p) {
@@ -492,6 +545,58 @@ function renderBar() {
   $('ringText').textContent = `${done}/${ps.length} judged`;
   $('ring').querySelector('.fill').style.strokeDashoffset = String(56.5 * (1 - done / Math.max(1, ps.length)));
   $('logLink').href = `/api/r/${encodeURIComponent(slug)}/log`;
+  renderAgentState();
+}
+
+function renderAgentState() {
+  const el = $('agentState');
+  const sub = lastSubmission();
+  const newest = data.rounds.at(-1);
+  let cls = '';
+  let text = '';
+  if (data.waiting) { cls = 'waiting'; text = `${data.waiting.by} is waiting for your feedback`; }
+  else if (sub && !sub.pickedUpAt) { cls = 'sent'; text = 'Sent · no agent has picked it up yet'; }
+  else if (sub && sub.pickedUpAt && newest.createdAt < sub.pickedUpAt) { cls = 'working'; text = `${sub.pickedUpBy} is working on your feedback`; }
+  el.hidden = !text;
+  el.className = `agentstate ${cls}`;
+  $('agentText').textContent = text;
+  el.title = sub ? `Last sent ${when(sub.at)}${sub.pickedUpAt ? `, picked up by ${sub.pickedUpBy} ${when(sub.pickedUpAt)}` : ''}` : '';
+  const { comments, verdicts } = unsentChanges();
+  const n = comments.length + verdicts.length;
+  $('sendCount').hidden = !n;
+  $('sendCount').textContent = n;
+  // Loud when there is something to send or an agent is waiting; quiet otherwise.
+  $('sendBtn').classList.toggle('quiet', !n && !data.waiting);
+}
+
+function openSend() {
+  const { comments, verdicts } = unsentChanges();
+  const latest = data.rounds.at(-1);
+  const count = (v) => verdicts.filter(([, x]) => x.verdict === v).length;
+  const replies = comments.filter((c) => c.replyTo).length;
+  const open = latest.pages.filter((p) => !verdictOf(latest.n, p.id) && !settled(p)).length;
+  const items = [
+    comments.length - replies ? plural(comments.length - replies, 'new comment') : null,
+    replies ? plural(replies, 'reply') : null,
+    count('approve') ? `${count('approve')} approved` : null,
+    count('update') ? `${count('update')} need an update` : null,
+    count('revert') ? `${count('revert')} to revert` : null,
+  ].filter(Boolean);
+  $('sendWho').textContent = data.waiting ? `${data.waiting.by} is waiting and starts as soon as you send.` : 'No agent is waiting right now; the next one that runs "reviewtool wait" picks this up.';
+  $('sendSummary').innerHTML = (items.length ? items : ['Nothing new since you last sent; send anyway to let the agent continue']).map((x) => `<li>${esc(x)}</li>`).join('') +
+    (open ? `<li class="muted">${plural(open, 'page')} in round ${latest.n} still without a verdict</li>` : '');
+  $('sendDlg').showModal();
+  $('sendNote').focus();
+}
+
+async function confirmSend() {
+  try {
+    await api('POST', '/submit', { round: data.rounds.at(-1).n, by: me(), note: $('sendNote').value });
+    $('sendNote').value = '';
+    $('sendDlg').close();
+    await load();
+    toast('Sent to the agent');
+  } catch (err) { toast(`Could not send: ${err.message}`); }
 }
 
 function renderRail() {
@@ -501,8 +606,10 @@ function renderRail() {
     todo: ps.filter((p) => !verdictOf(roundN, p.id)),
     waiting: ps.filter((p) => threadsOf(null, p.id).some(answered)),
     new: ps.filter((p) => threadsOf(null, p.id).some(hasNew)),
+    changed: ps.filter((p) => ['changed', 'new'].includes(changedKind(p))),
+    same: ps.filter((p) => changedKind(p) === 'same'),
   };
-  const labels = { all: 'All', todo: 'No verdict', waiting: 'Answered', new: 'New replies' };
+  const labels = { all: 'All', todo: 'No verdict', waiting: 'Answered', new: 'New replies', changed: 'Changed', same: 'Unchanged' };
   $('filters').innerHTML = Object.keys(sets).filter((k) => k === 'all' || sets[k].length).map((k) => `<button class="chip" data-filter="${k}" aria-pressed="${ui.filter === k}">${labels[k]}<b>${sets[k].length}</b></button>`).join('');
   if (!sets[ui.filter]?.length) ui.filter = 'all';
   const q = ui.search.trim().toLowerCase();
@@ -524,7 +631,10 @@ function renderRail() {
     const nAnswered = ts.filter(answered).length;
     const nNew = ts.filter(hasNew).length;
     const label = g && p.title.startsWith(g + ' · ') ? p.title.slice(g.length + 3) : p.title;
-    return `<button data-id="${esc(p.id)}" aria-current="${p.id === current}"><span class="dot ${verdictOf(roundN, p.id) ?? ''}"></span><span class="label">${esc(label)}</span>${prev && !prevPage(p.id) ? '<span class="tag">new</span>' : ''}${nNew ? `<span class="count new" title="${plural(nNew, 'new reply')}">${nNew}</span>` : nAnswered ? `<span class="count" title="${plural(nAnswered, 'answered thread')} to check">${nAnswered}</span>` : ''}</button>`;
+    const kind = changedKind(p);
+    const tiny = kind === 'changed' && [p.change, p.mobile ? p.mobileChange : null].every((c) => !c || ['same', 'minor'].includes(c.status));
+    const chg = kind === 'changed' ? (tiny ? '<span class="chg minor" title="A tiny change since the last round, like a clock">tiny</span>' : '<span class="chg changed" title="Changed since the last round">changed</span>') : kind === 'same' ? `<span class="chg same" title="Looks the same as round ${roundN - 1}${settled(p) ? ', where you approved it' : ''}">${settled(p) ? '= approved' : 'same'}</span>` : '';
+    return `<button data-id="${esc(p.id)}" aria-current="${p.id === current}"><span class="dot ${verdictOf(roundN, p.id) ?? ''}"></span><span class="label">${esc(label)}</span>${prev && !prevPage(p.id) ? '<span class="tag">new</span>' : chg}${nNew ? `<span class="count new" title="${plural(nNew, 'new reply')}">${nNew}</span>` : nAnswered ? `<span class="count" title="${plural(nAnswered, 'answered thread')} to check">${nAnswered}</span>` : ''}</button>`;
   };
   $('nav').innerHTML = `<button class="ov" data-id="${OVERVIEW}" aria-current="${current === OVERVIEW}"><span class="dot" style="border-color:transparent">◎</span><span class="label">Round ${roundN} overview</span></button>` +
     groups.map((g) => `${g.name ? `<div class="group">${esc(g.name)}</div>` : ''}${g.items.map((p) => item(p, g.name)).join('')}`).join('') +
@@ -546,6 +656,11 @@ function renderOverview() {
   const newPages = prev ? ps.filter((p) => !prevPage(p.id)) : [];
   const roundThreads = data.feedback.comments.filter((c) => !c.replyTo && c.round === r.n).length;
   const next = ps.find(needsMe);
+  const compared = ps.some((p) => p.change);
+  const changedPages = ps.filter((p) => changedKind(p) === 'changed');
+  const samePages = ps.filter((p) => changedKind(p) === 'same');
+  const carry = samePages.filter((p) => verdictOf(r.n - 1, p.id) === 'approve' && !verdictOf(r.n, p.id));
+  const subs = (data.feedback.submissions ?? []).filter((x) => x.round === r.n);
   const chips = (list) => `<div class="pagechips">${list.map((p) => `<button data-id="${esc(p.id)}"><span class="dot ${verdictOf(r.n, p.id) ?? ''}"></span>${esc(p.title)}</button>`).join('')}</div>`;
   const stat = (cls, n, label, filter) => `<button class="stat ${cls}" data-filter="${filter}"><b>${n}</b><span>${label}</span></button>`;
   $('overview').innerHTML = `
@@ -567,9 +682,14 @@ function renderOverview() {
       <a class="btn" href="/api/r/${encodeURIComponent(slug)}/log" target="_blank">Review log</a>
       ${data.review.repo && data.review.pr ? `<a class="btn" href="https://github.com/${esc(data.review.repo)}/pull/${data.review.pr}" target="_blank" rel="noopener">Pull request</a>` : ''}
     </div>
+    ${compared ? `<section><h2>Since round ${r.n - 1}: ${plural(changedPages.length, 'page')} changed${newPages.length ? `, ${newPages.length} new` : ''}, ${samePages.length} unchanged</h2>
+      ${changedPages.length ? chips(changedPages) : '<p class="muted">No page looks different from the last round.</p>'}
+      ${carry.length ? `<div class="row" style="margin-top:10px"><button class="btn" id="carryBtn">Approve the ${plural(carry.length, 'unchanged page')} you approved in round ${r.n - 1}</button></div>` : ''}
+    </section>` : ''}
     ${withNew.length ? `<section><h2>New replies since your last visit</h2>${chips(withNew)}</section>` : ''}
     ${withAnswers.length ? `<section><h2>Answered by the agent, waiting for you to check</h2>${chips(withAnswers)}</section>` : ''}
     ${newPages.length ? `<section><h2>New in this round</h2>${chips(newPages)}</section>` : ''}
+    ${subs.length ? `<section><h2>Feedback sent in this round</h2><div class="pagechips">${subs.map((x) => `<span class="badge resolved">${when(x.at)}${x.by ? ` by ${esc(x.by)}` : ''} · ${x.pickedUpAt ? `picked up by ${esc(x.pickedUpBy)}` : 'not picked up yet'}</span>`).join('')}</div></section>` : ''}
     <section><h2>Rounds</h2>
       <table class="rounds"><tr><th>Round</th><th>Date</th><th>Pages</th><th>Threads</th><th>Verdicts</th></tr>
       ${[...data.rounds].reverse().map((x) => {
@@ -580,6 +700,16 @@ function renderOverview() {
       </table>
     </section>`;
   $('startBtn')?.addEventListener('click', () => go(next.id));
+  $('carryBtn')?.addEventListener('click', async () => {
+    try {
+      for (const p of carry) {
+        const res = await api('PUT', '/verdict', { round: r.n, page: p.id, verdict: 'approve', by: me() });
+        data.feedback.verdicts[`${r.n}/${p.id}`] = res.verdict;
+      }
+      render();
+      toast(`Approved ${plural(carry.length, 'unchanged page')}`);
+    } catch (err) { toast(`Could not save: ${err.message}`); }
+  });
 }
 
 function renderPage(p) {
@@ -587,6 +717,7 @@ function renderPage(p) {
   $('route').textContent = p.route || '';
   $('note').hidden = !p.note;
   $('note').textContent = p.note || '';
+  renderChangeBar(p);
   const v = verdictOf(roundN, p.id);
   for (const b of $('verdicts').querySelectorAll('button')) b.setAttribute('aria-pressed', b.dataset.v === v);
   const { base, cmp, phone } = shots(p);
@@ -613,6 +744,32 @@ function renderPage(p) {
   bindCanvas();
 }
 
+function renderChangeBar(p) {
+  const bar = $('changeBar');
+  const c = ui.phone && p.mobile ? p.mobileChange : p.change;
+  if (!c) { bar.hidden = true; return; }
+  const prevN = roundN - 1;
+  const was = verdictOf(prevN, p.id);
+  const wasText = was ? ` · round ${prevN} verdict: ${VERDICT_TEXT[was].toLowerCase()}` : '';
+  let text;
+  if (c.status === 'new') text = '<span class="tag">new</span> <b>New in this round</b>';
+  else if (c.status === 'same') text = `<b>Identical to round ${prevN}</b>${wasText}`;
+  else if (c.status === 'minor') text = `<span class="chg minor">tiny change</span> <b>Almost identical to round ${prevN}</b> · ${(c.ratio * 100).toFixed(2)}% of pixels${wasText}`;
+  else if (c.status === 'changed') text = `<span class="chg changed">changed</span> <b>Changed since round ${prevN}</b> · ${c.size ? 'the screenshot size changed' : `${(c.ratio * 100).toFixed(1)}% of the screen, ${plural(c.boxes.length, 'area')}`}${wasText}`;
+  else text = `<b>Not compared with round ${prevN}</b> · that screenshot is missing or not a PNG`;
+  const canShow = ['changed', 'minor'].includes(c.status) && c.boxes?.length;
+  bar.innerHTML = `${text}${canShow ? `<span class="spacer"></span><label><input type="checkbox" id="showChanges" ${ui.changes ? 'checked' : ''}> Outline changes <kbd>H</kbd></label>` : ''}`;
+  bar.hidden = false;
+  $('showChanges')?.addEventListener('change', (e) => { ui.changes = e.target.checked; pref.set('changes', ui.changes ? '1' : '0'); renderPage(page()); });
+}
+
+function changesHtml(p, key) {
+  if (!ui.changes) return '';
+  const c = key === 'after' ? p.change : key === 'mobile' ? p.mobileChange : null;
+  if (!c || !['changed', 'minor'].includes(c.status)) return '';
+  return `<div class="changes">${c.boxes.map((b) => `<i style="left:${b.x}%;top:${b.y}%;width:${b.w}%;height:${b.h}%"></i>`).join('')}</div>`;
+}
+
 function pinsHtml(p, key) {
   const nums = numbering(p);
   const pins = threadsOf(roundN, p.id).filter((t) => t.pin?.img === key).map((t) => {
@@ -626,7 +783,7 @@ function pinsHtml(p, key) {
 function figureHtml(p, f) {
   if (!f.file) return `<figure><figcaption>${esc(f.label)} <small>${esc(f.sub)}</small></figcaption><div class="frame missing">No screenshot</div></figure>`;
   return `<figure><figcaption>${esc(f.label)} <small>${esc(f.sub)}</small></figcaption>
-    <div class="frame${f.noPin ? ' nopin' : ''}" data-img="${f.noPin ? '' : f.key}"><div class="stage"><img src="${imgUrl(f.file)}" alt="${esc(`${f.label}: ${p.title}`)}" draggable="false"><div class="pins">${pinsHtml(p, f.key)}</div></div></div></figure>`;
+    <div class="frame${f.noPin ? ' nopin' : ''}" data-img="${f.noPin ? '' : f.key}"><div class="stage"><img src="${imgUrl(f.file)}" alt="${esc(`${f.label}: ${p.title}`)}" draggable="false">${changesHtml(p, f.key)}<div class="pins">${pinsHtml(p, f.key)}</div></div></div></figure>`;
 }
 
 function swipeHtml(p, base, cmp) {
@@ -636,7 +793,7 @@ function swipeHtml(p, base, cmp) {
       <div class="over"><img src="${imgUrl(cmp.file)}" alt="${esc(`${cmp.label}: ${p.title}`)}" draggable="false"></div>
       <span class="corner l">${esc(cmp.label)}</span><span class="corner r">${esc(base.label)}</span>
       <div class="handle" aria-label="Drag to compare"></div>
-      <div class="pins">${pinsHtml(p, base.key)}</div>
+      ${changesHtml(p, base.key)}<div class="pins">${pinsHtml(p, base.key)}</div>
     </div></div></figure>`;
 }
 
@@ -848,6 +1005,9 @@ $('railToggle').addEventListener('click', () => { ui.rail = !ui.rail; if (window
 $('main').addEventListener('pointerdown', () => { if (window.innerWidth <= 1100 && ui.rail) { ui.rail = false; applyPanels(); } });
 $('panelToggle').addEventListener('click', () => { ui.panel = !ui.panel; pref.set('panel', ui.panel ? 'open' : 'closed'); applyPanels(); });
 $('helpBtn').addEventListener('click', () => $('help').showModal());
+$('sendBtn').addEventListener('click', openSend);
+$('sendCancel').addEventListener('click', () => $('sendDlg').close());
+$('sendConfirm').addEventListener('click', confirmSend);
 $('verdicts').addEventListener('click', (e) => { const b = e.target.closest('button[data-v]'); if (b) setVerdict(b.dataset.v); });
 $('pairs').addEventListener('click', (e) => { const b = e.target.closest('button[data-pair]'); if (b && !b.disabled) { ui.pair = b.dataset.pair; pref.set('pair', ui.pair); render(); } });
 $('layouts').addEventListener('click', (e) => { const b = e.target.closest('button[data-layout]'); if (b && !b.disabled) { ui.layout = b.dataset.layout; pref.set('layout', ui.layout); render(); } });
@@ -893,14 +1053,15 @@ document.addEventListener('keydown', (e) => {
   if (inField) {
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
       const box = e.target;
-      if (box.id === 'draftText') onAction({ dataset: { act: 'sendDraft' } });
+      if (box.id === 'sendNote') confirmSend();
+      else if (box.id === 'draftText') onAction({ dataset: { act: 'sendDraft' } });
       else if (box.id === 'generalText') onAction({ dataset: { act: 'sendGeneral' } });
       else if (box.dataset.reply) sendReply(box.dataset.reply, box);
     }
     if (e.key === 'Escape') { if (openThread) { openThread = null; draftPin = null; render(); } else e.target.blur(); }
     return;
   }
-  if (!data?.rounds.length || e.ctrlKey || e.metaKey || e.altKey || $('help').open) return;
+  if (!data?.rounds.length || e.ctrlKey || e.metaKey || e.altKey || $('help').open || $('sendDlg').open) return;
   const ps = pages();
   const i = ps.findIndex((p) => p.id === current);
   const key = e.key;
@@ -909,6 +1070,8 @@ document.addEventListener('keydown', (e) => {
   else if (key === 'k' || key === 'ArrowUp') { e.preventDefault(); if (current === OVERVIEW) return; const n = ps[i - 1]; go(n ? n.id : OVERVIEW); }
   else if (key === 'n') { const order = [...ps.slice(i + 1), ...ps.slice(0, i + 1)]; const n = order.find(needsMe); if (n) go(n.id); else toast('Nothing left that needs you in this round'); }
   else if (key === 'o') go(OVERVIEW);
+  else if (key === 'S') openSend();
+  else if (key === 'h') { ui.changes = !ui.changes; pref.set('changes', ui.changes ? '1' : '0'); if (current !== OVERVIEW) renderPage(page()); }
   else if (key === '1') setVerdict('approve');
   else if (key === '2') setVerdict('update');
   else if (key === '3') setVerdict('revert');

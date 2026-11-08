@@ -50,7 +50,7 @@ export function createApp(store) {
     const slug = parts[2];
     const rest = parts.slice(3);
 
-    if (method === 'GET' && rest.length === 0) return send(res, 200, store.get(slug));
+    if (method === 'GET' && rest.length === 0) return send(res, 200, { ...store.get(slug), waiting: store.waiting(slug) });
     if (method === 'GET' && rest[0] === 'img' && rest.length === 2) {
       let bytes;
       try {
@@ -73,6 +73,10 @@ export function createApp(store) {
       const { round, page: pageId, text, pin, replyTo, author } = await body(req);
       // The browser always speaks for a person; agents use the CLI.
       return send(res, 201, store.addComment(slug, { round, page: pageId, text, pin, replyTo, author, kind: 'human' }));
+    }
+    if (method === 'POST' && rest[0] === 'submit' && rest.length === 1) {
+      const { round, by, note } = await body(req);
+      return send(res, 201, store.submit(slug, { round, by, note }));
     }
     if (rest[0] === 'comments' && rest.length === 2) {
       if (method === 'PATCH') {

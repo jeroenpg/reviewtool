@@ -6,6 +6,7 @@ export const MARKER = '<!-- reviewtool:log -->';
 const LIMIT = 60_000; // GitHub caps a comment at 65,536 characters.
 const VERDICT_TEXT = { approve: 'Approved', update: 'Needs update', revert: 'Revert' };
 
+const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
 const date = (iso) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 const oneLine = (s) => s.replace(/\r?\n+/g, ' ⏎ ').replace(/\|/g, '\\|');
 const quoteBody = (s, indent) => s.split(/\r?\n/).map((line, i) => (i === 0 ? line : indent + line)).join('\n');
@@ -28,8 +29,18 @@ export function renderLog({ review, rounds, feedback }, { url = null, compactBef
   for (const round of [...rounds].reverse()) {
     const roundThreads = all.filter((t) => t.round === round.n);
     const compact = round.n < rounds.length - compactBefore + 1;
-    out.push('', `<details${round === latest ? ' open' : ''}><summary><b>Round ${round.n}${round.title && round.title !== `Round ${round.n}` ? ` — ${round.title}` : ''}</b> · ${date(round.createdAt)} · ${round.pages.length} pages · ${roundThreads.length} comments</summary>`, '');
+    out.push('', `<details${round === latest ? ' open' : ''}><summary><b>Round ${round.n}${round.title && round.title !== `Round ${round.n}` ? ` — ${round.title}` : ''}</b> · ${date(round.createdAt)} · ${plural(round.pages.length, 'page')} · ${plural(roundThreads.length, 'comment')}</summary>`, '');
     if (round.notes) out.push(round.notes, '');
+    if (round.pages.some((p) => p.change)) {
+      const kind = (p) => (p.change?.status === 'same' ? 'unchanged' : p.change?.status === 'new' ? 'new' : ['changed', 'minor'].includes(p.change?.status) ? 'changed' : 'not compared');
+      const groups = {};
+      for (const p of round.pages) (groups[kind(p)] ??= []).push(p.title);
+      const order = ['changed', 'new', 'unchanged', 'not compared'].filter((k) => groups[k]);
+      out.push(`Since round ${round.n - 1}: ${order.map((k) => `${groups[k].length} ${k}`).join(', ')}.${groups.changed ? ` Changed: ${groups.changed.join(', ')}.` : ''}`, '');
+    }
+    for (const s of (feedback.submissions ?? []).filter((x) => x.round === round.n)) {
+      out.push(`> Feedback sent${s.by ? ` by **${s.by}**` : ''} on ${date(s.at)} (${plural(s.comments, 'comment')}, ${plural(s.verdicts, 'verdict')})${s.pickedUpBy ? `, picked up by ${s.pickedUpBy}` : ''}.${s.note ? ` ${oneLine(s.note)}` : ''}`, '');
+    }
     // Only pages with a verdict or comments get a row; the rest are named on one line.
     const rows = round.pages.map((p) => ({ p, v: feedback.verdicts[`${round.n}/${p.id}`]?.verdict, n: roundThreads.filter((t) => t.page === p.id).length }));
     const quiet = rows.filter((r) => !r.v && !r.n);

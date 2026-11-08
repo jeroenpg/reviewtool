@@ -4,6 +4,8 @@ import { mkdtempSync, readdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
+import { createRequire } from 'node:module';
+const require = createRequire(import.meta.url);
 import { MARKER, renderLog } from '../src/log.mjs';
 import { createApp } from '../src/server.mjs';
 import { Store, needsReply, threads } from '../src/store.mjs';
@@ -116,4 +118,91 @@ test('the CLI runs the agent loop end to end', () => {
   assert.equal(JSON.parse(cli('feedback', 'demo', '--all', '--json')).threads[0].replies[0].author, 'Claude');
   assert.match(cli('log', 'demo'), /\*\*Claude\*\*: Bumped it to 20px/);
   assert.match(cli('url', 'demo', 'inbox'), /review\.test\/r\/demo#inbox/);
+});
+
+// A real PNG (RGB, filter 0) with a white background and an optional black square.
+function makePng(width, height, square = null) {
+  const { deflateSync } = require('node:zlib');
+  const rows = [];
+  for (let y = 0; y < height; y++) {
+    const row = Buffer.alloc(1 + width * 3, 255);
+    row[0] = 0;
+    for (let x = 0; x < width; x++) {
+      if (square && x >= square.x && x < square.x + square.size && y >= square.y && y < square.y + square.size) row.fill(0, 1 + x * 3, 4 + x * 3);
+    }
+    rows.push(row);
+  }
+  const chunk = (name, data) => {
+    const len = Buffer.alloc(4);
+    len.writeUInt32BE(data.length);
+    const crc = Buffer.alloc(4); // the decoder does not check CRCs
+    return Buffer.concat([len, Buffer.from(name, 'latin1'), data, crc]);
+  };
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(width, 0);
+  ihdr.writeUInt32BE(height, 4);
+  ihdr[8] = 8; ihdr[9] = 2;
+  return Buffer.concat([Buffer.from('89504e470d0a1a0a', 'hex'), chunk('IHDR', ihdr), chunk('IDAT', deflateSync(Buffer.concat(rows))), chunk('IEND', Buffer.alloc(0))]);
+}
+
+test('new rounds mark each page as same, changed or new, with the changed area boxed', async () => {
+  const { compareImages, decodePng } = await import('../src/diff.mjs');
+  const dir = mkdtempSync(join(tmpdir(), 'reviewtool-diff-'));
+  writeFileSync(join(dir, 'plain.png'), makePng(200, 100));
+  writeFileSync(join(dir, 'plain-copy.png'), makePng(200, 100));
+  writeFileSync(join(dir, 'square.png'), makePng(200, 100, { x: 150, y: 20, size: 30 }));
+  writeFileSync(join(dir, 'tall.png'), makePng(200, 120));
+  const decoded = decodePng(makePng(4, 2, { x: 0, y: 0, size: 1 }));
+  assert.deepEqual([...decoded.rgba.slice(0, 8)], [0, 0, 0, 255, 255, 255, 255, 255]);
+
+  const changed = compareImages(join(dir, 'plain.png'), join(dir, 'square.png'));
+  assert.equal(changed.status, 'changed');
+  assert.equal(changed.ratio, 0.045); // 900 of 20000 pixels
+  assert.equal(changed.boxes.length, 1);
+  const [box] = changed.boxes;
+  assert.ok(box.x <= 75 && box.x + box.w >= 90 && box.y <= 20 && box.y + box.h >= 50, JSON.stringify(box));
+  assert.equal(compareImages(join(dir, 'plain.png'), join(dir, 'tall.png')).status, 'changed');
+
+  const store = new Store(join(dir, 'store'));
+  store.create({ slug: 'demo' });
+  store.addRound('demo', { pages: [{ id: 'a', after: 'plain.png' }, { id: 'b', after: 'plain.png' }] }, dir);
+  const r2 = store.addRound('demo', { pages: [{ id: 'a', after: 'plain-copy.png' }, { id: 'b', after: 'square.png' }, { id: 'c', after: 'plain.png' }] }, dir);
+  assert.deepEqual(r2.pages.map((p) => p.change.status), ['same', 'changed', 'new']);
+});
+
+test('wait blocks until the reviewer sends feedback, then marks it picked up', async () => {
+  const { spawn } = await import('node:child_process');
+  const { dir } = fixture();
+  const home = join(dir, 'wait-store');
+  const store = new Store(home);
+  store.create({ slug: 'demo' });
+  store.addRound('demo', { pages: [{ id: 'inbox', title: 'Inbox', after: 'after1.png' }] }, dir);
+  const bin = join(import.meta.dirname, '..', 'bin', 'reviewtool.mjs');
+  const env = { ...process.env, REVIEWTOOL_HOME: home };
+
+  // Times out with exit 2 when nothing is sent.
+  const quick = spawn(process.execPath, [bin, 'wait', 'demo', '--timeout', '1'], { env });
+  assert.equal(await new Promise((r) => quick.on('exit', r)), 2);
+
+  const child = spawn(process.execPath, [bin, 'wait', 'demo', '--as', 'Claude'], { env });
+  let out = '';
+  child.stdout.on('data', (d) => (out += d));
+  const exited = new Promise((r) => child.on('exit', r));
+  // The app sees the agent waiting.
+  for (let i = 0; i < 50 && !store.waiting('demo'); i++) await new Promise((r) => setTimeout(r, 100));
+  assert.equal(store.waiting('demo')?.by, 'Claude');
+
+  store.addComment('demo', { round: 1, page: 'inbox', text: 'Make it calmer', author: 'Jeroen' });
+  store.setVerdict('demo', { round: 1, page: 'inbox', verdict: 'update' });
+  const sent = store.submit('demo', { by: 'Jeroen', note: 'Only the inbox for now' });
+  assert.deepEqual([sent.comments, sent.verdicts], [1, 1]);
+
+  assert.equal(await exited, 0);
+  assert.match(out, /Feedback sent by Jeroen .* 1 new comment, 1 verdict/);
+  assert.match(out, /Note from the reviewer:\n {2}Only the inbox for now/);
+  assert.match(out, /Make it calmer/);
+  const { feedback } = store.get('demo');
+  assert.equal(feedback.submissions[0].pickedUpBy, 'Claude');
+  assert.equal(store.waiting('demo'), null);
+  assert.equal(store.pickUp('demo', 'Claude'), null, 'each submission is picked up once');
 });

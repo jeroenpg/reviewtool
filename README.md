@@ -3,11 +3,12 @@
 Review UI changes in rounds, the way you would with a designer, while an AI agent does the work.
 
 1. **The agent publishes a round.** It sends before and after screenshots of every page it changed, plus phone
-   screenshots if it has them.
+   screenshots if it has them. reviewtool compares each screenshot with the previous round, so you can see which
+   pages changed and where.
 2. **You review them in the browser.** You compare before with after, or this round with the last one. You click a
    spot to pin a comment there, and you give each page a verdict: approve, needs update, or revert.
-3. **The agent reads your feedback from the command line.** It fixes the issues, replies to each comment, and
-   publishes the next round.
+3. **You press Send to agent.** The agent has been waiting with `reviewtool wait`. It picks up your comments and
+   verdicts, fixes the issues, replies to each comment, and publishes the next round.
 4. **The pull request gets a log of the whole review.** It is one comment, kept up to date, with every round, every
    verdict and every thread.
 
@@ -35,7 +36,7 @@ or an SSH tunnel. Then set `REVIEWTOOL_URL` to that address so the agent prints 
 ```sh
 reviewtool init inbox-redesign --title "Inbox redesign" --repo acme/app --pr 42
 reviewtool round inbox-redesign round.json --as Claude
-reviewtool feedback inbox-redesign
+reviewtool wait inbox-redesign --as Claude
 reviewtool reply inbox-redesign 3f2a9c1e "Moved snooze to the end of the row." --as Claude
 reviewtool round inbox-redesign round2.json --as Claude
 reviewtool log inbox-redesign --post
@@ -45,8 +46,12 @@ What each command does:
 
 - `init` starts a review. A good name is the branch name.
 - `round` publishes the screenshots listed in a manifest as the next round.
-- `feedback` prints the threads that are waiting for the agent. For each one it shows where the pin sits and the
-  path of the image.
+- `round` also prints what changed since the last round, such as `5 changed, 1 new, 30 unchanged since round 3`.
+- `wait` blocks until you press **Send to agent** in the browser. It then prints the threads waiting for the agent,
+  with where each pin sits and the path of the image, plus your note. The app shows you when an agent is waiting and
+  when it has picked up your feedback. Use `--timeout` for agents that cannot run long commands; exit code 2 means
+  nothing was sent yet.
+- `feedback` prints the same without waiting.
 - `reply` answers one thread. Only you resolve threads, after you have checked the fix.
 - The second `round` publishes the fixed screenshots as round 2.
 - `log --post` creates the review log comment on the PR, or updates it if it was posted before.
@@ -88,6 +93,13 @@ Rules for manifests:
   zooms; at 100% the two screenshots scroll together.
 - **Comment at the spot.** Click a screenshot and a comment box opens right there. Click a numbered pin to open its
   thread. The comments panel on the right lists every thread on the page, with the ones from earlier rounds folded.
+- **See what changed since the last round.** Every page is marked *changed*, *tiny*, *same* or *new*, and changed
+  areas are outlined on the screenshot (<kbd>H</kbd> hides them). The overview lists the changed pages, and one
+  click approves every unchanged page you already approved last round. *Unchanged* means pixel for pixel identical,
+  so nothing that moved is skipped.
+- **Send when you are done.** *Send to agent* in the top bar counts what you have added since you last sent; add an
+  optional note for the agent. The top bar shows when an agent is waiting for you, and when it is working on your
+  feedback.
 - **Know what's new.** Agent replies since your last visit are marked *new*; threads the agent answered say
   *answered · check it* until you resolve them. The page list has filters for pages without a verdict, with
   answered threads, and with new replies.
@@ -114,6 +126,7 @@ reviewtool set <name> [--title T] [--repo owner/name] [--pr N] [--branch B]
 reviewtool list
 reviewtool round <name> <manifest.json> [--title T] [--notes N] [--as Claude]
 reviewtool rounds <name>
+reviewtool wait <name> [--as Claude] [--timeout SECONDS] [--json]
 reviewtool feedback <name> [--all] [--round N] [--json]
 reviewtool reply <name> <comment-id> <text> [--as Claude] [--resolve]
 reviewtool comment <name> <page-id> <text> [--round N] [--as Claude]

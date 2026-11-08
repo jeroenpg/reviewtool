@@ -9,6 +9,8 @@ import { postLog, renderLog } from '../src/log.mjs';
 import { createApp } from '../src/server.mjs';
 import { ReviewError, Store, needsReply, threads } from '../src/store.mjs';
 
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const store = new Store();
 const baseUrl = () => (process.env.REVIEWTOOL_URL || 'http://localhost:4477').replace(/\/$/, '');
@@ -23,6 +25,9 @@ Usage:
   reviewtool round <name> <manifest.json> [--title T] [--notes N] [--as Claude]
                                                         add the next round (images are copied into the store)
   reviewtool rounds <name>                              list rounds and their pages
+  reviewtool wait <name> [--as Claude] [--timeout SECONDS] [--json]
+                                                        block until the reviewer presses "Send to agent", then print
+                                                        the feedback (exit 0); exit 2 when the timeout passes first
   reviewtool feedback <name> [--all] [--round N] [--json]
                                                         threads waiting for an agent (--all: every open thread)
   reviewtool reply <name> <comment-id> <text> [--as Claude] [--resolve]
@@ -54,6 +59,7 @@ const OPTIONS = {
   post: { type: 'boolean' },
   resolve: { type: 'boolean' },
   reopen: { type: 'boolean' },
+  timeout: { type: 'string' },
   help: { type: 'boolean', short: 'h' },
 };
 
@@ -79,6 +85,36 @@ function printThread(t, rounds, slug) {
     for (const line of lines.slice(1)) console.log(`    ${line}`);
   }
   console.log('');
+}
+
+const CHANGE_TEXT = { same: 'unchanged', minor: 'barely changed', changed: 'changed', new: 'new', unknown: 'not compared' };
+
+function changeSummary(round) {
+  if (!round.pages.some((p) => p.change)) return '';
+  const groups = {};
+  for (const p of round.pages) (groups[p.change?.status ?? 'unknown'] ??= []).push(p.id);
+  return ['changed', 'new', 'minor', 'same', 'unknown'].filter((k) => groups[k]).map((k) => `${groups[k].length} ${CHANGE_TEXT[k]}`).join(', ');
+}
+
+function printFeedback(slug, { all = false, round = null, json = false, submission = null } = {}) {
+  const { rounds, feedback } = store.get(slug);
+  let list = all ? threads(feedback.comments).filter((t) => t.status !== 'resolved') : needsReply(feedback.comments);
+  if (round) list = list.filter((t) => t.round === (round === 'latest' ? rounds.at(-1)?.n : Number(round)));
+  const latest = rounds.at(-1);
+  const verdicts = latest ? latest.pages.map((p) => ({ page: p.id, verdict: feedback.verdicts[`${latest.n}/${p.id}`]?.verdict ?? null })) : [];
+  if (json) return console.log(JSON.stringify({ round: latest?.n ?? null, submission, threads: list, verdicts }, null, 2));
+  if (submission) {
+    console.log(`Feedback sent${submission.by ? ` by ${submission.by}` : ''} at ${fmtDate(submission.at)} for round ${submission.round}: ${submission.comments} new comment${submission.comments === 1 ? '' : 's'}, ${submission.verdicts} verdict${submission.verdicts === 1 ? '' : 's'}.`);
+    if (submission.note) console.log(`Note from the reviewer:\n  ${submission.note.split('\n').join('\n  ')}`);
+    console.log('');
+  }
+  console.log(`${list.length} thread${list.length === 1 ? '' : 's'} ${all ? 'open' : 'waiting for a reply'} in "${slug}"\n`);
+  for (const t of list) printThread(t, rounds, slug);
+  if (latest) {
+    const by = (v) => verdicts.filter((x) => x.verdict === v).map((x) => x.page);
+    const named = (v) => (by(v).length ? ` (${by(v).join(', ')})` : '');
+    console.log(`Verdicts in round ${latest.n}: approved ${by('approve').length}, needs update ${by('update').length}${named('update')}, revert ${by('revert').length}${named('revert')}, none ${by(null).length}`);
+  }
 }
 
 async function main() {
@@ -119,30 +155,50 @@ async function main() {
       if (o.notes) manifest.notes = o.notes;
       if (o.as) manifest.by = o.as;
       const round = store.addRound(slug, manifest, dirname(file));
-      console.log(`added round ${round.n} with ${round.pages.length} pages: ${baseUrl()}/r/${slug}`);
+      const summary = changeSummary(round);
+      console.log(`added round ${round.n} with ${round.pages.length} pages${summary ? ` (${summary} since round ${round.n - 1})` : ''}: ${baseUrl()}/r/${slug}`);
       return;
     }
     case 'rounds': {
       const { rounds } = store.get(need(args[0], 'review name'));
       if (o.json) return console.log(JSON.stringify(rounds, null, 2));
-      for (const r of rounds) console.log(`round ${r.n} · ${r.title} · ${fmtDate(r.createdAt)} · ${r.pages.map((p) => p.id).join(', ')}`);
+      for (const r of rounds) {
+        console.log(`round ${r.n} · ${r.title} · ${fmtDate(r.createdAt)}${changeSummary(r) ? ` · ${changeSummary(r)}` : ''}`);
+        for (const p of r.pages) console.log(`  ${p.id}${p.change ? `  ${CHANGE_TEXT[p.change.status]}${p.change.ratio ? ` (${(p.change.ratio * 100).toFixed(1)}%)` : ''}` : ''}`);
+      }
       return;
     }
     case 'feedback': {
-      const slug = need(args[0], 'review name');
-      const { rounds, feedback } = store.get(slug);
-      let list = o.all ? threads(feedback.comments).filter((t) => t.status !== 'resolved') : needsReply(feedback.comments);
-      if (o.round) list = list.filter((t) => t.round === (o.round === 'latest' ? rounds.at(-1)?.n : Number(o.round)));
-      const latest = rounds.at(-1);
-      const verdicts = latest ? latest.pages.map((p) => ({ page: p.id, verdict: feedback.verdicts[`${latest.n}/${p.id}`]?.verdict ?? null })) : [];
-      if (o.json) return console.log(JSON.stringify({ round: latest?.n ?? null, threads: list, verdicts }, null, 2));
-      console.log(`${list.length} thread${list.length === 1 ? '' : 's'} ${o.all ? 'open' : 'waiting for a reply'} in "${slug}"\n`);
-      for (const t of list) printThread(t, rounds, slug);
-      if (latest) {
-        const by = (v) => verdicts.filter((x) => x.verdict === v).map((x) => x.page);
-        console.log(`Verdicts in round ${latest.n}: approved ${by('approve').length}, needs update ${by('update').length}${by('update').length ? ` (${by('update').join(', ')})` : ''}, revert ${by('revert').length}${by('revert').length ? ` (${by('revert').join(', ')})` : ''}, none ${by(null).length}`);
-      }
+      printFeedback(need(args[0], 'review name'), { all: o.all, round: o.round, json: o.json });
       return;
+    }
+    case 'wait': {
+      const slug = need(args[0], 'review name');
+      const by = o.as || 'Claude';
+      const timeout = Number(o.timeout ?? 0) * 1000;
+      const started = Date.now();
+      const stop = (code) => {
+        store.setWaiting(slug, null);
+        process.exit(code);
+      };
+      process.on('SIGINT', () => stop(130));
+      process.on('SIGTERM', () => stop(143));
+      if (!o.json) console.error(`waiting for feedback on "${slug}": ${baseUrl()}/r/${slug}`);
+      for (;;) {
+        const submission = store.pickUp(slug, by);
+        if (submission) {
+          store.setWaiting(slug, null);
+          printFeedback(slug, { json: o.json, submission });
+          return;
+        }
+        if (timeout && Date.now() - started >= timeout) {
+          store.setWaiting(slug, null);
+          console.log(`No feedback was sent within ${Math.round(timeout / 1000)} seconds. Run "reviewtool wait ${slug}" again to keep waiting.`);
+          process.exit(2);
+        }
+        store.setWaiting(slug, { by, since: new Date(started).toISOString(), pid: process.pid });
+        await sleep(2000);
+      }
     }
     case 'reply': {
       const slug = need(args[0], 'review name');
