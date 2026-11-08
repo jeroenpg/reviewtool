@@ -81,14 +81,20 @@ Rules for manifests:
 
 ## In the browser
 
-- **Views:** Side by side, Before, After, Last round (the previous round next to this one), and Phone. The keyboard
-  shortcuts are <kbd>S</kbd> <kbd>B</kbd> <kbd>A</kbd> <kbd>L</kbd> <kbd>P</kbd>, and <kbd>J</kbd>/<kbd>K</kbd> go to
-  the next or previous page.
-- **Comments:** click a screenshot to pin a comment there, or write a general one. Each comment starts a thread. The
-  agent's replies show up within a few seconds, and you can answer them.
-- **Waiting threads:** a thread waits for the agent until the agent replies. If you answer after that, it waits for
-  the agent again. Pages with waiting threads show an orange count in the sidebar.
-- **Earlier rounds:** each page lists the comments it got in other rounds. The round picker opens any earlier round.
+- **Overview first.** A review opens on the round's overview: what the agent changed, how many pages still need a
+  verdict, which threads the agent answered, and a button that takes you to the next page that needs you.
+- **Compare two ways.** Pick what to compare the after with (*vs Before* or *vs Last round*) and how (*Side by
+  side*, *Swipe* with a draggable handle, or *After only*). *Phone* switches to the phone screenshots. *Fit* / *100%*
+  zooms; at 100% the two screenshots scroll together.
+- **Comment at the spot.** Click a screenshot and a comment box opens right there. Click a numbered pin to open its
+  thread. The comments panel on the right lists every thread on the page, with the ones from earlier rounds folded.
+- **Know what's new.** Agent replies since your last visit are marked *new*; threads the agent answered say
+  *answered · check it* until you resolve them. The page list has filters for pages without a verdict, with
+  answered threads, and with new replies.
+- **Keyboard.** <kbd>J</kbd>/<kbd>K</kbd> next or previous page, <kbd>N</kbd> next page that needs you,
+  <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> for the verdicts, <kbd>S</kbd> <kbd>W</kbd> <kbd>A</kbd> for the layouts,
+  <kbd>C</kbd> to switch the comparison, <kbd>P</kbd> phone, <kbd>Z</kbd> zoom, <kbd>O</kbd> overview, <kbd>?</kbd>
+  for the full list.
 
 ## Where the data lives
 

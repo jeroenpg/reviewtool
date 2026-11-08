@@ -7,200 +7,361 @@
 <link rel="icon" href="/favicon.svg">
 <style>
   :root {
-    --bg: #f6f7f7; --panel: #fff; --ink: #1c2422; --muted: #5d6966; --line: #e2e6e5;
-    --accent: #0e6b61; --accent-ink: #fff; --accent-soft: #e3f1ef; --agent-line: #c4e0dc;
-    --approve: #1f7a3d; --update: #9a5b00; --revert: #b42318; --pin: #e8590c; --new: #6d3fc0;
+    --bg: #f3f5f5; --surface: #fff; --surface-2: #f7f9f8; --ink: #161d1b; --muted: #64706d; --line: #e2e7e6; --line-strong: #c9d1cf;
+    --accent: #0f766e; --accent-ink: #fff; --accent-soft: #e4f2ef; --agent: #eef6f4; --agent-line: #cfe4df;
+    --approve: #15803d; --approve-soft: #e3f5e9; --update: #b45309; --update-soft: #fdf0dc; --revert: #b91c1c; --revert-soft: #fde7e7;
+    --pin: #ea580c; --new: #6d28d9; --new-soft: #efe9fd;
+    --shadow: 0 1px 2px rgb(0 0 0 / .05), 0 10px 30px rgb(0 0 0 / .10);
     color-scheme: light;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #121615; --panel: #1b2120; --ink: #e6ecea; --muted: #9aa7a4; --line: #2c3533;
-      --accent: #3fb5a5; --accent-ink: #08201d; --accent-soft: #17302c; --agent-line: #275049;
-      --approve: #4cc27a; --update: #e0a13a; --revert: #f06b5f; --pin: #ff8a3d; --new: #a88bf0;
+      --bg: #0f1312; --surface: #171c1b; --surface-2: #1c2221; --ink: #e8edeb; --muted: #97a39f; --line: #27302e; --line-strong: #3a4543;
+      --accent: #34d399; --accent-ink: #05211a; --accent-soft: #15302a; --agent: #142925; --agent-line: #22463f;
+      --approve: #4ade80; --approve-soft: #13301f; --update: #fbbf24; --update-soft: #3a2a0c; --revert: #f87171; --revert-soft: #3d1717;
+      --pin: #fb923c; --new: #a78bfa; --new-soft: #2a2144;
+      --shadow: 0 1px 2px rgb(0 0 0 / .4), 0 12px 32px rgb(0 0 0 / .5);
       color-scheme: dark;
     }
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; }
-  body { font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--ink); background: var(--bg); display: grid; grid-template-columns: 270px 1fr; }
+  body { font: 13.5px/1.45 Inter, system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--ink); background: var(--bg); display: grid; grid-template-rows: 48px minmax(0, 1fr); }
   button, select, input, textarea { font: inherit; color: inherit; }
   button { cursor: pointer; }
   a { color: var(--accent); }
-  aside { border-right: 1px solid var(--line); background: var(--panel); overflow-y: auto; display: flex; flex-direction: column; min-height: 0; }
-  aside header { padding: 14px 16px 12px; border-bottom: 1px solid var(--line); display: grid; gap: 8px; }
-  .crumbs { font-size: 12px; color: var(--muted); display: flex; gap: 6px; flex-wrap: wrap; }
-  .crumbs a { text-decoration: none; }
-  aside h1 { font-size: 15px; margin: 0; }
-  select { border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; background: var(--panel); width: 100%; }
-  .progress { color: var(--muted); font-size: 12px; }
-  .bar { height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; }
-  .bar span { display: block; height: 100%; background: var(--accent); transition: width .2s; }
-  nav { padding: 6px; display: flex; flex-direction: column; gap: 1px; }
-  nav button { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; border: 0; background: none; padding: 7px 10px; border-radius: 6px; }
-  nav button:hover { background: var(--bg); }
-  nav button[aria-current="true"] { background: var(--accent-soft); font-weight: 600; }
-  nav .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .count { font-size: 11px; font-weight: 700; color: #fff; background: var(--pin); border-radius: 9px; padding: 0 6px; }
-  .tag { font-size: 11px; color: var(--new); border: 1px solid currentColor; border-radius: 9px; padding: 0 6px; }
-  .dot { width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid var(--muted); flex: none; opacity: .7; }
-  .dot.approve { background: var(--approve); border-color: var(--approve); opacity: 1; }
-  .dot.update { background: var(--update); border-color: var(--update); opacity: 1; }
-  .dot.revert { background: var(--revert); border-color: var(--revert); opacity: 1; }
-  .foot { margin-top: auto; padding: 12px 16px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; display: grid; gap: 6px; }
-  .foot label { display: flex; gap: 8px; align-items: center; }
-  .foot input { flex: 1; min-width: 0; border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; background: var(--panel); }
-  .legend div { display: flex; align-items: center; gap: 8px; }
-  main { overflow-y: auto; padding: 20px 24px 48px; min-width: 0; }
-  .top { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; margin-bottom: 8px; }
-  .top h2 { margin: 0; font-size: 20px; }
-  .route { color: var(--muted); font-family: ui-monospace, monospace; font-size: 12px; overflow-wrap: anywhere; }
-  .note { color: var(--muted); margin: 0 0 14px; white-space: pre-wrap; }
+  h1, h2, h3 { margin: 0; font-weight: 650; letter-spacing: -.01em; }
+  kbd { font: 11px ui-monospace, SFMono-Regular, monospace; border: 1px solid var(--line-strong); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; background: var(--surface); color: var(--muted); }
+  [hidden] { display: none !important; }
+  .muted { color: var(--muted); }
   .spacer { flex: 1; }
-  .seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); padding: 2px; gap: 2px; }
-  .seg button { border: 0; background: none; padding: 5px 12px; border-radius: 6px; }
-  .seg button:hover:not(:disabled):not([aria-pressed="true"]) { background: var(--bg); }
-  .seg button:disabled { opacity: .4; cursor: default; }
-  .seg button[aria-pressed="true"] { background: var(--ink); color: var(--panel); }
+
+  /* Top bar */
+  .bar { display: flex; align-items: center; gap: 12px; padding: 0 14px; background: var(--surface); border-bottom: 1px solid var(--line); min-width: 0; }
+  .brand { display: inline-flex; align-items: center; gap: 8px; font-weight: 650; color: var(--ink); text-decoration: none; }
+  .brand img { width: 20px; height: 20px; }
+  .bar .sep { width: 1px; height: 20px; background: var(--line); }
+  .bar .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+  .bar .name a { font-weight: 400; color: var(--muted); text-decoration: none; margin-left: 6px; }
+  .bar .name a:hover { color: var(--accent); }
+  .bar select, .bar input { border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; background: var(--surface); }
+  .bar input { width: 120px; }
+  .ring { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12.5px; white-space: nowrap; }
+  .ring svg { width: 22px; height: 22px; transform: rotate(-90deg); }
+  .ring circle { fill: none; stroke-width: 3.5; }
+  .ring .track { stroke: var(--line); }
+  .ring .fill { stroke: var(--approve); stroke-linecap: round; transition: stroke-dashoffset .3s; }
+  .iconbtn { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; width: 30px; height: 30px; display: inline-grid; place-items: center; color: var(--muted); padding: 0; }
+  .iconbtn:hover { color: var(--ink); border-color: var(--line-strong); }
+  .iconbtn[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
+
+  /* Three columns */
+  .app { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; min-height: 0; }
+  .rail { width: 250px; border-right: 1px solid var(--line); background: var(--surface); display: flex; flex-direction: column; min-height: 0; }
+  .app[data-rail="closed"] .rail { display: none; }
+  .rail-tools { padding: 10px 10px 8px; border-bottom: 1px solid var(--line); display: grid; gap: 8px; }
+  .rail-tools input { width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 6px 9px; background: var(--surface-2); }
+  .chips { display: flex; flex-wrap: wrap; gap: 4px; }
+  .chip { border: 1px solid transparent; background: var(--surface-2); border-radius: 999px; padding: 2px 9px; font-size: 12px; color: var(--muted); }
+  .chip:hover { border-color: var(--line-strong); }
+  .chip[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
+  .chip b { font-weight: 600; margin-left: 4px; }
+  nav { overflow-y: auto; padding: 6px; flex: 1; }
+  nav .group { font-size: 11px; text-transform: none; letter-spacing: .02em; color: var(--muted); padding: 12px 10px 4px; font-weight: 600; position: sticky; top: 0; background: var(--surface); }
+  nav button { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; border: 0; background: none; padding: 6px 10px; border-radius: 7px; color: var(--ink); }
+  nav button:hover { background: var(--surface-2); }
+  nav button[aria-current="true"] { background: var(--accent-soft); font-weight: 600; }
+  nav .label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  nav .ov { font-weight: 600; margin-bottom: 2px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--line-strong); flex: none; }
+  .dot.approve { background: var(--approve); border-color: var(--approve); }
+  .dot.update { background: var(--update); border-color: var(--update); }
+  .dot.revert { background: var(--revert); border-color: var(--revert); }
+  .count { font-size: 11px; font-weight: 700; color: #fff; background: var(--pin); border-radius: 9px; padding: 0 6px; line-height: 17px; }
+  .count.new { background: var(--new); }
+  .tag { font-size: 10.5px; font-weight: 600; color: var(--new); background: var(--new-soft); border-radius: 5px; padding: 1px 5px; }
+  .rail-foot { padding: 8px 12px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); display: flex; gap: 10px; }
+  .rail-foot a { color: var(--muted); }
+
+  main { overflow-y: auto; min-width: 0; padding: 16px 20px 56px; }
+  .page-head { display: flex; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+  .page-head h1 { font-size: 19px; line-height: 1.25; }
+  .route { color: var(--muted); font: 12px ui-monospace, SFMono-Regular, monospace; overflow-wrap: anywhere; margin-top: 2px; }
+  .page-note { margin: 10px 0 0; padding: 8px 12px; background: var(--accent-soft); border-radius: 8px; white-space: pre-wrap; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); padding: 2px; gap: 2px; }
+  .seg button { border: 0; background: none; padding: 5px 11px; border-radius: 7px; color: var(--ink); display: inline-flex; align-items: center; gap: 6px; }
+  .seg button:hover:not(:disabled):not([aria-pressed="true"]) { background: var(--surface-2); }
+  .seg button:disabled { opacity: .38; cursor: default; }
+  .seg button[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
+  .seg kbd { margin-left: 2px; }
+  .seg button[aria-pressed="true"] kbd { border-color: transparent; background: rgb(255 255 255 / .18); color: inherit; }
   .verdicts button[data-v="approve"][aria-pressed="true"] { background: var(--approve); color: #fff; }
   .verdicts button[data-v="update"][aria-pressed="true"] { background: var(--update); color: #fff; }
   .verdicts button[data-v="revert"][aria-pressed="true"] { background: var(--revert); color: #fff; }
-  .shots { display: grid; grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr)); gap: 16px; align-items: start; margin-top: 12px; }
-  .shots.phone { grid-template-columns: repeat(var(--cols, 1), minmax(0, 390px)); }
+  .toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 14px 0 10px; }
+  .toolbar .hint { color: var(--muted); font-size: 12.5px; }
+
+  /* Canvas */
+  .canvas { display: grid; gap: 14px; align-items: start; grid-template-columns: minmax(0, 1fr); }
+  .canvas[data-layout="side"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .canvas[data-phone="true"] { grid-template-columns: repeat(auto-fit, minmax(0, 400px)); justify-content: start; }
   figure { margin: 0; min-width: 0; }
-  figcaption { font-weight: 600; margin-bottom: 6px; display: flex; gap: 8px; align-items: baseline; }
+  figcaption { display: flex; gap: 8px; align-items: baseline; margin-bottom: 6px; font-weight: 600; }
   figcaption small { font-weight: 400; color: var(--muted); }
-  .frame { position: relative; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--panel); cursor: crosshair; }
-  .frame img { display: block; width: 100%; height: auto; user-select: none; -webkit-user-drag: none; }
-  .missing { padding: 48px 16px; text-align: center; color: var(--muted); cursor: default; }
-  .pin { position: absolute; transform: translate(-50%, -50%); min-width: 22px; height: 22px; padding: 0 5px; border-radius: 11px; background: var(--pin); color: #fff; font-size: 12px; font-weight: 700; display: grid; place-items: center; border: 2px solid #fff; box-shadow: 0 1px 4px rgb(0 0 0 / .35); cursor: pointer; }
+  .frame { position: relative; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); overflow: auto; max-height: calc(100vh - 230px); cursor: crosshair; scrollbar-width: thin; }
+  .frame.nopin { cursor: default; }
+  .stage { position: relative; width: 100%; }
+  .stage > img { display: block; width: 100%; height: auto; user-select: none; -webkit-user-drag: none; }
+  .canvas[data-zoom="full"] .stage { width: max-content; min-width: 100%; }
+  .canvas[data-zoom="full"] .stage > img { width: auto; max-width: none; }
+  .canvas[data-phone="true"] .frame { max-height: calc(100vh - 230px); }
+  .missing { padding: 56px 16px; text-align: center; color: var(--muted); border-style: dashed; cursor: default; }
+  .pins { position: absolute; inset: 0; pointer-events: none; }
+  .pin { position: absolute; transform: translate(-50%, -50%); min-width: 24px; height: 24px; padding: 0 6px; border: 2px solid #fff; border-radius: 12px 12px 12px 3px; background: var(--pin); color: #fff; font-size: 12px; font-weight: 700; display: grid; place-items: center; box-shadow: 0 1px 4px rgb(0 0 0 / .4); cursor: pointer; pointer-events: auto; transition: transform .12s; }
+  .pin:hover, .pin.active { transform: translate(-50%, -50%) scale(1.15); z-index: 2; }
+  .pin.active { outline: 3px solid color-mix(in srgb, var(--pin) 40%, transparent); }
   .pin.resolved { background: #8a9592; }
-  .pin.draft { background: var(--accent); animation: pulse 1.2s infinite; }
-  .pin.hl { outline: 3px solid var(--pin); outline-offset: 2px; }
-  @keyframes pulse { 50% { transform: translate(-50%, -50%) scale(1.15); } }
-  .hint { color: var(--muted); font-size: 13px; margin: 8px 0 20px; }
-  .discussion { max-width: 860px; }
-  .composer { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px; margin-bottom: 16px; }
-  .composer .target { font-size: 13px; color: var(--muted); margin-bottom: 6px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-  .composer .target strong { color: var(--accent); }
-  textarea { width: 100%; min-height: 70px; resize: vertical; border: 1px solid var(--line); border-radius: 6px; padding: 8px; background: var(--panel); }
+  .pin.new::after { content: ''; position: absolute; top: -4px; right: -4px; width: 9px; height: 9px; border-radius: 50%; background: var(--new); border: 2px solid #fff; }
+  .pin.draft { background: var(--accent); color: var(--accent-ink); animation: pulse 1.2s infinite; }
+  @keyframes pulse { 50% { transform: translate(-50%, -50%) scale(1.18); } }
+  /* Swipe */
+  .swipe .over { position: absolute; inset: 0; clip-path: inset(0 calc(100% - var(--split)) 0 0); }
+  .swipe .over img { display: block; width: 100%; height: auto; }
+  .canvas[data-zoom="full"] .swipe .over img { width: auto; max-width: none; }
+  .swipe .handle { position: absolute; top: 0; bottom: 0; left: var(--split); width: 2px; background: #fff; box-shadow: 0 0 0 1px rgb(0 0 0 / .35); transform: translateX(-1px); cursor: ew-resize; }
+  .swipe .handle::after { content: '⇔'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 32px; height: 32px; border-radius: 50%; background: #fff; color: #222; display: grid; place-items: center; font-size: 15px; box-shadow: 0 1px 5px rgb(0 0 0 / .4); }
+  .swipe .corner { position: absolute; top: 8px; font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 5px; background: rgb(0 0 0 / .62); color: #fff; pointer-events: none; }
+  .swipe .corner.l { left: 8px; } .swipe .corner.r { right: 8px; }
+
+  /* Panel */
+  .panel { width: 340px; border-left: 1px solid var(--line); background: var(--surface); display: flex; flex-direction: column; min-height: 0; }
+  .app[data-panel="closed"] .panel { display: none; }
+  .panel-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--line); font-weight: 600; }
+  .panel-body { overflow-y: auto; padding: 10px 12px 24px; display: grid; gap: 10px; align-content: start; }
+  .btn { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 5px 10px; }
+  .btn:hover { border-color: var(--line-strong); }
+  .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: transparent; font-weight: 600; }
+  .btn.primary:disabled { opacity: .5; cursor: default; }
+  .btn.small { padding: 3px 8px; font-size: 12.5px; }
+  .link { border: 0; background: none; color: var(--accent); padding: 0; font-size: 12.5px; }
+  .link:hover { text-decoration: underline; }
+  .link.danger { color: var(--revert); }
+  textarea { width: 100%; min-height: 64px; resize: vertical; border: 1px solid var(--line); border-radius: 8px; padding: 8px; background: var(--surface); }
   textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
-  .actions { display: flex; justify-content: flex-end; gap: 8px; align-items: center; margin-top: 8px; }
-  .primary { background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 6px; padding: 6px 14px; font-weight: 600; }
-  .primary:disabled { opacity: .5; cursor: default; }
-  .link { border: 0; background: none; color: var(--accent); padding: 0; text-decoration: underline; font-size: 13px; }
-  .threads { display: grid; gap: 10px; list-style: none; padding: 0; margin: 0; }
-  .thread { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; display: grid; grid-template-columns: auto 1fr; gap: 6px 10px; }
-  .thread.resolved { opacity: .62; }
-  .thread.hl { border-color: var(--pin); }
-  .num { width: 22px; height: 22px; border-radius: 11px; background: var(--line); font-size: 12px; font-weight: 700; display: grid; place-items: center; }
+  .actions { display: flex; justify-content: flex-end; gap: 8px; align-items: center; margin-top: 6px; }
+  .thread { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: var(--surface); display: grid; gap: 8px; cursor: pointer; }
+  .thread:hover, .thread.hl { border-color: var(--pin); }
+  .thread.resolved { opacity: .6; }
+  .thread.resolved:hover { opacity: 1; }
+  .thread header { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+  .thread header b { color: var(--ink); font-size: 13px; }
+  .num { width: 22px; height: 22px; border-radius: 11px 11px 11px 3px; background: var(--line); font-size: 11.5px; font-weight: 700; display: grid; place-items: center; flex: none; color: var(--ink); }
   .num.pinned { background: var(--pin); color: #fff; }
-  .msgs { display: grid; gap: 8px; min-width: 0; }
-  .msg .meta { font-size: 12px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; }
+  .text { white-space: pre-wrap; overflow-wrap: anywhere; }
+  .msg { display: grid; gap: 2px; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface-2); }
+  .msg.agent { background: var(--agent); border-color: var(--agent-line); }
+  .msg .meta { font-size: 12px; color: var(--muted); display: flex; gap: 8px; align-items: center; }
   .msg .meta b { color: var(--ink); }
-  .msg .text { white-space: pre-wrap; overflow-wrap: anywhere; }
-  .msg.agent { background: var(--accent-soft); border: 1px solid var(--agent-line); border-radius: 6px; padding: 6px 10px; }
-  .badge { font-size: 11px; border-radius: 9px; padding: 0 6px; background: var(--accent); color: var(--accent-ink); }
-  .waiting { color: var(--pin); font-weight: 600; }
-  .tools { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
-  .reply textarea { min-height: 52px; }
-  .empty { color: var(--muted); list-style: none; }
-  details.earlier { margin-top: 22px; }
-  details.earlier summary { cursor: pointer; color: var(--muted); margin-bottom: 10px; }
-  .toast { position: fixed; bottom: 16px; right: 16px; background: var(--ink); color: var(--panel); padding: 8px 14px; border-radius: 6px; opacity: 0; transition: opacity .2s; pointer-events: none; }
+  .badge { font-size: 10.5px; font-weight: 600; border-radius: 5px; padding: 1px 6px; }
+  .badge.agent { background: var(--accent); color: var(--accent-ink); }
+  .badge.new { background: var(--new-soft); color: var(--new); }
+  .badge.waiting { background: var(--update-soft); color: var(--update); }
+  .badge.resolved { background: var(--surface-2); color: var(--muted); border: 1px solid var(--line); }
+  .tools { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .replybox textarea { min-height: 48px; }
+  .empty { color: var(--muted); padding: 24px 8px; text-align: center; }
+  details.earlier summary { cursor: pointer; color: var(--muted); font-size: 12.5px; padding: 4px 0; }
+  details.earlier .thread { margin-top: 8px; }
+  .roundmark { font-size: 11px; color: var(--muted); }
+
+  /* Popover at a pin */
+  .popover { position: fixed; z-index: 20; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); padding: 12px; display: grid; gap: 8px; max-height: min(70vh, 560px); overflow-y: auto; }
+  .popover .ph { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+  .popover .ph b { color: var(--ink); font-size: 13px; }
+  .popover .close { margin-left: auto; }
+
+  /* Overview */
+  .ov { max-width: 920px; display: grid; gap: 18px; }
+  .ov h1 { font-size: 22px; }
+  .ov .meta { color: var(--muted); margin-top: 4px; }
+  .ov .notes { padding: 12px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; white-space: pre-wrap; margin: 0; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+  .stat { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; display: grid; gap: 2px; text-align: left; cursor: pointer; }
+  .stat:hover { border-color: var(--line-strong); }
+  .stat b { font-size: 22px; font-weight: 650; letter-spacing: -.02em; }
+  .stat span { color: var(--muted); font-size: 12.5px; }
+  .stat.approve b { color: var(--approve); } .stat.update b { color: var(--update); } .stat.revert b { color: var(--revert); } .stat.waiting b { color: var(--pin); } .stat.new b { color: var(--new); }
+  .ov .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .ov .btn.primary { padding: 8px 16px; }
+  .ov h2 { font-size: 14px; margin-bottom: 8px; }
+  .pagechips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .pagechips button { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 3px 10px; display: inline-flex; gap: 6px; align-items: center; }
+  .pagechips button:hover { border-color: var(--accent); }
+  table.rounds { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  table.rounds th, table.rounds td { text-align: left; padding: 8px 12px; border-top: 1px solid var(--line); font-size: 13px; }
+  table.rounds th { border-top: 0; color: var(--muted); font-weight: 600; font-size: 12px; }
+  table.rounds tr[data-n] { cursor: pointer; }
+  table.rounds tr[data-n]:hover td { background: var(--surface-2); }
+  .ov .empty-state { padding: 40px; text-align: center; border: 1px dashed var(--line-strong); border-radius: 12px; color: var(--muted); }
+
+  dialog { border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); padding: 18px 20px; background: var(--surface); color: var(--ink); max-width: 460px; }
+  dialog::backdrop { background: rgb(0 0 0 / .3); }
+  dialog table { border-collapse: collapse; width: 100%; }
+  dialog td { padding: 4px 0; vertical-align: top; }
+  dialog td:first-child { width: 120px; white-space: nowrap; }
+  .toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--surface); padding: 8px 14px; border-radius: 8px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 30; }
   .toast.show { opacity: 1; }
-  kbd { font: 11px ui-monospace, monospace; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 4px; background: var(--panel); }
-  @media (max-width: 900px) {
-    body { grid-template-columns: 1fr; grid-template-rows: auto 1fr; height: auto; min-height: 100%; }
-    aside { max-height: 42vh; border-right: 0; border-bottom: 1px solid var(--line); }
-    .legend, .hint { display: none; }
-    main { padding: 16px; overflow: visible; }
-    .shots, .shots.phone { grid-template-columns: minmax(0, 1fr) !important; }
+
+  @media (max-width: 1100px) {
+    .app { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; }
+    .rail { position: fixed; inset: 48px auto 0 0; z-index: 15; box-shadow: var(--shadow); }
+    .panel { width: auto; border-left: 0; border-top: 1px solid var(--line); max-height: 45vh; }
+    .app[data-panel="closed"] .panel { display: none; }
+  }
+  @media (max-width: 720px) {
+    body { font-size: 14px; }
+    .bar { gap: 8px; padding: 0 10px; }
+    .bar .ring, .bar .name a, .bar .me, .bar .sep { display: none; }
+    .bar select { min-width: 0; flex: 1; }
+    .seg kbd { display: none; }
+    main { padding: 12px 12px 48px; }
+    .canvas[data-layout="side"], .canvas[data-phone="true"] { grid-template-columns: minmax(0, 1fr); }
+    .frame { max-height: none; }
+    .toolbar .hint { display: none; }
+    .popover { left: 12px !important; right: 12px; width: auto !important; }
+    .rail { width: min(86vw, 320px); }
   }
 </style>
 </head>
 <body>
-<aside>
-  <header>
-    <div class="crumbs"><a href="/">All reviews</a><span id="prLink"></span></div>
-    <h1 id="reviewTitle">Review</h1>
-    <select id="round" aria-label="Round"></select>
-    <div class="progress" id="progress"></div>
-    <div class="bar"><span id="bar"></span></div>
-  </header>
-  <nav id="nav"></nav>
-  <div class="foot">
-    <label>Your name <input id="me" maxlength="60" placeholder="You"></label>
-    <div class="legend">
-      <div><span class="dot approve"></span>Approve: keep it as it is now</div>
-      <div><span class="dot update"></span>Needs update: keep, change per the comments</div>
-      <div><span class="dot revert"></span>Revert: put it back as before</div>
-      <div><span class="count">2</span>threads waiting for the agent</div>
-    </div>
-    <a href="#" id="logLink">Review log (Markdown)</a>
-  </div>
-</aside>
-<main>
-  <div class="top">
-    <div>
-      <h2 id="title"></h2>
-      <div class="route" id="route"></div>
-    </div>
-    <div class="spacer"></div>
-    <div class="seg verdicts" id="verdicts" role="group" aria-label="Verdict">
-      <button data-v="approve" title="Keep this page as it is now">Approve</button>
-      <button data-v="update" title="Keep the change, but adjust it per the comments">Needs update</button>
-      <button data-v="revert" title="Put this page back the way it was">Revert</button>
-    </div>
-    <div class="seg" id="views" role="group" aria-label="View">
-      <button data-view="both" title="Before and after side by side (S)">Side by side</button>
-      <button data-view="before" title="Before only (B)">Before</button>
-      <button data-view="after" title="After only (A)">After</button>
-      <button data-view="last" title="Previous round next to this one (L)">Last round</button>
-      <button data-view="phone" title="Phone screenshots (P)">Phone</button>
-    </div>
-  </div>
-  <p class="note" id="note" hidden></p>
-  <div class="shots" id="shots"></div>
-  <p class="hint">Click a spot on a screenshot to pin a comment there. <kbd>J</kbd>/<kbd>K</kbd> next or previous page, <kbd>S</kbd> <kbd>B</kbd> <kbd>A</kbd> <kbd>L</kbd> <kbd>P</kbd> switch views, <kbd>Ctrl</kbd>+<kbd>Enter</kbd> posts.</p>
+<header class="bar">
+  <button class="iconbtn" id="railToggle" title="Pages ([)" aria-label="Toggle page list">☰</button>
+  <a class="brand" href="/" title="All reviews"><img src="/favicon.svg" alt=""></a>
+  <span class="sep"></span>
+  <div class="name"><span id="reviewTitle"></span><a id="prLink" target="_blank" rel="noopener"></a></div>
+  <select id="round" aria-label="Round"></select>
+  <div class="spacer"></div>
+  <span class="ring" id="ring" title="Pages with a verdict in this round"><svg viewBox="0 0 24 24"><circle class="track" cx="12" cy="12" r="9"></circle><circle class="fill" cx="12" cy="12" r="9" stroke-dasharray="56.5" stroke-dashoffset="56.5"></circle></svg><span id="ringText"></span></span>
+  <label class="me muted">as <input id="me" maxlength="60" placeholder="your name" aria-label="Your name"></label>
+  <button class="iconbtn" id="panelToggle" title="Comments (])" aria-label="Toggle comments">💬</button>
+  <button class="iconbtn" id="helpBtn" title="Shortcuts (?)" aria-label="Shortcuts">?</button>
+</header>
 
-  <section class="discussion">
-    <div class="composer">
-      <div class="target" id="target"></div>
-      <textarea id="text" placeholder="What should change, stay, or go back?"></textarea>
-      <div class="actions"><button class="primary" id="post" disabled>Add comment</button></div>
+<div class="app" id="app">
+  <aside class="rail" id="rail">
+    <div class="rail-tools">
+      <input id="search" placeholder="Filter pages" aria-label="Filter pages">
+      <div class="chips" id="filters"></div>
     </div>
-    <ul class="threads" id="threads"></ul>
-    <details class="earlier" id="earlierBox" hidden>
-      <summary id="earlierSummary"></summary>
-      <ul class="threads" id="earlier"></ul>
-    </details>
-  </section>
-</main>
+    <nav id="nav"></nav>
+    <div class="rail-foot"><a id="logLink" href="#">Review log</a><span class="spacer"></span><a href="/">All reviews</a></div>
+  </aside>
+
+  <main id="main">
+    <section id="overview" class="ov" hidden></section>
+    <section id="pageView" hidden>
+      <div class="page-head">
+        <div>
+          <h1 id="title"></h1>
+          <div class="route" id="route"></div>
+        </div>
+        <div class="spacer"></div>
+        <div class="seg verdicts" id="verdicts" role="group" aria-label="Verdict">
+          <button data-v="approve" title="Keep this page as it is now">Approve <kbd>1</kbd></button>
+          <button data-v="update" title="Keep the change, but adjust it per the comments">Needs update <kbd>2</kbd></button>
+          <button data-v="revert" title="Put this page back the way it was">Revert <kbd>3</kbd></button>
+        </div>
+      </div>
+      <p class="page-note" id="note" hidden></p>
+      <div class="toolbar">
+        <div class="seg" id="pairs" role="group" aria-label="Compare with">
+          <button data-pair="before" title="Compare with the state before the work">vs Before</button>
+          <button data-pair="last" title="Compare with the previous round">vs Last round</button>
+        </div>
+        <div class="seg" id="layouts" role="group" aria-label="Layout">
+          <button data-layout="side" title="Side by side (S)">Side by side</button>
+          <button data-layout="swipe" title="Swipe between the two (W)">Swipe</button>
+          <button data-layout="single" title="Only the after (A)">After only</button>
+        </div>
+        <button class="btn" id="phoneBtn" aria-pressed="false" title="Phone screenshots (P)">📱 Phone</button>
+        <button class="btn" id="zoomBtn" title="Fit or 100% (Z)">Fit</button>
+        <span class="spacer"></span>
+        <span class="hint">Click a screenshot to comment at that spot · <kbd>N</kbd> next page that needs you · <kbd>?</kbd> shortcuts</span>
+      </div>
+      <div class="canvas" id="canvas"></div>
+    </section>
+  </main>
+
+  <aside class="panel" id="panel">
+    <div class="panel-head"><span id="panelTitle">Comments</span><span class="spacer"></span><button class="btn small" id="generalBtn">+ General comment</button></div>
+    <div class="panel-body" id="panelBody"></div>
+  </aside>
+</div>
+
+<div class="popover" id="popover" hidden></div>
+<dialog id="help">
+  <h2>Keyboard</h2>
+  <table>
+    <tr><td><kbd>J</kbd> / <kbd>K</kbd></td><td>Next or previous page</td></tr>
+    <tr><td><kbd>N</kbd></td><td>Next page that needs you: no verdict, or a thread waiting on your reply</td></tr>
+    <tr><td><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd></td><td>Approve · Needs update · Revert (press again to clear)</td></tr>
+    <tr><td><kbd>S</kbd> <kbd>W</kbd> <kbd>A</kbd></td><td>Side by side · Swipe · After only</td></tr>
+    <tr><td><kbd>C</kbd></td><td>Compare with Before or with the last round</td></tr>
+    <tr><td><kbd>P</kbd> <kbd>Z</kbd></td><td>Phone screenshots · zoom Fit/100%</td></tr>
+    <tr><td><kbd>[</kbd> <kbd>]</kbd></td><td>Page list · comments panel</td></tr>
+    <tr><td><kbd>O</kbd></td><td>Round overview</td></tr>
+    <tr><td><kbd>Ctrl</kbd>+<kbd>Enter</kbd></td><td>Send the comment you are writing</td></tr>
+    <tr><td><kbd>Esc</kbd></td><td>Close the comment popover</td></tr>
+  </table>
+  <p class="muted">Click a screenshot to pin a comment there. Click a numbered pin to open its thread. Drag the handle in Swipe to compare.</p>
+  <form method="dialog" class="actions"><button class="btn primary">Close</button></form>
+</dialog>
 <div class="toast" id="toast"></div>
 
 <script>
 const $ = (id) => document.getElementById(id);
+const OVERVIEW = '__overview';
 const slug = decodeURIComponent(location.pathname.split('/').filter(Boolean)[1] || '');
+const PIN_LABEL = { before: 'before', after: 'after', previous: 'last round', mobile: 'phone' };
+const VERDICT_TEXT = { approve: 'Approved', update: 'Needs update', revert: 'Revert' };
+
 const api = async (method, path, body) => {
   const res = await fetch(`/api/r/${encodeURIComponent(slug)}${path}`, { method, headers: body ? { 'content-type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
   if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || res.statusText);
   return res.status === 204 ? null : res.json();
 };
-const store = {
+const pref = {
   get(k, d) { try { return localStorage.getItem(`reviewtool.${k}`) ?? d; } catch { return d; } },
   set(k, v) { try { localStorage.setItem(`reviewtool.${k}`, v); } catch {} },
 };
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const when = (iso) => new Date(iso).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+const dateOf = (iso) => new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+const imgUrl = (file) => `/api/r/${encodeURIComponent(slug)}/img/${encodeURIComponent(file)}`;
 
 let data = null;
-let roundN = null;       // the round being viewed
-let current = null;      // page id
-let draftPin = null;
-let replying = null;     // thread id with an open reply box
-let view = store.get('view', 'both');
-$('me').value = store.get('me', '');
-$('me').addEventListener('change', () => store.set('me', $('me').value.trim()));
+let roundN = null;
+let current = OVERVIEW;
+let draftPin = null;      // { img, x, y }
+let openThread = null;    // thread id, or 'draft'
+let composing = false;    // general-comment box in the panel
+const ui = {
+  layout: pref.get('layout', 'side'),
+  pair: pref.get('pair', 'before'),
+  phone: false,
+  zoom: 'fit',
+  filter: 'all',
+  search: '',
+  rail: pref.get('rail', 'open') === 'open',
+  panel: pref.get('panel', window.innerWidth >= 1250 ? 'open' : 'closed') === 'open',
+};
+// Agent replies newer than this are marked "new" for this visit. A first visit has nothing to compare with.
+const lastVisit = pref.get(`seen.${slug}`, new Date().toISOString());
+pref.set(`seen.${slug}`, new Date().toISOString());
+if (window.innerWidth <= 1100) ui.rail = false;
+$('me').value = pref.get('me', '');
+$('me').addEventListener('change', () => pref.set('me', $('me').value.trim()));
 const me = () => $('me').value.trim() || 'You';
 
 function toast(msg) {
@@ -211,18 +372,42 @@ function toast(msg) {
   toast.timer = setTimeout(() => t.classList.remove('show'), 1600);
 }
 
+/* ---------- derived state ---------- */
 const round = () => data.rounds.find((r) => r.n === roundN);
 const prevRound = () => data.rounds.find((r) => r.n === roundN - 1);
-const page = () => round()?.pages.find((p) => p.id === current);
+const pages = () => round()?.pages ?? [];
+const page = () => pages().find((p) => p.id === current);
+const prevPage = (id) => prevRound()?.pages.find((x) => x.id === id);
 const verdictOf = (n, id) => data.feedback.verdicts[`${n}/${id}`]?.verdict ?? null;
-
 function threadsOf(n, id) {
   const all = data.feedback.comments;
-  return all.filter((c) => !c.replyTo && c.page === id && (n == null || c.round === n))
-    .map((c) => ({ ...c, replies: all.filter((r) => r.replyTo === c.id) }));
+  return all.filter((c) => !c.replyTo && c.page === id && (n == null || c.round === n)).map((c) => ({ ...c, replies: all.filter((r) => r.replyTo === c.id) }));
 }
-const waiting = (t) => t.status !== 'resolved' && [t, ...t.replies].at(-1).kind === 'human';
+const threadById = (id) => threadsOf(null, data.feedback.comments.find((c) => c.id === id)?.page).find((t) => t.id === id);
+const last = (t) => [t, ...t.replies].at(-1);
+const waiting = (t) => t.status !== 'resolved' && last(t).kind === 'human';
+const answered = (t) => t.status !== 'resolved' && last(t).kind === 'agent';
+const isNew = (m) => m.kind === 'agent' && m.at > lastVisit;
+const hasNew = (t) => [t, ...t.replies].some(isNew);
+const needsMe = (p) => !verdictOf(roundN, p.id) || threadsOf(null, p.id).some(answered) || threadsOf(null, p.id).some(hasNew);
+const numbering = (p) => new Map(threadsOf(roundN, p.id).map((t, i) => [t.id, i + 1]));
 
+function shots(p) {
+  const prev = prevPage(p.id);
+  const phone = ui.phone && !!p.mobile;
+  const base = phone
+    ? { key: 'mobile', file: p.mobile, label: 'After', sub: `phone · round ${roundN}` }
+    : { key: 'after', file: p.after, label: 'After', sub: p.afterLabel && p.afterLabel !== 'after' ? p.afterLabel : `round ${roundN}` };
+  let cmp = null;
+  const pair = effectivePair(p);
+  if (pair === 'last') cmp = phone ? { key: 'previousMobile', file: prev?.mobile, label: 'Last round', sub: `phone · round ${roundN - 1}`, noPin: true } : { key: 'previous', file: prev?.after, label: 'Last round', sub: `round ${roundN - 1}` };
+  else cmp = phone ? { key: 'mobileBefore', file: p.mobileBefore, label: 'Before', sub: 'phone', noPin: true } : { key: 'before', file: p.before, label: 'Before', sub: p.beforeLabel && p.beforeLabel !== 'before' ? p.beforeLabel : '' };
+  if (!cmp.file) cmp = null;
+  return { base, cmp, phone };
+}
+const effectivePair = (p) => (ui.pair === 'last' && !prevPage(p.id) ? 'before' : ui.pair);
+
+/* ---------- loading and navigation ---------- */
 async function load() {
   const fresh = await api('GET', '');
   const first = !data;
@@ -231,322 +416,539 @@ async function load() {
   if (first) {
     const [h, r] = decodeURIComponent(location.hash.slice(1)).split('@');
     roundN = data.rounds.some((x) => x.n === Number(r)) ? Number(r) : latest;
-    current = round()?.pages.some((p) => p.id === h) ? h : round()?.pages[0]?.id;
+    current = h && pages().some((p) => p.id === h) ? h : OVERVIEW;
   } else if (!round()) {
     roundN = latest;
   }
-  if (!page()) current = round()?.pages[0]?.id;
+  if (current !== OVERVIEW && !page()) current = OVERVIEW;
   render();
 }
 
 function setHash() {
-  history.replaceState(null, '', `#${encodeURIComponent(current)}${roundN !== data.rounds.at(-1)?.n ? `@${roundN}` : ''}`);
+  const r = roundN !== data.rounds.at(-1)?.n ? `@${roundN}` : '';
+  history.replaceState(null, '', current === OVERVIEW ? (r ? `#overview${r}` : '#') : `#${encodeURIComponent(current)}${r}`);
 }
 
-function select(id) {
+function go(id, { scroll = true } = {}) {
   if (id === current) return;
   current = id;
   draftPin = null;
-  replying = null;
+  openThread = null;
+  composing = false;
   setHash();
   render();
-  document.querySelector('main').scrollTo({ top: 0 });
+  if (scroll) $('main').scrollTo({ top: 0 });
+  if (window.innerWidth <= 1100 && ui.rail) { ui.rail = false; applyPanels(); }
 }
 
-function renderSidebar() {
+function setRound(n) {
+  roundN = n;
+  if (current !== OVERVIEW && !page()) current = OVERVIEW;
+  draftPin = null;
+  openThread = null;
+  setHash();
+  render();
+}
+
+/* ---------- rendering ---------- */
+function render() {
+  if (!data.rounds.length) return renderNoRounds();
+  applyPanels();
+  renderBar();
+  renderRail();
+  if (current === OVERVIEW) {
+    $('pageView').hidden = true;
+    $('overview').hidden = false;
+    renderOverview();
+    renderPanelForOverview();
+  } else {
+    $('overview').hidden = true;
+    $('pageView').hidden = false;
+    renderPage(page());
+    renderPanel(page());
+  }
+  renderPopover();
+  preloadNeighbours();
+}
+
+function applyPanels() {
+  $('app').dataset.rail = ui.rail ? 'open' : 'closed';
+  $('app').dataset.panel = ui.panel ? 'open' : 'closed';
+  $('railToggle').setAttribute('aria-pressed', ui.rail);
+  $('panelToggle').setAttribute('aria-pressed', ui.panel);
+}
+
+function renderBar() {
   const { review } = data;
-  document.title = `${review.title} · review`;
+  document.title = `${review.title} · round ${roundN}`;
   $('reviewTitle').textContent = review.title;
-  $('prLink').innerHTML = review.repo && review.pr ? `· <a href="https://github.com/${esc(review.repo)}/pull/${review.pr}" target="_blank" rel="noopener">${esc(review.repo)}#${review.pr}</a>` : '';
-  $('logLink').href = `/api/r/${encodeURIComponent(slug)}/log`;
+  const pr = $('prLink');
+  pr.hidden = !(review.repo && review.pr);
+  if (!pr.hidden) { pr.href = `https://github.com/${review.repo}/pull/${review.pr}`; pr.textContent = `${review.repo}#${review.pr}`; }
   const latest = data.rounds.at(-1)?.n;
-  $('round').innerHTML = [...data.rounds].reverse().map((r) =>
-    `<option value="${r.n}" ${r.n === roundN ? 'selected' : ''}>Round ${r.n}${r.title && r.title !== `Round ${r.n}` ? ` · ${esc(r.title)}` : ''}${r.n === latest ? ' (latest)' : ''}</option>`).join('');
-  const r = round();
+  $('round').innerHTML = [...data.rounds].reverse().map((r) => `<option value="${r.n}" ${r.n === roundN ? 'selected' : ''}>Round ${r.n}${r.title && r.title !== `Round ${r.n}` ? ` · ${esc(r.title)}` : ''}${r.n === latest ? ' (latest)' : ''}</option>`).join('');
+  const ps = pages();
+  const done = ps.filter((p) => verdictOf(roundN, p.id)).length;
+  $('ringText').textContent = `${done}/${ps.length} judged`;
+  $('ring').querySelector('.fill').style.strokeDashoffset = String(56.5 * (1 - done / Math.max(1, ps.length)));
+  $('logLink').href = `/api/r/${encodeURIComponent(slug)}/log`;
+}
+
+function renderRail() {
+  const ps = pages();
+  const sets = {
+    all: ps,
+    todo: ps.filter((p) => !verdictOf(roundN, p.id)),
+    waiting: ps.filter((p) => threadsOf(null, p.id).some(answered)),
+    new: ps.filter((p) => threadsOf(null, p.id).some(hasNew)),
+  };
+  const labels = { all: 'All', todo: 'No verdict', waiting: 'Answered', new: 'New replies' };
+  $('filters').innerHTML = Object.keys(sets).filter((k) => k === 'all' || sets[k].length).map((k) => `<button class="chip" data-filter="${k}" aria-pressed="${ui.filter === k}">${labels[k]}<b>${sets[k].length}</b></button>`).join('');
+  if (!sets[ui.filter]?.length) ui.filter = 'all';
+  const q = ui.search.trim().toLowerCase();
+  const shown = sets[ui.filter].filter((p) => !q || p.title.toLowerCase().includes(q) || (p.route || '').toLowerCase().includes(q));
+  // Group by the part before " · " when at least two pages share it.
+  const prefix = (p) => (p.title.includes(' · ') ? p.title.split(' · ')[0] : null);
+  const counts = {};
+  for (const p of shown) if (prefix(p)) counts[prefix(p)] = (counts[prefix(p)] || 0) + 1;
+  const groups = [];
+  for (const p of shown) {
+    const g = prefix(p) && counts[prefix(p)] >= 2 ? prefix(p) : '';
+    let bucket = groups.find((x) => x.name === g);
+    if (!bucket) groups.push((bucket = { name: g, items: [] }));
+    bucket.items.push(p);
+  }
   const prev = prevRound();
-  const done = r.pages.filter((p) => verdictOf(r.n, p.id)).length;
-  $('progress').textContent = `${done} of ${r.pages.length} pages have a verdict`;
-  $('bar').style.width = `${(done / Math.max(1, r.pages.length)) * 100}%`;
-  $('nav').innerHTML = r.pages.map((p) => {
-    const open = threadsOf(null, p.id).filter(waiting).length;
-    const isNew = prev && !prev.pages.some((x) => x.id === p.id);
-    return `<button data-id="${esc(p.id)}" aria-current="${p.id === current}"><span class="dot ${verdictOf(r.n, p.id) ?? ''}"></span><span class="name">${esc(p.title)}</span>${isNew ? '<span class="tag">new</span>' : ''}${open ? `<span class="count" title="${open} waiting for the agent">${open}</span>` : ''}</button>`;
-  }).join('');
-  if (renderSidebar.shown !== `${roundN}/${current}`) {
-    renderSidebar.shown = `${roundN}/${current}`;
+  const item = (p, g) => {
+    const ts = threadsOf(null, p.id);
+    const nAnswered = ts.filter(answered).length;
+    const nNew = ts.filter(hasNew).length;
+    const label = g && p.title.startsWith(g + ' · ') ? p.title.slice(g.length + 3) : p.title;
+    return `<button data-id="${esc(p.id)}" aria-current="${p.id === current}"><span class="dot ${verdictOf(roundN, p.id) ?? ''}"></span><span class="label">${esc(label)}</span>${prev && !prevPage(p.id) ? '<span class="tag">new</span>' : ''}${nNew ? `<span class="count new" title="${plural(nNew, 'new reply')}">${nNew}</span>` : nAnswered ? `<span class="count" title="${plural(nAnswered, 'answered thread')} to check">${nAnswered}</span>` : ''}</button>`;
+  };
+  $('nav').innerHTML = `<button class="ov" data-id="${OVERVIEW}" aria-current="${current === OVERVIEW}"><span class="dot" style="border-color:transparent">◎</span><span class="label">Round ${roundN} overview</span></button>` +
+    groups.map((g) => `${g.name ? `<div class="group">${esc(g.name)}</div>` : ''}${g.items.map((p) => item(p, g.name)).join('')}`).join('') +
+    (shown.length ? '' : '<div class="empty">No pages match.</div>');
+  if (renderRail.shown !== `${roundN}/${current}`) {
+    renderRail.shown = `${roundN}/${current}`;
     $('nav').querySelector('[aria-current="true"]')?.scrollIntoView({ block: 'nearest' });
   }
 }
 
-function figures(p) {
-  const prev = prevRound()?.pages.find((x) => x.id === p.id);
-  const after = { key: 'after', label: 'After', sub: p.afterLabel !== 'after' ? p.afterLabel : `round ${roundN}`, file: p.after };
-  const before = { key: 'before', label: 'Before', sub: p.beforeLabel !== 'before' ? p.beforeLabel : '', file: p.before };
-  if (view === 'before') return [before];
-  if (view === 'after') return [after];
-  if (view === 'last') return [{ key: 'previous', label: 'Last round', sub: `round ${roundN - 1}`, file: prev?.after }, after];
-  if (view === 'phone') return [
-    ...(p.mobileBefore ? [{ key: 'mobileBefore', label: 'Phone before', sub: '', file: p.mobileBefore, noPin: true }] : []),
-    { key: 'mobile', label: 'Phone', sub: `round ${roundN}`, file: p.mobile },
-  ];
-  return p.before ? [before, after] : [after];
-}
-
-function effectiveView(p) {
-  if (view === 'last' && !prevRound()?.pages.some((x) => x.id === p.id)) return 'both';
-  if (view === 'phone' && !p.mobile) return 'both';
-  if (view === 'before' && !p.before) return 'after';
-  return view;
-}
-
-function renderShots(p) {
-  const saved = view;
-  view = effectiveView(p);
-  const figs = figures(p);
-  const pinNumbers = numbering(p);
-  const shots = $('shots');
-  shots.className = `shots${view === 'phone' ? ' phone' : ''}`;
-  shots.style.setProperty('--cols', String(figs.length));
-  shots.innerHTML = figs.map((f) => {
-    const pins = threadsOf(roundN, p.id).filter((t) => t.pin?.img === f.key)
-      .map((t) => `<span class="pin${t.status === 'resolved' ? ' resolved' : ''}" data-n="${pinNumbers.get(t.id)}" style="left:${t.pin.x}%;top:${t.pin.y}%" title="${esc(t.text.slice(0, 140))}">${pinNumbers.get(t.id)}</span>`);
-    if (draftPin?.img === f.key) pins.push(`<span class="pin draft" style="left:${draftPin.x}%;top:${draftPin.y}%">+</span>`);
-    const inner = f.file
-      ? `<img src="/api/r/${encodeURIComponent(slug)}/img/${encodeURIComponent(f.file)}" alt="${esc(`${f.label}: ${p.title}`)}" draggable="false"><div class="pins">${pins.join('')}</div>`
-      : `<div class="missing">No screenshot</div>`;
-    return `<figure><figcaption>${esc(f.label)} <small>${esc(f.sub)}</small></figcaption><div class="frame${f.file ? '' : ' missing'}" data-img="${f.noPin ? '' : f.key}">${inner}</div></figure>`;
-  }).join('');
-  for (const b of $('views').querySelectorAll('button')) {
-    b.setAttribute('aria-pressed', b.dataset.view === view);
-    b.disabled = b.dataset.view !== effectiveView(p) && ({ last: () => !prevRound()?.pages.some((x) => x.id === p.id), phone: () => !p.mobile, before: () => !p.before }[b.dataset.view]?.() ?? false);
-  }
-  view = saved;
-}
-
-// Threads in this round get a number per page, in order; pins and list share it.
-function numbering(p) {
-  return new Map(threadsOf(roundN, p.id).map((t, i) => [t.id, i + 1]));
-}
-
-function renderComposer() {
-  const label = { before: 'before', after: 'after', previous: 'last round', mobile: 'phone' }[draftPin?.img];
-  $('target').innerHTML = draftPin
-    ? `Pinned on the <strong>${label}</strong> screenshot <button class="link" id="unpin">remove pin</button>`
-    : 'General comment on this page, or click a screenshot to pin it to a spot';
-  $('unpin')?.addEventListener('click', () => { draftPin = null; renderShots(page()); renderComposer(); });
-  $('post').disabled = !$('text').value.trim();
-}
-
-function threadHtml(t, n) {
-  const where = t.pin ? `on the ${{ before: 'before', after: 'after', previous: 'last round', mobile: 'phone' }[t.pin.img]} screenshot` : 'general';
-  const msgs = [t, ...t.replies].map((m, i) => `<div class="msg ${m.kind}">
-      <div class="meta"><b>${esc(m.author)}</b>${m.kind === 'agent' ? '<span class="badge">agent</span>' : ''}${i === 0 ? `<span>${where}</span>` : ''}<span>${when(m.at)}</span></div>
-      <div class="text">${esc(m.text)}</div>
-    </div>`).join('');
-  const replyBox = replying === t.id
-    ? `<div class="reply"><textarea data-reply="${t.id}" placeholder="Reply"></textarea><div class="actions"><button class="link" data-act="cancel">Cancel</button><button class="primary" data-act="send" data-id="${t.id}">Reply</button></div></div>`
-    : '';
-  return `<li class="thread${t.status === 'resolved' ? ' resolved' : ''}" data-n="${n ?? ''}">
-    <span class="num${t.pin && n ? ' pinned' : ''}">${n ?? '·'}</span>
-    <div class="msgs">${msgs}${replyBox}
-      <div class="tools">
-        ${waiting(t) ? '<span class="waiting">Waiting for the agent</span>' : t.status === 'resolved' ? '<span>Resolved</span>' : ''}
-        <button class="link" data-act="reply" data-id="${t.id}">Reply</button>
-        <button class="link" data-act="status" data-id="${t.id}">${t.status === 'resolved' ? 'Reopen' : 'Resolve'}</button>
-        ${t.kind === 'human' && !t.replies.length ? `<button class="link" data-act="delete" data-id="${t.id}">Delete</button>` : ''}
-      </div>
+function renderOverview() {
+  const r = round();
+  const prev = prevRound();
+  const ps = r.pages;
+  const tally = { approve: 0, update: 0, revert: 0, none: 0 };
+  for (const p of ps) tally[verdictOf(r.n, p.id) ?? 'none']++;
+  const withAnswers = ps.filter((p) => threadsOf(null, p.id).some(answered));
+  const withNew = ps.filter((p) => threadsOf(null, p.id).some(hasNew));
+  const newPages = prev ? ps.filter((p) => !prevPage(p.id)) : [];
+  const roundThreads = data.feedback.comments.filter((c) => !c.replyTo && c.round === r.n).length;
+  const next = ps.find(needsMe);
+  const chips = (list) => `<div class="pagechips">${list.map((p) => `<button data-id="${esc(p.id)}"><span class="dot ${verdictOf(r.n, p.id) ?? ''}"></span>${esc(p.title)}</button>`).join('')}</div>`;
+  const stat = (cls, n, label, filter) => `<button class="stat ${cls}" data-filter="${filter}"><b>${n}</b><span>${label}</span></button>`;
+  $('overview').innerHTML = `
+    <div>
+      <h1>Round ${r.n}${r.title && r.title !== `Round ${r.n}` ? ` · ${esc(r.title)}` : ''}</h1>
+      <div class="meta">${dateOf(r.createdAt)}${r.by ? ` · published by ${esc(r.by)}` : ''} · ${plural(ps.length, 'page')} · ${plural(roundThreads, 'comment thread')}</div>
     </div>
-  </li>`;
+    ${r.notes ? `<p class="notes">${esc(r.notes)}</p>` : ''}
+    <div class="stats">
+      ${stat('', tally.none, 'without a verdict', 'todo')}
+      ${stat('approve', tally.approve, 'approved', 'all')}
+      ${stat('update', tally.update, 'need an update', 'all')}
+      ${stat('revert', tally.revert, 'revert', 'all')}
+      ${stat('waiting', withAnswers.length, 'pages with answered threads', 'waiting')}
+      ${withNew.length ? stat('new', withNew.length, 'pages with new replies', 'new') : ''}
+    </div>
+    <div class="row">
+      ${next ? `<button class="btn primary" id="startBtn">${tally.none === ps.length ? 'Start reviewing' : 'Continue'} → ${esc(next.title)}</button>` : '<span class="badge resolved">Every page has a verdict and nothing is waiting for you</span>'}
+      <a class="btn" href="/api/r/${encodeURIComponent(slug)}/log" target="_blank">Review log</a>
+      ${data.review.repo && data.review.pr ? `<a class="btn" href="https://github.com/${esc(data.review.repo)}/pull/${data.review.pr}" target="_blank" rel="noopener">Pull request</a>` : ''}
+    </div>
+    ${withNew.length ? `<section><h2>New replies since your last visit</h2>${chips(withNew)}</section>` : ''}
+    ${withAnswers.length ? `<section><h2>Answered by the agent, waiting for you to check</h2>${chips(withAnswers)}</section>` : ''}
+    ${newPages.length ? `<section><h2>New in this round</h2>${chips(newPages)}</section>` : ''}
+    <section><h2>Rounds</h2>
+      <table class="rounds"><tr><th>Round</th><th>Date</th><th>Pages</th><th>Threads</th><th>Verdicts</th></tr>
+      ${[...data.rounds].reverse().map((x) => {
+        const t = data.feedback.comments.filter((c) => !c.replyTo && c.round === x.n);
+        const v = x.pages.filter((p) => verdictOf(x.n, p.id)).length;
+        return `<tr data-n="${x.n}"><td><b>Round ${x.n}</b>${x.title && x.title !== `Round ${x.n}` ? ` · ${esc(x.title)}` : ''}${x.n === roundN ? ' <span class="badge agent">viewing</span>' : ''}</td><td>${dateOf(x.createdAt)}</td><td>${x.pages.length}</td><td>${t.length}${t.length ? ` <span class="muted">(${t.filter((c) => c.status === 'resolved').length} resolved)</span>` : ''}</td><td>${v}/${x.pages.length}</td></tr>`;
+      }).join('')}
+      </table>
+    </section>`;
+  $('startBtn')?.addEventListener('click', () => go(next.id));
 }
 
-function renderThreads(p) {
-  const nums = numbering(p);
-  const list = threadsOf(roundN, p.id);
-  $('threads').innerHTML = list.length ? list.map((t) => threadHtml(t, nums.get(t.id))).join('') : '<li class="empty">No comments on this page in this round.</li>';
-  const earlier = threadsOf(null, p.id).filter((t) => t.round !== roundN);
-  $('earlierBox').hidden = !earlier.length;
-  $('earlierSummary').textContent = `${earlier.length} comment${earlier.length === 1 ? '' : 's'} on this page in other rounds${earlier.some(waiting) ? ` (${earlier.filter(waiting).length} waiting)` : ''}`;
-  $('earlier').innerHTML = earlier.map((t) => threadHtml(t, null).replace('<div class="msgs">', `<div class="msgs"><div class="meta" style="font-size:12px;color:var(--muted)">Round ${t.round}</div>`)).join('');
-  if (replying) document.querySelector(`textarea[data-reply="${replying}"]`)?.focus({ preventScroll: true });
-}
-
-function render() {
-  if (!data.rounds.length) {
-    renderEmpty();
-    return;
-  }
-  const p = page();
-  renderSidebar();
+function renderPage(p) {
   $('title').textContent = p.title;
-  $('route').textContent = p.route;
+  $('route').textContent = p.route || '';
   $('note').hidden = !p.note;
-  $('note').textContent = p.note;
+  $('note').textContent = p.note || '';
   const v = verdictOf(roundN, p.id);
   for (const b of $('verdicts').querySelectorAll('button')) b.setAttribute('aria-pressed', b.dataset.v === v);
-  renderShots(p);
-  renderComposer();
-  renderThreads(p);
+  const { base, cmp, phone } = shots(p);
+  const pair = effectivePair(p);
+  for (const b of $('pairs').querySelectorAll('button')) {
+    b.setAttribute('aria-pressed', b.dataset.pair === pair);
+    b.disabled = b.dataset.pair === 'last' ? !prevPage(p.id) : !(phone ? p.mobileBefore : p.before);
+  }
+  const layout = cmp ? ui.layout : 'single';
+  for (const b of $('layouts').querySelectorAll('button')) {
+    b.setAttribute('aria-pressed', b.dataset.layout === layout);
+    b.disabled = !cmp && b.dataset.layout !== 'single';
+  }
+  $('phoneBtn').setAttribute('aria-pressed', phone);
+  $('phoneBtn').disabled = !p.mobile;
+  $('zoomBtn').textContent = ui.zoom === 'fit' ? 'Fit' : '100%';
+  $('zoomBtn').setAttribute('aria-pressed', ui.zoom === 'full');
+
+  const canvas = $('canvas');
+  canvas.dataset.layout = layout;
+  canvas.dataset.zoom = ui.zoom;
+  canvas.dataset.phone = phone;
+  canvas.innerHTML = layout === 'swipe' ? swipeHtml(p, base, cmp) : (layout === 'side' ? [cmp, base] : [base]).map((f) => figureHtml(p, f)).join('');
+  bindCanvas();
 }
 
-function renderEmpty() {
-  $('reviewTitle').textContent = data.review.title;
-  document.querySelector('main').innerHTML = `<h2>No rounds yet</h2><p class="note">An agent adds one with <code>reviewtool round ${esc(slug)} manifest.json</code>. This page updates by itself.</p>`;
+function pinsHtml(p, key) {
+  const nums = numbering(p);
+  const pins = threadsOf(roundN, p.id).filter((t) => t.pin?.img === key).map((t) => {
+    const n = nums.get(t.id);
+    return `<button class="pin${t.status === 'resolved' ? ' resolved' : ''}${openThread === t.id ? ' active' : ''}${hasNew(t) ? ' new' : ''}" data-thread="${t.id}" data-n="${n}" style="left:${t.pin.x}%;top:${t.pin.y}%" title="${esc(t.text.slice(0, 140))}" aria-label="Comment ${n}">${n}</button>`;
+  });
+  if (draftPin?.img === key) pins.push(`<span class="pin draft" data-thread="draft" style="left:${draftPin.x}%;top:${draftPin.y}%">+</span>`);
+  return pins.join('');
 }
 
-$('round').addEventListener('change', () => {
-  roundN = Number($('round').value);
-  if (!page()) current = round().pages[0]?.id;
+function figureHtml(p, f) {
+  if (!f.file) return `<figure><figcaption>${esc(f.label)} <small>${esc(f.sub)}</small></figcaption><div class="frame missing">No screenshot</div></figure>`;
+  return `<figure><figcaption>${esc(f.label)} <small>${esc(f.sub)}</small></figcaption>
+    <div class="frame${f.noPin ? ' nopin' : ''}" data-img="${f.noPin ? '' : f.key}"><div class="stage"><img src="${imgUrl(f.file)}" alt="${esc(`${f.label}: ${p.title}`)}" draggable="false"><div class="pins">${pinsHtml(p, f.key)}</div></div></div></figure>`;
+}
+
+function swipeHtml(p, base, cmp) {
+  return `<figure><figcaption>Swipe <small>${esc(cmp.label)} ↔ ${esc(base.label)} · drag the handle; comments pin on the after</small></figcaption>
+    <div class="frame" data-img="${base.key}"><div class="stage swipe" style="--split:${pref.get('split', '50')}%">
+      <img src="${imgUrl(base.file)}" alt="${esc(`${base.label}: ${p.title}`)}" draggable="false">
+      <div class="over"><img src="${imgUrl(cmp.file)}" alt="${esc(`${cmp.label}: ${p.title}`)}" draggable="false"></div>
+      <span class="corner l">${esc(cmp.label)}</span><span class="corner r">${esc(base.label)}</span>
+      <div class="handle" aria-label="Drag to compare"></div>
+      <div class="pins">${pinsHtml(p, base.key)}</div>
+    </div></div></figure>`;
+}
+
+function bindCanvas() {
+  // Synced scrolling of the two frames at 100%.
+  const frames = [...$('canvas').querySelectorAll('.frame')];
+  let syncing = false;
+  for (const f of frames) f.addEventListener('scroll', () => {
+    if (syncing) return;
+    syncing = true;
+    for (const o of frames) if (o !== f) { o.scrollLeft = f.scrollLeft; o.scrollTop = f.scrollTop; }
+    requestAnimationFrame(() => { syncing = false; placePopover(); });
+  });
+  const handle = $('canvas').querySelector('.swipe .handle');
+  if (handle) {
+    const stage = handle.parentElement;
+    const move = (e) => {
+      const r = stage.getBoundingClientRect();
+      const pct = Math.min(100, Math.max(0, ((e.clientX - r.left) / r.width) * 100));
+      stage.style.setProperty('--split', `${pct}%`);
+      pref.set('split', pct.toFixed(1));
+    };
+    handle.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      handle.setPointerCapture(e.pointerId);
+      handle.addEventListener('pointermove', move);
+      handle.addEventListener('pointerup', () => handle.removeEventListener('pointermove', move), { once: true });
+    });
+  }
+}
+
+function preloadNeighbours() {
+  if (current === OVERVIEW) return;
+  const ps = pages();
+  const i = ps.findIndex((p) => p.id === current);
+  for (const p of [ps[i + 1], ps[i - 1]].filter(Boolean)) {
+    const { base, cmp } = shots(p);
+    for (const f of [base, cmp]) if (f?.file) { const im = new Image(); im.src = imgUrl(f.file); }
+  }
+}
+
+/* ---------- threads: panel and popover ---------- */
+function msgHtml(m, first, t) {
+  const where = t.pin ? `on the ${PIN_LABEL[t.pin.img] ?? t.pin.img} screenshot` : 'general';
+  return `<div class="msg ${m.kind}"><div class="meta"><b>${esc(m.author)}</b>${m.kind === 'agent' ? '<span class="badge agent">agent</span>' : ''}${isNew(m) ? '<span class="badge new">new</span>' : ''}${first ? `<span>${where}</span>` : ''}<span>${when(m.at)}</span></div><div class="text">${esc(m.text)}</div></div>`;
+}
+
+function threadBody(t, { inPopover = false } = {}) {
+  const status = waiting(t) ? '<span class="badge waiting">waiting for the agent</span>' : t.status === 'resolved' ? '<span class="badge resolved">resolved</span>' : answered(t) ? '<span class="badge new">answered · check it</span>' : '';
+  return `${[t, ...t.replies].map((m, i) => msgHtml(m, i === 0, t)).join('')}
+    <div class="replybox"><textarea data-reply="${t.id}" placeholder="Reply" rows="1"></textarea></div>
+    <div class="tools">${status}<span class="spacer"></span>
+      <button class="link" data-act="status" data-id="${t.id}">${t.status === 'resolved' ? 'Reopen' : 'Resolve'}</button>
+      ${t.kind === 'human' && !t.replies.length ? `<button class="link danger" data-act="delete" data-id="${t.id}">Delete</button>` : ''}
+      <button class="btn primary small" data-act="send" data-id="${t.id}">Reply</button>
+    </div>`;
+}
+
+function threadCard(t, n, roundMark) {
+  return `<article class="thread${t.status === 'resolved' ? ' resolved' : ''}${openThread === t.id ? ' hl' : ''}" data-id="${t.id}" data-n="${n ?? ''}">
+    <header><span class="num${t.pin && n ? ' pinned' : ''}">${n ?? '·'}</span>${roundMark ? `<span class="roundmark">round ${t.round}</span>` : ''}${t.pin ? '' : '<span>general</span>'}${hasNew(t) ? '<span class="badge new">new reply</span>' : ''}</header>
+    ${threadBody(t)}
+  </article>`;
+}
+
+function renderPanel(p) {
+  const nums = numbering(p);
+  const here = threadsOf(roundN, p.id);
+  const earlier = threadsOf(null, p.id).filter((t) => t.round !== roundN).sort((a, b) => b.round - a.round);
+  const checkable = here.filter(answered);
+  $('panelTitle').textContent = `Comments · ${p.title}`;
+  $('generalBtn').hidden = false;
+  $('panelBody').innerHTML = `
+    ${composing ? `<div class="thread" style="cursor:default"><b>General comment</b><textarea id="generalText" placeholder="About this page as a whole"></textarea><div class="actions"><button class="link" data-act="cancelGeneral">Cancel</button><button class="btn primary small" data-act="sendGeneral">Comment</button></div></div>` : ''}
+    ${checkable.length > 1 ? `<button class="btn small" data-act="resolveAnswered">Resolve all ${checkable.length} answered threads on this page</button>` : ''}
+    ${here.length ? here.map((t) => threadCard(t, nums.get(t.id))).join('') : composing ? '' : '<div class="empty">No comments on this page in this round.<br>Click a screenshot to add one at a spot.</div>'}
+    ${earlier.length ? `<details class="earlier"${earlier.some(hasNew) || earlier.some(answered) ? ' open' : ''}><summary>${plural(earlier.length, 'thread')} from earlier rounds</summary>${earlier.map((t) => threadCard(t, null, true)).join('')}</details>` : ''}`;
+  if (composing) $('generalText')?.focus();
+}
+
+function renderPanelForOverview() {
+  const r = round();
+  const all = [];
+  for (const p of r.pages) for (const t of threadsOf(null, p.id)) if (hasNew(t) || answered(t) || waiting(t)) all.push({ t, p });
+  $('panelTitle').textContent = 'Needs attention';
+  $('generalBtn').hidden = true;
+  $('panelBody').innerHTML = all.length
+    ? all.sort((a, b) => (hasNew(b.t) - hasNew(a.t)) || (answered(b.t) - answered(a.t))).map(({ t, p }) => `<article class="thread" data-goto="${esc(p.id)}" data-round="${t.round}"><header><b>${esc(p.title)}</b><span class="roundmark">round ${t.round}</span>${hasNew(t) ? '<span class="badge new">new reply</span>' : answered(t) ? '<span class="badge new">answered</span>' : '<span class="badge waiting">waiting for the agent</span>'}</header><div class="text">${esc(last(t).text.slice(0, 160))}${last(t).text.length > 160 ? '…' : ''}</div></article>`).join('')
+    : '<div class="empty">Nothing is waiting on anyone.</div>';
+}
+
+function renderPopover() {
+  const pop = $('popover');
+  if (!openThread || current === OVERVIEW) { pop.hidden = true; return; }
+  if (openThread === 'draft') {
+    if (!draftPin) { openThread = null; pop.hidden = true; return; }
+    pop.innerHTML = `<div class="ph"><b>New comment</b><span>on the ${PIN_LABEL[draftPin.img] ?? draftPin.img} screenshot</span><button class="link close" data-act="closePop">✕</button></div>
+      <textarea id="draftText" placeholder="What should change, stay, or go back?"></textarea>
+      <div class="actions"><span class="muted" style="font-size:12px">Ctrl+Enter</span><span class="spacer"></span><button class="btn primary small" data-act="sendDraft">Comment</button></div>`;
+    pop.hidden = false;
+    placePopover();
+    $('draftText').focus({ preventScroll: true });
+    return;
+  }
+  const t = threadById(openThread);
+  if (!t) { openThread = null; pop.hidden = true; return; }
+  const n = numbering(page()).get(t.id);
+  pop.innerHTML = `<div class="ph"><span class="num${t.pin ? ' pinned' : ''}">${n ?? '·'}</span><b>Thread</b>${t.round !== roundN ? `<span>round ${t.round}</span>` : ''}<button class="link close" data-act="closePop">✕</button></div>${threadBody(t, { inPopover: true })}`;
+  pop.hidden = false;
+  placePopover();
+}
+
+function placePopover() {
+  const pop = $('popover');
+  if (pop.hidden) return;
+  const anchor = $('canvas').querySelector(`.pin[data-thread="${openThread}"]`);
+  if (!anchor) { if (openThread === 'draft') return; pop.style.left = '50%'; pop.style.top = '120px'; pop.style.width = '360px'; return; }
+  const r = anchor.getBoundingClientRect();
+  const w = Math.min(380, window.innerWidth - 24);
+  const h = pop.offsetHeight;
+  let left = r.right + 10;
+  if (left + w > window.innerWidth - 12) left = r.left - 10 - w;
+  if (left < 12) left = 12;
+  let top = r.top - 10;
+  if (top + h > window.innerHeight - 12) top = Math.max(12, window.innerHeight - 12 - h);
+  pop.style.left = `${left}px`;
+  pop.style.top = `${top}px`;
+  pop.style.width = `${w}px`;
+}
+window.addEventListener('resize', placePopover);
+$('main').addEventListener('scroll', placePopover);
+
+function focusThread(id) {
+  openThread = id;
   draftPin = null;
-  replying = null;
-  setHash();
   render();
-});
+  const pin = $('canvas').querySelector(`.pin[data-thread="${id}"]`);
+  pin?.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' });
+  if (!pin) {
+    const t = threadById(id);
+    if (t && t.pin) toast(`Pinned on the ${PIN_LABEL[t.pin.img]} screenshot, which is not shown in this view`);
+  }
+  setTimeout(placePopover, 350);
+}
 
-$('nav').addEventListener('click', (e) => {
-  const b = e.target.closest('button[data-id]');
-  if (b) select(b.dataset.id);
-});
-
-$('verdicts').addEventListener('click', async (e) => {
-  const b = e.target.closest('button[data-v]');
-  if (!b) return;
-  const verdict = verdictOf(roundN, current) === b.dataset.v ? null : b.dataset.v;
+/* ---------- actions ---------- */
+async function setVerdict(v) {
+  if (current === OVERVIEW) return;
+  const verdict = verdictOf(roundN, current) === v ? null : v;
   try {
     const res = await api('PUT', '/verdict', { round: roundN, page: current, verdict, by: me() });
     if (res.verdict) data.feedback.verdicts[`${roundN}/${current}`] = res.verdict;
     else delete data.feedback.verdicts[`${roundN}/${current}`];
     render();
-    toast(verdict ? `Saved: ${b.textContent}` : 'Verdict cleared');
+    toast(verdict ? `${VERDICT_TEXT[verdict]} · ${page().title}` : 'Verdict cleared');
   } catch (err) { toast(`Could not save: ${err.message}`); }
-});
-
-function setView(v) {
-  view = v;
-  store.set('view', v);
-  renderShots(page());
-}
-$('views').addEventListener('click', (e) => {
-  const b = e.target.closest('button[data-view]');
-  if (b && !b.disabled) setView(b.dataset.view);
-});
-
-$('shots').addEventListener('click', (e) => {
-  const pin = e.target.closest('.pin[data-n]');
-  if (pin) return highlight(pin.dataset.n, true);
-  const frame = e.target.closest('.frame[data-img]');
-  if (!frame || !frame.dataset.img || frame.classList.contains('missing')) return;
-  const box = frame.getBoundingClientRect();
-  const clamp = (n) => Math.round(Math.min(100, Math.max(0, n)) * 10) / 10;
-  draftPin = { img: frame.dataset.img, x: clamp(((e.clientX - box.left) / box.width) * 100), y: clamp(((e.clientY - box.top) / box.height) * 100) };
-  renderShots(page());
-  renderComposer();
-  $('text').focus({ preventScroll: true });
-});
-
-function highlight(n, scroll) {
-  document.querySelectorAll('.hl').forEach((el) => el.classList.remove('hl'));
-  if (!n) return;
-  document.querySelectorAll(`.pin[data-n="${n}"], #threads .thread[data-n="${n}"]`).forEach((el) => el.classList.add('hl'));
-  if (scroll) document.querySelector(`#threads .thread[data-n="${n}"]`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-}
-$('threads').addEventListener('mouseover', (e) => { const li = e.target.closest('.thread'); if (li) highlight(li.dataset.n, false); });
-
-$('text').addEventListener('input', renderComposer);
-$('text').addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) post(); if (e.key === 'Escape') e.target.blur(); });
-$('post').addEventListener('click', post);
-
-async function post() {
-  const text = $('text').value.trim();
-  if (!text) return;
-  $('post').disabled = true;
-  try {
-    const c = await api('POST', '/comments', { round: roundN, page: current, text, pin: draftPin, author: me() });
-    data.feedback.comments.push(c);
-    $('text').value = '';
-    draftPin = null;
-    render();
-    toast('Comment saved');
-  } catch (err) { toast(`Could not save: ${err.message}`); renderComposer(); }
 }
 
-async function sendReply(id) {
-  const box = document.querySelector(`textarea[data-reply="${id}"]`);
+async function sendComment(text, pin) {
+  const c = await api('POST', '/comments', { round: roundN, page: current, text, pin, author: me() });
+  data.feedback.comments.push(c);
+  draftPin = null;
+  composing = false;
+  openThread = pin ? c.id : null;
+  render();
+  toast('Comment saved');
+}
+
+async function sendReply(id, box) {
   const text = box?.value.trim();
-  if (!text) return;
+  if (!text) { box?.focus(); return; }
   try {
     const c = await api('POST', '/comments', { replyTo: id, text, author: me() });
     data.feedback.comments.push(c);
     const root = data.feedback.comments.find((x) => x.id === id);
     if (root?.status === 'resolved') root.status = 'open';
-    replying = null;
     render();
     toast('Reply saved');
   } catch (err) { toast(`Could not save: ${err.message}`); }
 }
 
-document.querySelector('.discussion').addEventListener('click', async (e) => {
-  const b = e.target.closest('button[data-act]');
-  if (!b) return;
+async function setStatus(id, status) {
+  const c = await api('PATCH', `/comments/${id}`, { status });
+  Object.assign(data.feedback.comments.find((x) => x.id === id), c);
+}
+
+async function onAction(b, scope) {
   const act = b.dataset.act;
   const id = b.dataset.id;
-  if (act === 'reply') { replying = replying === id ? null : id; return render(); }
-  if (act === 'cancel') { replying = null; return render(); }
-  if (act === 'send') return sendReply(id);
-  const c = data.feedback.comments.find((x) => x.id === id);
   try {
-    if (act === 'delete') {
-      if (!confirm('Delete this comment?')) return;
-      await api('DELETE', `/comments/${id}`);
-      data.feedback.comments = data.feedback.comments.filter((x) => x.id !== id && x.replyTo !== id);
-    } else if (act === 'status') {
-      Object.assign(c, await api('PATCH', `/comments/${id}`, { status: c.status === 'resolved' ? 'open' : 'resolved' }));
-    }
-    render();
+    if (act === 'closePop') { openThread = null; draftPin = null; render(); }
+    else if (act === 'sendDraft') { const text = $('draftText').value.trim(); if (!text) return $('draftText').focus(); await sendComment(text, draftPin); }
+    else if (act === 'sendGeneral') { const text = $('generalText').value.trim(); if (!text) return $('generalText').focus(); await sendComment(text, null); }
+    else if (act === 'cancelGeneral') { composing = false; render(); }
+    else if (act === 'send') await sendReply(id, scope.querySelector(`textarea[data-reply="${id}"]`));
+    else if (act === 'status') { const t = threadById(id); await setStatus(id, t.status === 'resolved' ? 'open' : 'resolved'); render(); toast(t.status === 'resolved' ? 'Reopened' : 'Resolved'); }
+    else if (act === 'delete') { if (!confirm('Delete this comment?')) return; await api('DELETE', `/comments/${id}`); data.feedback.comments = data.feedback.comments.filter((x) => x.id !== id && x.replyTo !== id); if (openThread === id) openThread = null; render(); }
+    else if (act === 'resolveAnswered') { const ts = threadsOf(roundN, current).filter(answered); for (const t of ts) await setStatus(t.id, 'resolved'); render(); toast(`Resolved ${plural(ts.length, 'thread')}`); }
   } catch (err) { toast(`Could not save: ${err.message}`); }
+}
+
+/* ---------- events ---------- */
+$('nav').addEventListener('click', (e) => { const b = e.target.closest('button[data-id]'); if (b) go(b.dataset.id); });
+$('filters').addEventListener('click', (e) => { const b = e.target.closest('[data-filter]'); if (b) { ui.filter = b.dataset.filter; renderRail(); } });
+$('search').addEventListener('input', () => { ui.search = $('search').value; renderRail(); });
+$('round').addEventListener('change', () => setRound(Number($('round').value)));
+$('railToggle').addEventListener('click', () => { ui.rail = !ui.rail; if (window.innerWidth > 1100) pref.set('rail', ui.rail ? 'open' : 'closed'); applyPanels(); });
+// On narrow screens the page list is a drawer: tapping the content closes it.
+$('main').addEventListener('pointerdown', () => { if (window.innerWidth <= 1100 && ui.rail) { ui.rail = false; applyPanels(); } });
+$('panelToggle').addEventListener('click', () => { ui.panel = !ui.panel; pref.set('panel', ui.panel ? 'open' : 'closed'); applyPanels(); });
+$('helpBtn').addEventListener('click', () => $('help').showModal());
+$('verdicts').addEventListener('click', (e) => { const b = e.target.closest('button[data-v]'); if (b) setVerdict(b.dataset.v); });
+$('pairs').addEventListener('click', (e) => { const b = e.target.closest('button[data-pair]'); if (b && !b.disabled) { ui.pair = b.dataset.pair; pref.set('pair', ui.pair); render(); } });
+$('layouts').addEventListener('click', (e) => { const b = e.target.closest('button[data-layout]'); if (b && !b.disabled) { ui.layout = b.dataset.layout; pref.set('layout', ui.layout); render(); } });
+$('phoneBtn').addEventListener('click', () => { ui.phone = !ui.phone; render(); });
+$('zoomBtn').addEventListener('click', () => { ui.zoom = ui.zoom === 'fit' ? 'full' : 'fit'; render(); });
+$('generalBtn').addEventListener('click', () => { composing = true; ui.panel = true; render(); });
+
+$('overview').addEventListener('click', (e) => {
+  const chip = e.target.closest('[data-id]');
+  if (chip) return go(chip.dataset.id);
+  const stat = e.target.closest('.stat[data-filter]');
+  if (stat) { ui.filter = stat.dataset.filter; ui.rail = true; renderRail(); applyPanels(); return; }
+  const row = e.target.closest('tr[data-n]');
+  if (row) setRound(Number(row.dataset.n));
 });
-document.querySelector('.discussion').addEventListener('keydown', (e) => {
-  const box = e.target.closest('textarea[data-reply]');
-  if (box && e.key === 'Enter' && (e.ctrlKey || e.metaKey)) sendReply(box.dataset.reply);
-  if (box && e.key === 'Escape') { replying = null; render(); }
+
+$('canvas').addEventListener('click', (e) => {
+  const pin = e.target.closest('.pin[data-thread]');
+  if (pin && pin.dataset.thread !== 'draft') return focusThread(pin.dataset.thread);
+  if (e.target.closest('.handle, .corner')) return;
+  const frame = e.target.closest('.frame[data-img]');
+  if (!frame || !frame.dataset.img) return;
+  const stage = frame.querySelector('.stage');
+  const box = stage.getBoundingClientRect();
+  const clamp = (n) => Math.round(Math.min(100, Math.max(0, n)) * 10) / 10;
+  draftPin = { img: frame.dataset.img, x: clamp(((e.clientX - box.left) / box.width) * 100), y: clamp(((e.clientY - box.top) / box.height) * 100) };
+  openThread = 'draft';
+  render();
 });
+
+$('panelBody').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-act]');
+  if (b) return onAction(b, e.target.closest('.thread') ?? $('panelBody'));
+  const jump = e.target.closest('[data-goto]');
+  if (jump) { if (Number(jump.dataset.round) !== roundN) roundN = Number(jump.dataset.round); return go(jump.dataset.goto); }
+  const card = e.target.closest('.thread[data-id]');
+  if (card && !e.target.closest('textarea, a')) focusThread(card.dataset.id);
+});
+$('popover').addEventListener('click', (e) => { const b = e.target.closest('button[data-act]'); if (b) onAction(b, $('popover')); });
 
 document.addEventListener('keydown', (e) => {
-  if (!data?.rounds.length || e.target.closest('textarea, input, select') || e.ctrlKey || e.metaKey || e.altKey) return;
-  const pages = round().pages;
-  const i = pages.findIndex((p) => p.id === current);
-  const step = { j: 1, ArrowDown: 1, k: -1, ArrowUp: -1 }[e.key];
-  const v = { s: 'both', b: 'before', a: 'after', l: 'last', p: 'phone' }[e.key];
-  if (step) {
-    e.preventDefault();
-    const next = pages[i + step];
-    if (next) select(next.id);
-  } else if (v) {
-    const b = $('views').querySelector(`[data-view="${v}"]`);
-    if (!b.disabled) setView(v);
+  const inField = e.target.closest('textarea, input, select');
+  if (inField) {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+      const box = e.target;
+      if (box.id === 'draftText') onAction({ dataset: { act: 'sendDraft' } });
+      else if (box.id === 'generalText') onAction({ dataset: { act: 'sendGeneral' } });
+      else if (box.dataset.reply) sendReply(box.dataset.reply, box);
+    }
+    if (e.key === 'Escape') { if (openThread) { openThread = null; draftPin = null; render(); } else e.target.blur(); }
+    return;
   }
+  if (!data?.rounds.length || e.ctrlKey || e.metaKey || e.altKey || $('help').open) return;
+  const ps = pages();
+  const i = ps.findIndex((p) => p.id === current);
+  const key = e.key;
+  if (key === 'Escape') { openThread = null; draftPin = null; render(); }
+  else if (key === 'j' || key === 'ArrowDown') { e.preventDefault(); const n = current === OVERVIEW ? ps[0] : ps[i + 1]; if (n) go(n.id); }
+  else if (key === 'k' || key === 'ArrowUp') { e.preventDefault(); if (current === OVERVIEW) return; const n = ps[i - 1]; go(n ? n.id : OVERVIEW); }
+  else if (key === 'n') { const order = [...ps.slice(i + 1), ...ps.slice(0, i + 1)]; const n = order.find(needsMe); if (n) go(n.id); else toast('Nothing left that needs you in this round'); }
+  else if (key === 'o') go(OVERVIEW);
+  else if (key === '1') setVerdict('approve');
+  else if (key === '2') setVerdict('update');
+  else if (key === '3') setVerdict('revert');
+  else if (key === 's' || key === 'w' || key === 'a') { const l = { s: 'side', w: 'swipe', a: 'single' }[key]; if (!$('layouts').querySelector(`[data-layout="${l}"]`).disabled) { ui.layout = l; pref.set('layout', l); render(); } }
+  else if (key === 'c') { const next = ui.pair === 'before' ? 'last' : 'before'; if (!$('pairs').querySelector(`[data-pair="${next}"]`).disabled) { ui.pair = next; pref.set('pair', next); render(); } }
+  else if (key === 'p') { if (page()?.mobile) { ui.phone = !ui.phone; render(); } }
+  else if (key === 'z') { ui.zoom = ui.zoom === 'fit' ? 'full' : 'fit'; render(); }
+  else if (key === '[') $('railToggle').click();
+  else if (key === ']') $('panelToggle').click();
+  else if (key === '?') $('help').showModal();
 });
 
-// Pick up agent replies and new rounds without a reload, but never while you are typing.
+function renderNoRounds() {
+  $('reviewTitle').textContent = data.review.title;
+  $('overview').hidden = false;
+  $('pageView').hidden = true;
+  $('overview').innerHTML = `<div class="empty-state"><h1>No rounds yet</h1><p>An agent publishes the first one with <code>reviewtool round ${esc(slug)} manifest.json</code>. This page updates by itself.</p></div>`;
+  $('panelBody').innerHTML = '';
+}
+
+// Pick up agent replies and new rounds without a reload, but never while you are writing.
 setInterval(() => {
-  const typing = document.activeElement?.matches('textarea, input') && document.activeElement.value;
-  if (document.hidden || typing || replying) return;
+  const el = document.activeElement;
+  const typing = el?.matches('textarea, input') && el.value;
+  if (document.hidden || typing || openThread === 'draft' || composing) return;
   load().catch(() => {});
 }, 5000);
 
-// Links to another page or round (#page@round) work without a reload.
 window.addEventListener('hashchange', () => {
   if (!data) return;
   const [h, r] = decodeURIComponent(location.hash.slice(1)).split('@');
   const n = r ? Number(r) : data.rounds.at(-1)?.n;
   if (!data.rounds.some((x) => x.n === n)) return;
   roundN = n;
-  current = round().pages.some((p) => p.id === h) ? h : round().pages[0]?.id;
-  draftPin = null;
-  replying = null;
+  current = pages().some((p) => p.id === h) ? h : OVERVIEW;
+  draftPin = null; openThread = null;
   render();
 });
 
-load().catch((err) => { document.querySelector('main').textContent = `Could not load: ${err.message}`; });
+load().catch((err) => { $('main').textContent = `Could not load: ${err.message}`; });
 </script>
 </body>
 </html>

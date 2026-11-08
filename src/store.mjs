@@ -95,11 +95,19 @@ export class Store {
       .map((slug) => {
         const { review, rounds, feedback } = this.get(slug);
         const latest = rounds.at(-1);
+        const verdicts = { approve: 0, update: 0, revert: 0 };
+        for (const p of latest?.pages ?? []) {
+          const v = feedback.verdicts[`${latest.n}/${p.id}`]?.verdict;
+          if (v) verdicts[v]++;
+        }
         return {
           ...review,
           rounds: rounds.length,
           pages: latest?.pages.length ?? 0,
+          verdicts,
+          threads: threads(feedback.comments).length,
           open: needsReply(feedback.comments).length,
+          latestRoundAt: latest?.createdAt ?? null,
           updatedAt: [review.createdAt, latest?.createdAt, ...feedback.comments.map((c) => c.at)].filter(Boolean).sort().at(-1),
         };
       })

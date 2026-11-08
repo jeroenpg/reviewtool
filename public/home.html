@@ -6,38 +6,75 @@
 <title>Reviews</title>
 <link rel="icon" href="/favicon.svg">
 <style>
-  :root { --bg: #f6f7f7; --panel: #fff; --ink: #1c2422; --muted: #5d6966; --line: #e2e6e5; --accent: #0e6b61; --pin: #e8590c; color-scheme: light; }
-  @media (prefers-color-scheme: dark) { :root { --bg: #121615; --panel: #1b2120; --ink: #e6ecea; --muted: #9aa7a4; --line: #2c3533; --accent: #3fb5a5; --pin: #ff8a3d; color-scheme: dark; } }
+  :root { --bg: #f3f5f5; --surface: #fff; --surface-2: #f7f9f8; --ink: #161d1b; --muted: #64706d; --line: #e2e7e6; --line-strong: #c9d1cf; --accent: #0f766e; --approve: #15803d; --update: #b45309; --revert: #b91c1c; --pin: #ea580c; --new: #6d28d9; color-scheme: light; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #0f1312; --surface: #171c1b; --surface-2: #1c2221; --ink: #e8edeb; --muted: #97a39f; --line: #27302e; --line-strong: #3a4543; --accent: #34d399; --approve: #4ade80; --update: #fbbf24; --revert: #f87171; --pin: #fb923c; --new: #a78bfa; color-scheme: dark; } }
   * { box-sizing: border-box; }
-  body { margin: 0; font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--ink); background: var(--bg); }
-  main { max-width: 860px; margin: 0 auto; padding: 32px 16px 64px; }
-  h1 { font-size: 22px; margin: 0 0 4px; }
-  p { color: var(--muted); margin: 0 0 20px; }
-  ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
-  a.card { display: grid; grid-template-columns: 1fr auto; gap: 2px 16px; padding: 12px 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; color: inherit; text-decoration: none; }
+  body { margin: 0; font: 13.5px/1.45 Inter, system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--ink); background: var(--bg); }
+  header { display: flex; align-items: center; gap: 10px; height: 48px; padding: 0 16px; background: var(--surface); border-bottom: 1px solid var(--line); font-weight: 650; }
+  header img { width: 20px; height: 20px; }
+  main { max-width: 880px; margin: 0 auto; padding: 28px 16px 64px; }
+  h1 { font-size: 20px; margin: 0 0 4px; letter-spacing: -.01em; }
+  p.lead { color: var(--muted); margin: 0 0 20px; }
+  ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+  a.card { display: grid; grid-template-columns: 44px 1fr auto; gap: 4px 14px; align-items: center; padding: 14px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; color: inherit; text-decoration: none; }
   a.card:hover { border-color: var(--accent); }
-  .title { font-weight: 600; }
-  .meta { color: var(--muted); font-size: 12px; }
-  .open { color: #fff; background: var(--pin); border-radius: 9px; padding: 0 8px; font-size: 12px; font-weight: 700; align-self: center; grid-row: span 2; }
-  code { font: 12px ui-monospace, monospace; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; }
+  .ring { width: 44px; height: 44px; grid-row: span 2; position: relative; }
+  .ring svg { width: 44px; height: 44px; transform: rotate(-90deg); }
+  .ring circle { fill: none; stroke-width: 4; }
+  .ring .track { stroke: var(--line); }
+  .ring .fill { stroke: var(--approve); stroke-linecap: round; }
+  .ring span { position: absolute; inset: 0; display: grid; place-items: center; font-size: 11px; font-weight: 700; }
+  .title { font-weight: 600; font-size: 15px; }
+  .meta { color: var(--muted); font-size: 12.5px; display: flex; flex-wrap: wrap; gap: 4px 12px; }
+  .side { grid-row: span 2; display: grid; gap: 6px; justify-items: end; }
+  .pill { font-size: 12px; font-weight: 600; border-radius: 999px; padding: 2px 9px; }
+  .pill.open { background: var(--pin); color: #fff; }
+  .pill.quiet { background: var(--surface-2); color: var(--muted); border: 1px solid var(--line); }
+  .verdicts { display: inline-flex; gap: 2px; height: 6px; width: 120px; border-radius: 3px; overflow: hidden; background: var(--line); }
+  .verdicts i { display: block; height: 100%; }
+  .verdicts .a { background: var(--approve); } .verdicts .u { background: var(--update); } .verdicts .r { background: var(--revert); }
+  .empty { padding: 48px 24px; text-align: center; border: 1px dashed var(--line-strong); border-radius: 12px; color: var(--muted); }
+  code { font: 12px ui-monospace, SFMono-Regular, monospace; background: var(--surface); border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; }
+  .how { margin-top: 32px; padding: 16px 18px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; color: var(--muted); display: grid; gap: 6px; }
+  .how b { color: var(--ink); }
 </style>
 </head>
 <body>
+<header><img src="/favicon.svg" alt="">reviewtool</header>
 <main>
   <h1>Reviews</h1>
-  <p>Rounds of screenshots to comment on. Agents add rounds with <code>reviewtool round</code> and answer here.</p>
+  <p class="lead">Rounds of screenshots to judge. Agents publish rounds and answer your comments; you decide what stays.</p>
   <ul id="list"></ul>
+  <div class="how">
+    <b>How a round goes</b>
+    <span>1. An agent publishes screenshots with <code>reviewtool round &lt;name&gt; manifest.json</code>.</span>
+    <span>2. You compare before and after, pin comments on the spots that matter and give each page a verdict.</span>
+    <span>3. The agent reads your feedback with <code>reviewtool feedback</code>, fixes it, replies, and publishes the next round.</span>
+    <span>4. <code>reviewtool log --post</code> keeps the whole history on the pull request.</span>
+  </div>
 </main>
 <script>
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const ago = (iso) => {
+  const m = Math.round((Date.now() - new Date(iso)) / 60000);
+  if (m < 60) return `${m} min ago`;
+  if (m < 60 * 36) return `${Math.round(m / 60)} h ago`;
+  return new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+};
 async function load() {
   const reviews = await (await fetch('/api/reviews')).json();
-  document.getElementById('list').innerHTML = reviews.length ? reviews.map((r) => `
-    <li><a class="card" href="/r/${encodeURIComponent(r.slug)}">
+  document.getElementById('list').innerHTML = reviews.length ? reviews.map((r) => {
+    const v = r.verdicts || { approve: 0, update: 0, revert: 0 };
+    const judged = v.approve + v.update + v.revert;
+    const pct = r.pages ? judged / r.pages : 0;
+    const bar = (n, cls) => (r.pages && n ? `<i class="${cls}" style="width:${(n / r.pages) * 100}%"></i>` : '');
+    return `<li><a class="card" href="/r/${encodeURIComponent(r.slug)}">
+      <span class="ring" title="${judged} of ${r.pages} pages judged in the latest round"><svg viewBox="0 0 44 44"><circle class="track" cx="22" cy="22" r="18"></circle><circle class="fill" cx="22" cy="22" r="18" stroke-dasharray="113" stroke-dashoffset="${113 * (1 - pct)}"></circle></svg><span>${Math.round(pct * 100)}%</span></span>
       <span class="title">${esc(r.title)}</span>
-      ${r.open ? `<span class="open" title="threads waiting for the agent">${r.open} waiting</span>` : '<span></span>'}
-      <span class="meta">${r.rounds} round${r.rounds === 1 ? '' : 's'} · ${r.pages} pages${r.repo && r.pr ? ` · ${esc(r.repo)}#${r.pr}` : ''}${r.updatedAt ? ` · updated ${new Date(r.updatedAt).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}` : ''}</span>
-    </a></li>`).join('') : '<li class="meta">No reviews yet. Start one with <code>reviewtool init &lt;name&gt;</code>.</li>';
+      <span class="side">${r.open ? `<span class="pill open">${r.open} waiting for the agent</span>` : '<span class="pill quiet">nothing waiting</span>'}<span class="verdicts" title="approved · needs update · revert">${bar(v.approve, 'a')}${bar(v.update, 'u')}${bar(v.revert, 'r')}</span></span>
+      <span class="meta"><span>${r.rounds} round${r.rounds === 1 ? '' : 's'}</span><span>${r.pages} pages</span><span>${r.threads} threads</span>${r.repo && r.pr ? `<span>${esc(r.repo)}#${r.pr}</span>` : ''}${r.updatedAt ? `<span>updated ${ago(r.updatedAt)}</span>` : ''}</span>
+    </a></li>`;
+  }).join('') : '<li class="empty">No reviews yet. Start one with <code>reviewtool init &lt;name&gt;</code>.</li>';
 }
 load();
 setInterval(() => { if (!document.hidden) load().catch(() => {}); }, 10000);
