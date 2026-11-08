@@ -402,13 +402,17 @@ const VIEWS = ['first', 'previous', 'after']; // left to right in the bar: round
 let showing = 'after'; // on screen: 'after' (this round), 'previous' or 'first'; each page opens on this round
 let lastOther = 'previous'; // what Space swaps to from this round
 function rows(p) {
-  const prevShot = prevRound()?.pages.find((x) => x.id === p.id)?.after ?? null;
-  const firstShot = roundN > 2 ? data.rounds[0]?.pages.find((x) => x.id === p.id)?.after ?? null : null;
+  const prevPage = prevRound()?.pages.find((x) => x.id === p.id);
+  const firstPage = roundN > 2 ? data.rounds[0]?.pages.find((x) => x.id === p.id) : null;
+  // Why a round has nothing to show: the page was not in it, or it was but without a screenshot.
+  const missing = (n, pg) => (pg ? `#${n} · no screenshot` : `Not in #${n}`);
   return [{
     narrow: p.device === 'phone',
     shots: {
-      previous: prevShot ? { file: prevShot, label: `Previous · #${roundN - 1}` } : { file: null, label: roundN > 1 ? `Not in #${roundN - 1}` : 'No previous round' },
-      first: firstShot ? { file: firstShot, label: '#1' } : { file: null, label: roundN <= 2 ? '#1' : 'Not in #1', why: roundN === 1 ? 'This is round 1' : roundN === 2 ? 'Round 1 is the previous round' : 'This page was not in round 1' },
+      first: firstPage?.after ? { file: firstPage.after, label: '#1' }
+        : { file: null, label: roundN <= 2 ? '#1' : missing(1, firstPage), why: roundN === 1 ? 'This is round 1' : roundN === 2 ? 'Round 1 is the previous round' : firstPage ? 'Round 1 has no screenshot of this page' : 'This page was not in round 1' },
+      previous: prevPage?.after ? { file: prevPage.after, label: `Previous · #${roundN - 1}` }
+        : { file: null, label: roundN > 1 ? missing(roundN - 1, prevPage) : 'No previous round' },
       after: { file: p.after, label: `Current · #${roundN}` },
     },
   }];
