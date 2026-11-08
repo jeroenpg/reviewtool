@@ -284,3 +284,18 @@ test('pages sit in folders that carry over between rounds and can be moved', () 
   assert.throws(() => store.setGroup('demo', { pages: ['nope'], group: 'X' }), /no page "nope"/);
   assert.match(renderLog(store.get('demo')), /Settings › Team & access › Members/);
 });
+
+test('phone screenshots go on the same page as a variant, or on a phone page of their own', () => {
+  const { dir, store } = fixture();
+  store.create({ slug: 'demo' });
+  const r1 = store.addRound('demo', { pages: [
+    { id: 'inbox', title: 'Inbox', after: 'after1.png', mobile: 'phone.png' },
+    { id: 'inbox-drawer', title: 'Inbox menu', device: 'phone', after: 'phone.png' },
+  ] }, dir);
+  assert.deepEqual(r1.pages.map((p) => p.device), ['desktop', 'phone']);
+  assert.ok(r1.pages[0].mobile);
+  const r2 = store.addRound('demo', { pages: [{ id: 'inbox-drawer', title: 'Inbox menu', after: 'after2.png' }] }, dir);
+  assert.equal(r2.pages[0].device, 'phone', 'the device carries over');
+  assert.throws(() => store.addRound('demo', { pages: [{ id: 'x', after: 'after1.png', device: 'tablet' }] }, dir), /device must be desktop or phone/);
+  assert.throws(() => store.addRound('demo', { pages: [{ id: 'x', after: 'after1.png', device: 'phone', mobile: 'phone.png' }] }, dir), /takes no mobile ones/);
+});

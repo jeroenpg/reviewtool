@@ -26,7 +26,8 @@ export function feedbackText(store, slug, { all = false, round = null, submissio
   for (const t of list) {
     const r = rounds.find((x) => x.n === t.round);
     const page = r?.pages.find((p) => p.id === t.page);
-    const pinned = t.pin ? `pinned on the ${t.pin.img} screenshot at ${t.pin.x}% across, ${t.pin.y}% down` : 'general comment';
+    const shot = { mobile: 'phone', previous: 'last round' }[t.pin?.img] ?? t.pin?.img;
+    const pinned = t.pin ? `pinned on the ${page?.device === 'phone' ? 'phone ' : ''}${shot} screenshot at ${t.pin.x}% across, ${t.pin.y}% down` : 'general comment';
     out.push(`[${t.id}] ${page?.group ? `${page.group.split('/').join(' › ')} › ` : ''}${page?.title ?? t.page} (${t.page}) · round ${t.round} · ${pinned}${t.status === 'resolved' ? ' · resolved' : ''}`);
     if (t.pin && page) {
       const file = t.pin.img === 'previous' ? rounds.find((x) => x.n === t.round - 1)?.pages.find((p) => p.id === t.page)?.after : page[t.pin.img];

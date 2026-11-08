@@ -66,6 +66,12 @@ reviewtool round <name> /tmp/round.json --as Claude
 reviewtool url <name>
 ```
 
+- **Phone screenshots: same page or a page of their own, your choice.**
+  - Same screen on both: add `"mobile"` (and `"mobileBefore"` when you have one) to the desktop page. The reviewer
+    switches between Desktop and Phone on that page and gives one verdict for both.
+  - A phone screen that deserves its own verdict, or that has no desktop equivalent (a drawer, a bottom sheet, a
+    phone-only layout): make a separate page with `"device": "phone"`. Its `before` and `after` are then the phone
+    screenshots, shown at phone width. A folder such as `"Phone"` or `"CRM/Phone"` keeps such pages together.
 - **Put pages in folders with `group`** when a round has more than a handful of pages. Use the product's own areas
   (`"CRM"`, `"Settings/Team & access"`), and use `/` to nest. A page keeps its folder in later rounds unless you name
   another; `"group": ""` takes it out. To sort the pages of a round that is already published, run

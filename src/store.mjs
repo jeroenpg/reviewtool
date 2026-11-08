@@ -13,6 +13,7 @@ export const VERDICTS = ['approve', 'update', 'revert'];
 export const IMAGE_FILE = /^[a-f0-9]{20}\.(png|jpe?g|webp|gif)$/;
 const SLUG = /^[a-z0-9][a-z0-9-]{0,63}$/;
 const PAGE_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
+const DEVICES = ['desktop', 'phone'];
 
 /** A folder for a page: "Settings" or nested "Settings/Team & access". Empty means no folder. */
 export function cleanGroup(group) {
@@ -224,6 +225,8 @@ export class Store {
       seen.add(p.id);
       if (!p.after) throw new ReviewError(`page "${p.id}" has no after image`);
       cleanGroup(p.group);
+      if (p.device !== undefined && !DEVICES.includes(p.device)) throw new ReviewError(`page "${p.id}": device must be ${DEVICES.join(' or ')}`);
+      if (p.device === 'phone' && (p.mobile || p.mobileBefore)) throw new ReviewError(`page "${p.id}" is a phone page; its before and after are the phone screenshots, so it takes no mobile ones`);
     }
     // Copy images outside the lock (slow), then append the round under it.
     const imported = manifest.pages.map((p) => {
@@ -252,6 +255,9 @@ export class Store {
             title: p.title || p.id,
             // A page keeps last round's folder unless the manifest names one ("" takes it out of its folder).
             group: p.group === undefined ? prev?.group ?? '' : cleanGroup(p.group),
+            // "phone": the before and after are phone screenshots (a page of its own). Desktop pages may add phone
+            // variants of the same screen in mobile and mobileBefore.
+            device: p.device ?? prev?.device ?? 'desktop',
             route: p.route || '',
             before: before === undefined ? prev?.before ?? null : before,
             beforeLabel: p.beforeLabel || (before === undefined ? prev?.beforeLabel : null) || 'before',

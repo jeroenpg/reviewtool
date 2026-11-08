@@ -69,14 +69,15 @@
 
   .canvas { display: grid; gap: .9rem; align-items: start; grid-template-columns: minmax(0, 1fr); }
   .canvas[data-layout="side"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .canvas[data-phone="true"] { grid-template-columns: repeat(auto-fit, minmax(0, 390px)); justify-content: start; }
+  .canvas[data-phone="true"] { grid-template-columns: minmax(0, 390px); justify-content: start; }
+  .canvas[data-phone="true"][data-layout="side"] { grid-template-columns: repeat(2, minmax(0, 390px)); }
   figure { margin: 0; min-width: 0; }
   figcaption { font-size: .9em; font-weight: 600; margin-bottom: .35rem; display: flex; gap: .5rem; }
   figcaption small { font-weight: 400; color: var(--pico-muted-color); }
   .frame { position: relative; border: 1px solid var(--pico-muted-border-color); border-radius: var(--pico-border-radius); overflow: auto; max-height: calc(100vh - 210px); cursor: crosshair; background: var(--pico-card-background-color); scrollbar-width: thin; }
   .frame.nopin { cursor: default; }
   .frame.missing { aspect-ratio: 16 / 10; display: grid; place-items: center; padding: 1rem; text-align: center; color: var(--pico-muted-color); border-style: dashed; background: transparent; cursor: default; }
-  .frame.missing.phone { aspect-ratio: 9 / 19.5; }
+  .frame.missing.phone { aspect-ratio: auto; height: min(844px, calc(100vh - 210px)); max-height: none; }
   .stage { position: relative; width: 100%; }
   .stage > img { display: block; width: 100%; height: auto; user-select: none; -webkit-user-drag: none; }
   .canvas[data-zoom="full"] .stage { width: max-content; min-width: 100%; }
@@ -202,7 +203,10 @@
           <button class="secondary outline" data-layout="swipe" title="Swipe between the two (W)">Swipe</button>
           <button class="secondary outline" data-layout="single" title="Only the after (A)">After only</button>
         </div>
-        <button class="secondary outline" id="phoneBtn" aria-pressed="false" title="Phone screenshots (P)">Phone</button>
+        <div role="group" id="devices" aria-label="Device" hidden>
+          <button class="secondary outline" data-device="desktop" title="Desktop screenshots (P)">Desktop</button>
+          <button class="secondary outline" data-device="phone" title="Phone screenshots of this page (P)">Phone</button>
+        </div>
         <button class="secondary outline" id="zoomBtn" title="Fit or 100% (Z)">100%</button>
         <span class="spacer"></span>
         <button class="secondary outline" id="generalBtn" title="A comment about the page as a whole (G)">Comment</button>
@@ -243,7 +247,7 @@
       <tr><td><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd></td><td>Approve, needs update, revert (again to clear)</td></tr>
       <tr><td><kbd>C</kbd></td><td>Compare with before or with the last round</td></tr>
       <tr><td><kbd>S</kbd> <kbd>W</kbd> <kbd>A</kbd></td><td>Side by side, swipe, after only</td></tr>
-      <tr><td><kbd>P</kbd> <kbd>Z</kbd> <kbd>H</kbd></td><td>Phone, zoom, outline changes</td></tr>
+      <tr><td><kbd>P</kbd> <kbd>Z</kbd> <kbd>H</kbd></td><td>Desktop or phone, zoom, outline changes</td></tr>
       <tr><td><kbd>G</kbd></td><td>Comment on the page as a whole</td></tr>
       <tr><td><kbd>Shift</kbd> <kbd>S</kbd></td><td>Send your feedback</td></tr>
       <tr><td><kbd>Ctrl</kbd> <kbd>Enter</kbd></td><td>Post what you are writing</td></tr>
@@ -346,7 +350,10 @@ function shots(p) {
   let cmp;
   if (effectivePair(p) === 'last') cmp = phone ? { key: 'previousMobile', file: prev?.mobile, label: 'Last round', sub: `phone · round ${roundN - 1}`, noPin: true } : { key: 'previous', file: prev?.after, label: 'Last round', sub: `round ${roundN - 1}` };
   else cmp = phone ? { key: 'mobileBefore', file: p.mobileBefore, label: 'Before', sub: 'phone', noPin: true } : { key: 'before', file: p.before, label: 'Before', sub: p.beforeLabel && p.beforeLabel !== 'before' ? p.beforeLabel : '' };
-  return { base, cmp: cmp.file ? cmp : null, phone };
+  // Phone-sized frames for a page's phone variant, and for pages that are phone screenshots themselves.
+  const narrow = phone || p.device === 'phone';
+  if (p.device === 'phone') { base.sub = `phone · ${base.sub}`; if (cmp.file) cmp.sub = `phone${cmp.sub ? ` · ${cmp.sub}` : ''}`; }
+  return { base, cmp: cmp.file ? cmp : null, phone, narrow };
 }
 const effectivePair = (p) => (ui.pair === 'last' && !prevPage(p.id) ? 'before' : ui.pair);
 
@@ -577,13 +584,13 @@ function renderPage(p) {
     b.setAttribute('aria-pressed', b.dataset.layout === layout);
     b.disabled = !cmp && b.dataset.layout === 'swipe';
   }
-  $('phoneBtn').setAttribute('aria-pressed', phone);
-  $('phoneBtn').disabled = !p.mobile;
+  $('devices').hidden = !p.mobile;
+  for (const b of $('devices').querySelectorAll('button')) b.setAttribute('aria-pressed', (b.dataset.device === 'phone') === phone);
   $('zoomBtn').setAttribute('aria-pressed', ui.zoom === 'full');
   const canvas = $('canvas');
   canvas.dataset.layout = layout;
   canvas.dataset.zoom = ui.zoom;
-  canvas.dataset.phone = phone;
+  canvas.dataset.phone = shots(p).narrow;
   const empty = { label: phone ? 'Phone before' : effectivePair(p) === 'last' ? 'Last round' : 'Before', sub: '', file: null, empty: true };
   canvas.innerHTML = layout === 'swipe' ? swipeHtml(p, base, cmp) : (layout === 'side' ? [cmp ?? empty, base] : [base]).map((f) => figureHtml(p, f)).join('');
   bindCanvas();
@@ -636,7 +643,7 @@ function pinsHtml(p, key) {
 }
 
 function figureHtml(p, f) {
-  if (!f.file) return `<figure><figcaption>${esc(f.label)} <small>${esc(f.sub)}</small></figcaption><div class="frame missing${ui.phone && p.mobile ? ' phone' : ''}">${f.empty ? (p.change?.status === 'new' ? 'New page, nothing to compare with' : 'No screenshot to compare with') : 'No screenshot'}</div></figure>`;
+  if (!f.file) return `<figure><figcaption>${esc(f.label)} <small>${esc(f.sub)}</small></figcaption><div class="frame missing${shots(p).narrow ? ' phone' : ''}">${f.empty ? (p.change?.status === 'new' ? 'New page, nothing to compare with' : 'No screenshot to compare with') : 'No screenshot'}</div></figure>`;
   return `<figure><figcaption>${esc(f.label)} <small>${esc(f.sub)}</small></figcaption>
     <div class="frame${f.noPin ? ' nopin' : ''}" data-img="${f.noPin ? '' : f.key}"${f.noPin ? '' : ' title="Click to comment on this spot"'}><div class="stage"><img src="${imgUrl(f.file)}" alt="${esc(`${f.label}: ${p.title}`)}" draggable="false">${outlinesHtml(p, f.key)}${pinsHtml(p, f.key)}</div></div></figure>`;
 }
@@ -897,7 +904,7 @@ $('round').addEventListener('change', () => setRound(Number($('round').value)));
 $('verdicts').addEventListener('click', (e) => { const b = e.target.closest('button[data-v]'); if (b) setVerdict(b.dataset.v); });
 $('pairs').addEventListener('click', (e) => { const b = e.target.closest('button[data-pair]'); if (b && !b.disabled) { ui.pair = b.dataset.pair; pref.set('pair', ui.pair); render(); } });
 $('layouts').addEventListener('click', (e) => { const b = e.target.closest('button[data-layout]'); if (b && !b.disabled) { ui.layout = b.dataset.layout; pref.set('layout', ui.layout); render(); } });
-$('phoneBtn').addEventListener('click', () => { ui.phone = !ui.phone; render(); });
+$('devices').addEventListener('click', (e) => { const b = e.target.closest('[data-device]'); if (b) { ui.phone = b.dataset.device === 'phone'; render(); } });
 $('zoomBtn').addEventListener('click', () => { ui.zoom = ui.zoom === 'fit' ? 'full' : 'fit'; render(); });
 $('generalBtn').addEventListener('click', () => { draftPin = null; openThread = openThread === 'general' ? null : 'general'; renderPopover(); });
 $('helpBtn').addEventListener('click', () => $('help').showModal());

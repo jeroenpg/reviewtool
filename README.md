@@ -89,6 +89,10 @@ Rules for manifests:
 
 - **Only `id` and `after` are required.** Keep each page's `id` the same in every round. The "Last round" view and
   the "new" badge match pages by id.
+- **Phone screenshots go on the same page or a page of their own.** `mobile` (and `mobileBefore`) add a phone
+  variant to a desktop page; the reviewer switches with *Desktop / Phone* and gives one verdict. A page with
+  `"device": "phone"` is a phone screen in its own right: its `before` and `after` are phone screenshots, shown at
+  phone width. The agent picks per page.
 - **`group` puts a page in a folder** of the page list, such as `"CRM"` or nested `"Settings/Team & access"`. A page
   keeps its folder in later rounds unless the manifest names another. `reviewtool group <name> <page-id>... --to
   <folder>` re-sorts a round that is already published.
