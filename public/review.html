@@ -399,9 +399,15 @@ function rows(p) {
 }
 
 /* ---------- loading and navigation ---------- */
+// What a refresh compares: when none of it changed, there is nothing to redraw.
+const signature = (d) => JSON.stringify([d.rounds.length, d.rounds.at(-1)?.createdAt, d.feedback, d.waiting, d.review.target]);
+let loaded = '';
 async function load() {
   const fresh = await api('GET', '');
   const first = !data;
+  const sig = signature(fresh);
+  if (!first && sig === loaded) return;
+  loaded = sig;
   data = fresh;
   const latest = data.rounds.at(-1)?.n ?? null;
   if (first) {
@@ -603,12 +609,20 @@ function renderPage(p) {
   $('approveBtn').textContent = approved ? 'Approved' : 'Approve';
   $('approveBtn').title = approved ? 'Approved; click to undo (1)' : 'Keep this page as it is now (1)';
   renderChangeBar(p);
-  $('canvas').innerHTML = rows(p).map((r) => {
+  // The same screenshots as already on screen: only the markers on them can have changed. Rebuilding would reload the
+  // images, which flashes.
+  const shown = rows(p);
+  const key = JSON.stringify([roundN, p.id, shown.map((r) => [r.layout, r.base.file, r.cmp?.file])]);
+  if ($('canvas').dataset.key === key) updatePins();
+  else {
+  $('canvas').dataset.key = key;
+  $('canvas').innerHTML = shown.map((r) => {
     const empty = { label: 'Before', sub: r.narrow ? 'phone' : '', file: null, empty: true };
     const inner = r.layout === 'swipe' ? swipeHtml(p, r.base, r.cmp) : [r.cmp ?? empty, r.base].map((f) => figureHtml(p, f, r.narrow)).join('');
     return `${r.title ? `<h3 class="rowtitle">${r.title}</h3>` : ''}<div class="pair" data-layout="${r.layout}" data-phone="${r.narrow}">${inner}</div>`;
   }).join('');
   bindCanvas();
+  }
   const marks = markersOn(p);
   $('chatHint').textContent = marks.length
     ? `Say what you think of ${marks.map((m) => `[${m.n}]`).join(', ')} in the chat. Click a marker to remove it.`
