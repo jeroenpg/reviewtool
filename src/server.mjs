@@ -50,6 +50,15 @@ export function createApp(store, { key = null } = {}) {
 
   async function handle(req, res) {
     const url = new URL(req.url, 'http://localhost');
+    if (key) {
+      // A chat that shows the app in a sandboxed frame gives it an opaque origin, so even its own requests count as
+      // cross-site. The key, not the origin, guards this side, so any origin may ask.
+      res.setHeader('access-control-allow-origin', '*');
+      res.setHeader('access-control-allow-headers', 'content-type, x-review-key');
+      res.setHeader('access-control-allow-methods', 'GET, POST, PUT, PATCH, DELETE');
+      res.setHeader('access-control-max-age', '600');
+      if (req.method === 'OPTIONS') return send(res, 204, null);
+    }
     if (key && !OPEN.has(url.pathname) && !sameKey(url.searchParams.get('key') ?? req.headers['x-review-key'], key)) {
       return send(res, 403, 'This link needs its key. Ask the agent for the full link.', 'text/plain; charset=utf-8');
     }

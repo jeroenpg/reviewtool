@@ -120,6 +120,10 @@ test('the public side answers only requests that carry the key', async () => {
     assert.equal(post.status, 403);
     assert.equal(store.get('demo').feedback.comments.length, 0);
     assert.equal((await fetch(`${base}/app.css`)).status, 200, 'styles need no key');
+    // A chat shows the app in a sandboxed frame, whose requests come from an opaque origin.
+    const pre = await fetch(`${base}/api/r/demo/comments?key=k3y`, { method: 'OPTIONS', headers: { origin: 'null', 'access-control-request-method': 'POST' } });
+    assert.equal(pre.status, 204);
+    assert.equal(pre.headers.get('access-control-allow-origin'), '*');
   } finally {
     server.close();
   }

@@ -36,7 +36,7 @@
   .rail-head { padding: .75rem; display: grid; gap: .55rem; border-bottom: 1px solid var(--pico-muted-border-color); }
   .changes { font-size: .9em; }
   .rail-head [role="group"] button { font-size: .85em; padding: .25rem .4rem; }
-  #pageSelect { display: none; }
+  .pagenav { display: none; }
   .pages { overflow-y: auto; padding: .4rem; flex: 1; }
   .pages .group { font-size: .8em; font-weight: 600; color: var(--pico-muted-color); padding: .8rem .6rem .25rem calc(.6rem + var(--depth, 0) * .85rem); }
   .pages button { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: .5rem; width: 100%; padding: .38rem .6rem .38rem calc(.6rem + var(--depth, 0) * .85rem); border-radius: var(--pico-border-radius); cursor: pointer; }
@@ -156,14 +156,35 @@
     .app { display: block; }
     .rail { border-right: 0; border-bottom: 1px solid var(--pico-muted-border-color); }
     .pages, .rail-foot, #search, #filters { display: none !important; }
-    #pageSelect { display: block; }
+    .pagenav { display: flex; gap: .4rem; }
+    .pagenav select { flex: 1; min-width: 0; }
+    .pagenav button { flex: none; width: 2.6rem; padding: 0; font-size: 1.25em; line-height: 1; }
     .work { display: block; }
     main { overflow: visible; padding: .9rem .75rem 1.5rem; }
     .composer { position: sticky; bottom: 0; z-index: 10; padding-inline: .75rem; }
-    .composer .hint .keys { display: none; }
     .canvas[data-layout="side"], .canvas[data-phone="true"] { grid-template-columns: minmax(0, 1fr); }
     .frame { max-height: none; }
     .popover { left: .75rem !important; right: .75rem; width: auto; }
+  }
+  /* Tablet, which is also an agent chat that shows the review inline: one row of controls, a little larger. */
+  @media (min-width: 600px) and (max-width: 1000px) {
+    :root { --pico-font-size: 15px !important; }
+    .topbar { flex-wrap: nowrap; padding-block: .45rem; }
+    .topbar .title { flex: 1 1 8rem; }
+    .topbar select { flex: 0 1 auto; width: 10.5rem; }
+    .topbar button { white-space: nowrap; flex: none; }
+    .topbar .progress { flex: none; }
+    .topbar .spacer, #progressBar { display: none; }
+    .topbar .agentstate:not([hidden]) { position: fixed; z-index: 15; left: 50%; transform: translateX(-50%); bottom: 5.4rem; padding: .3rem .8rem; border-radius: 1rem; background: var(--pico-background-color); border: 1px solid var(--pico-muted-border-color); box-shadow: 0 2px 10px rgb(0 0 0 / .15); }
+    #meBtn.named { display: none; }
+    .rail-head { padding: .6rem .9rem; }
+    main { padding: 1rem .9rem 1.5rem; }
+    .composer { padding-inline: .9rem; }
+    .toolbar button, #verdicts button { padding-block: .4rem; }
+  }
+  /* Phone */
+  @media (max-width: 599px) {
+    .composer .hint .keys { display: none; }
   }
 </style>
 </head>
@@ -186,7 +207,7 @@
     <div class="rail-head">
       <div class="changes" id="roundChanges" hidden></div>
       <button class="secondary outline small" id="carryBtn" hidden></button>
-      <select id="pageSelect" aria-label="Page"></select>
+      <div class="pagenav"><button class="secondary outline" id="prevPage" aria-label="Previous page" title="Previous page (K)">‹</button><select id="pageSelect" aria-label="Page"></select><button class="secondary outline" id="nextPage" aria-label="Next page" title="Next page (J)">›</button></div>
       <input type="search" id="search" placeholder="Filter pages" aria-label="Filter pages">
       <div role="group" id="filters"></div>
     </div>
@@ -293,9 +314,11 @@ const api = async (method, path, body) => {
   if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || res.statusText);
   return res.status === 204 ? null : res.json();
 };
+// Settings in the browser. A sandboxed frame (an agent chat) has no storage; then they last until the page closes.
+const memory = {};
 const pref = {
-  get(k, d) { try { return localStorage.getItem(`reviewtool.${k}`) ?? d; } catch { return d; } },
-  set(k, v) { try { localStorage.setItem(`reviewtool.${k}`, v); } catch {} },
+  get(k, d) { try { return localStorage.getItem(`reviewtool.${k}`) ?? d; } catch { return memory[k] ?? d; } },
+  set(k, v) { try { localStorage.setItem(`reviewtool.${k}`, v); } catch { memory[k] = v; } },
 };
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const when = (iso) => new Date(iso).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
@@ -308,7 +331,8 @@ let current = null;
 let openThread = null; // the thread shown in the popover
 let openMark = 1; // which of its markers the popover sits next to
 const ui = {
-  layout: pref.get('layout', 'side'),
+  // Where two screenshots side by side would be too small to read, swipe between them.
+  layout: pref.get('layout', matchMedia('(max-width: 1000px)').matches ? 'swipe' : 'side'),
   pair: pref.get('pair', 'before'),
   phone: false,
   zoom: 'fit',
@@ -461,7 +485,8 @@ async function load() {
 function setHash() {
   if (!data?.rounds.length) return;
   const r = roundN !== data.rounds.at(-1)?.n ? `@${roundN}` : '';
-  history.replaceState(null, '', `#${encodeURIComponent(current ?? '')}${r}`);
+  // A sandboxed frame (an agent chat) may refuse to touch the address; the page works without it.
+  try { history.replaceState(null, '', `#${encodeURIComponent(current ?? '')}${r}`); } catch {}
 }
 
 function go(id) {
@@ -515,6 +540,7 @@ function renderBar() {
   $('progressBar').value = done;
   $('progressText').textContent = `${done}/${ps.length} judged`;
   $('meBtn').textContent = pref.get('me', '') || 'Set your name';
+  $('meBtn').classList.toggle('named', !!pref.get('me', ''));
   $('logLink').href = withKey(`/api/r/${encodeURIComponent(slug)}/log`);
 
   const sub = lastSubmission();
@@ -605,6 +631,9 @@ function renderRail() {
   // Narrow screens pick a page here instead of the list.
   const mark = (p) => (verdictOf(r.n, p.id) ? '✓ ' : needsMe(p) ? '• ' : '  ');
   const option = (p) => `<option value="${esc(p.id)}" ${p.id === current ? 'selected' : ''}>${mark(p)}${esc(p.title)}${changedKind(p) === 'changed' ? ' (changed)' : changedKind(p) === 'new' ? ' (new)' : ''}</option>`;
+  const at = ps.findIndex((p) => p.id === current);
+  $('prevPage').disabled = at <= 0;
+  $('nextPage').disabled = at >= ps.length - 1;
   $('pageSelect').innerHTML = folders(ps).map((g) => (g.path.length ? `<optgroup label="${esc(g.path.join(' › '))}">${g.items.map(option).join('')}</optgroup>` : g.items.map(option).join(''))).join('');
 }
 
@@ -1041,7 +1070,10 @@ async function onAction(el, scope) {
     if (act === 'closePop') { openThread = null; render(); }
     else if (act === 'send') await sendReply(id, scope.querySelector(`textarea[data-reply="${id}"]`));
     else if (act === 'status') { const t = threadById(id); await setStatus(id, t.status === 'resolved' ? 'open' : 'resolved'); render(); toast(t.status === 'resolved' ? 'Reopened' : 'Resolved'); }
-    else if (act === 'delete') { if (!confirm('Delete this comment?')) return; await api('DELETE', `/comments/${id}`); data.feedback.comments = data.feedback.comments.filter((x) => x.id !== id && x.replyTo !== id); if (openThread === id) openThread = null; render(); }
+    else if (act === 'delete') {
+      // Ask by changing the link, not with confirm(): a sandboxed frame blocks dialogs like that.
+      if (el.dataset.sure !== '1') { el.dataset.sure = '1'; el.textContent = 'Really delete?'; return; }
+      await api('DELETE', `/comments/${id}`); data.feedback.comments = data.feedback.comments.filter((x) => x.id !== id && x.replyTo !== id); if (openThread === id) openThread = null; render(); }
     else if (act === 'resolveAnswered') { const ts = threadsOf(roundN, current).filter(answered); for (const t of ts) await setStatus(t.id, 'resolved'); render(); toast(`Resolved ${plural(ts.length, 'thread')}`); }
   } catch (err) { toast(`Could not save: ${err.message}`); }
 }
@@ -1099,6 +1131,9 @@ function renderNoRounds() {
 /* ---------- events ---------- */
 $('pages').addEventListener('click', (e) => { const b = e.target.closest('button[data-id]'); if (b) go(b.dataset.id); });
 $('pageSelect').addEventListener('change', () => go($('pageSelect').value));
+const step = (d) => { const ps = pages(); const i = ps.findIndex((p) => p.id === current); go(ps[i + d]?.id); };
+$('prevPage').addEventListener('click', () => step(-1));
+$('nextPage').addEventListener('click', () => step(1));
 $('filters').addEventListener('click', (e) => { const b = e.target.closest('[data-filter]'); if (b) { ui.filter = b.dataset.filter; renderRail(); } });
 $('search').addEventListener('input', () => { ui.search = $('search').value; renderRail(); });
 $('round').addEventListener('change', () => setRound(Number($('round').value)));
