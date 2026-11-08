@@ -30,12 +30,15 @@ export function renderLog({ review, rounds, feedback }, { url = null, compactBef
     const compact = round.n < rounds.length - compactBefore + 1;
     out.push('', `<details${round === latest ? ' open' : ''}><summary><b>Round ${round.n}${round.title && round.title !== `Round ${round.n}` ? ` — ${round.title}` : ''}</b> · ${date(round.createdAt)} · ${round.pages.length} pages · ${roundThreads.length} comments</summary>`, '');
     if (round.notes) out.push(round.notes, '');
-    out.push('| Page | Verdict | Comments |', '| --- | --- | --- |');
-    for (const p of round.pages) {
-      const v = feedback.verdicts[`${round.n}/${p.id}`]?.verdict;
-      const n = roundThreads.filter((t) => t.page === p.id).length;
-      out.push(`| ${oneLine(p.title)} | ${v ? VERDICT_TEXT[v] : '—'} | ${n || ''} |`);
+    // Only pages with a verdict or comments get a row; the rest are named on one line.
+    const rows = round.pages.map((p) => ({ p, v: feedback.verdicts[`${round.n}/${p.id}`]?.verdict, n: roundThreads.filter((t) => t.page === p.id).length }));
+    const quiet = rows.filter((r) => !r.v && !r.n);
+    if (quiet.length < rows.length) {
+      out.push('| Page | Verdict | Comments |', '| --- | --- | --- |');
+      for (const { p, v, n } of rows) if (v || n) out.push(`| ${oneLine(p.title)} | ${v ? VERDICT_TEXT[v] : '—'} | ${n || ''} |`);
+      out.push('');
     }
+    if (quiet.length) out.push(`${quiet.length === rows.length ? 'No verdicts or comments yet on' : 'No verdict or comments:'} ${quiet.map((r) => r.p.title).join(', ')}.`);
     if (!compact) {
       for (const p of round.pages) {
         const pageThreads = roundThreads.filter((t) => t.page === p.id);
