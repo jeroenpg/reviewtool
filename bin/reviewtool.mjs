@@ -30,6 +30,20 @@ function writeConfig(patch) {
   mkdirSync(dirname(configFile), { recursive: true });
   writeFileSync(configFile, JSON.stringify({ ...readConfig(), ...patch }, null, 2) + '\n');
 }
+// Height over width of the latest round's desktop screenshots: the most common one, as most are captured at one size.
+function screenshotRatio(slug) {
+  const latest = store.get(slug).rounds.at(-1);
+  const counts = new Map();
+  for (const p of latest?.pages ?? []) {
+    if (p.device === 'phone' || !p.after?.endsWith('.png')) continue;
+    try {
+      const head = readFileSync(store.imagePath(slug, p.after)).subarray(16, 24); // PNG IHDR: width, height
+      const r = Math.round((head.readUInt32BE(4) / head.readUInt32BE(0)) * 1000) / 1000;
+      if (r > 0 && r < 3) counts.set(r, (counts.get(r) ?? 0) + 1);
+    } catch {}
+  }
+  return [...counts].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 0.625;
+}
 function publicLink(slug, page, { chat = false } = {}) {
   const { publicUrl, publicKey } = readConfig();
   if (!publicUrl || !publicKey) throw new ReviewError('no public link: set one up with "reviewtool relay" (see reviewtool --help)');
@@ -67,7 +81,7 @@ Usage:
                                                         with their page and image, and which pages they approved
   reviewtool url <name> [<page-id>] [--public]          link to the review (REVIEWTOOL_URL sets the host);
                                                         --public: the link that works from anywhere, with its key
-  reviewtool embed <name> [<page-id>] [--height 600]    HTML that shows the review inside an agent chat (T3 Code)
+  reviewtool embed <name> [<page-id>] [--height PX]    HTML that shows the review inside an agent chat (T3 Code)
   reviewtool target <name> [--here | --none]            where "send" delivers feedback: this T3 Code thread
                                                         (--here; automatic for init, round and wait inside T3),
                                                         or nowhere, for agents that use wait (--none)
@@ -317,13 +331,17 @@ async function main() {
     }
     case 'embed': {
       // A page for an agent's chat to show inline (T3 Code's html_render): the review in a frame, over the public link.
+      // The frame is as tall as the review's two bars (96px) plus a desktop screenshot at the chat's full width, so
+      // the screenshot fills it with nothing empty below, and it keeps that height on every page.
       const slug = need(args[0], 'review name');
       store.mustDir(slug);
-      // Short enough to sit above the chat's input; the review scales its screenshot to fit.
-      const height = Math.min(2000, Math.max(400, Number(o.height ?? 600)));
-      // chat=1: the reviewer talks in the chat, so the page only approves and marks spots.
       const src = publicLink(slug, args[1], { chat: true }).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
-      console.log(`<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0}iframe{display:block;width:100%;height:${height}px;border:1px solid var(--border,#8884);border-radius:var(--radius,8px)}</style></head><body><iframe src="${src}" title="Review" allow="clipboard-write"></iframe></body></html>`);
+      const ratio = screenshotRatio(slug);
+      // The 1px border sits inside the size (border-box), so the review gets the width minus 2px and 96px more than
+      // the screenshot's height at that width, plus the border.
+      const height = o.height ? `${Math.min(2000, Math.max(300, Number(o.height)))}px` : `calc(98px + ${ratio} * (100vw - 2px))`;
+      console.log(`<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0}iframe{display:block;box-sizing:border-box;width:100%;height:${height};border:1px solid var(--border,#8884);border-radius:var(--radius,8px)}</style></head><body><iframe src="${src}" title="Review" allow="clipboard-write"></iframe></body></html>`);
+      if (!o.height) console.error(`(html_render height: ${Math.round(98 + ratio * 726)})`);
       return;
     }
     case 'relay': {

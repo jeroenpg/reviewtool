@@ -100,29 +100,28 @@ else try { const t = localStorage.getItem('reviewtool.theme'); if (t) document.d
   /* In an agent chat the reviewer talks in the chat itself: the page only approves and places numbered markers. */
   :root.chat[data-theme="dark"] { --pico-background-color: #000 !important; --pico-card-background-color: #000 !important; --pico-card-sectioning-background-color: #0a0a0a !important; }
   .chat #composer, .chat #sendBtn, .chat #agentState, .chat #offCanvas { display: none !important; }
-  .chathint { display: none; margin-top: .6rem; font-size: .9em; color: var(--pico-muted-color); }
-  .chat .chathint { display: block; }
   /* Compact, so the whole review fits a short frame above the chat's input: one strip with the page and Approve, and
      the screenshot scaled to the height that is left. */
+  /* Fixed bars (44 + 52 = 96px, which "reviewtool embed" counts on), and the screenshot fills exactly what is left. */
   .chat { --bar-h: 44px; }
-  .chat .topbar { padding-block: .3rem; }
-  .chat .rail-head { flex-wrap: nowrap; padding: .4rem .75rem; }
+  .chat .topbar { height: 44px; min-height: 0; box-sizing: border-box; padding-block: 0; }
+  .chat .rail { height: 52px; box-sizing: border-box; }
+  .chat .rail-head { height: 100%; flex-wrap: nowrap; padding: 0 .75rem; }
   .chat .pagenav { max-width: none; flex: 1 1 auto; }
   .chat #roundChanges, .chat #changeBar, .chat .page-head, .chat #note { display: none !important; }
   .chat #approveBtn { flex: none; padding-block: .35rem; }
-  .chat main { padding: 0 0 .3rem; }
+  .chat main { padding: 0; }
   .chat .canvas { margin-top: 0; }
   .chat .flip figcaption { display: none; } /* its toggle sits in the strip */
   .chat .rail-head .seg { display: inline-flex; width: auto; flex: none; }
   .chat .rail-head .seg button { padding: .35rem .8rem; }
   /* Desktop screenshots run edge to edge; one taller than the frame scrolls inside it. */
   .chat .flip, .chat .flip.phone { max-width: none; }
-  .chat .frame { border: 0; border-radius: 0; background: transparent; max-height: calc(100vh - 7.4rem); overflow-y: auto; scrollbar-width: thin; }
+  .chat .frame { border: 0; border-radius: 0; background: transparent; height: calc(100vh - 96px); max-height: none; overflow-y: auto; scrollbar-width: none; }
   /* Phone screenshots would be very tall at full width: scaled to the height that is left, centred. */
-  .chat .flip.phone .frame { max-height: none; overflow: visible; }
+  .chat .flip.phone .frame { overflow: hidden; }
   .chat .flip.phone .stage { width: fit-content; max-width: 100%; margin-inline: auto; }
-  .chat .flip.phone .stage > img { width: auto; max-width: 100%; max-height: calc(100vh - 8rem); }
-  .chat .chathint { margin: .25rem .75rem 0; font-size: .82em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .chat .flip.phone .stage > img { width: auto; max-width: 100%; max-height: calc(100vh - 96px); }
   .pin.draft:hover { background: var(--revert); }
   .mark { display: inline-grid; place-items: center; min-width: 1.35em; height: 1.35em; padding: 0 .3em; border-radius: .7em .7em .7em .2em; background: var(--pin); color: #fff; font-size: .78em; font-weight: 700; vertical-align: .08em; cursor: pointer; }
   .resolved .mark { background: #8a9592; }
@@ -230,7 +229,6 @@ else try { const t = localStorage.getItem('reviewtool.theme'); if (t) document.d
       <div class="changebar" id="changeBar" hidden></div>
       <p class="pagenote" id="note" hidden></p>
       <div class="canvas" id="canvas"></div>
-      <p class="chathint" id="chatHint"></p>
       <section class="offcanvas" id="offCanvas" hidden></section>
     </div>
     <div class="noround" id="noRound" hidden></div>
@@ -597,10 +595,6 @@ function renderPage(p) {
   bindCanvas();
   }
   setShowing(showing);
-  const marks = markersOn(p);
-  $('chatHint').textContent = marks.length
-    ? `Name ${marks.map((m) => `[${m.n}]`).join(', ')} in the chat. Click a marker to remove it.`
-    : 'Click a spot to mark it, then name it in the chat: “[1] is too tall”.';
 }
 
 // The screenshots that show pins in the current view.
