@@ -104,7 +104,7 @@ loop, and do not start fixing half-finished feedback.
 prints one instead of an error), the review lives at the end of the conversation and the feedback in the chat:
 
 1. **End your reply with the review.** Pass the output of `reviewtool embed <name>` as the `html` of T3's
-   `html_render` tool, with height 900 and a title like "Review: round 3". Keep the reply text short.
+   `html_render` tool, with height 610 and a title like "Review: round 3". Keep the reply text short.
 2. **End your turn.** Do not run `wait`. In the review, the user approves pages, and clicks screenshots to put
    numbered markers on them: [1], [2], … They write their feedback in the chat and name the markers: "[1] is too tall,
    and [2] should line up with it". Dictation often drops the brackets ("the header 1 is too tall"); read a number

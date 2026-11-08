@@ -67,7 +67,7 @@ Usage:
                                                         with their page and image, and which pages they approved
   reviewtool url <name> [<page-id>] [--public]          link to the review (REVIEWTOOL_URL sets the host);
                                                         --public: the link that works from anywhere, with its key
-  reviewtool embed <name> [<page-id>] [--height 900]    HTML that shows the review inside an agent chat (T3 Code)
+  reviewtool embed <name> [<page-id>] [--height 600]    HTML that shows the review inside an agent chat (T3 Code)
   reviewtool target <name> [--here | --none]            where "send" delivers feedback: this T3 Code thread
                                                         (--here; automatic for init, round and wait inside T3),
                                                         or nowhere, for agents that use wait (--none)
@@ -319,7 +319,8 @@ async function main() {
       // A page for an agent's chat to show inline (T3 Code's html_render): the review in a frame, over the public link.
       const slug = need(args[0], 'review name');
       store.mustDir(slug);
-      const height = Math.min(2000, Math.max(400, Number(o.height ?? 900)));
+      // Short enough to sit above the chat's input; the review scales its screenshot to fit.
+      const height = Math.min(2000, Math.max(400, Number(o.height ?? 600)));
       // chat=1: the reviewer talks in the chat, so the page only approves and marks spots.
       const src = publicLink(slug, args[1], { chat: true }).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
       console.log(`<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0}iframe{display:block;width:100%;height:${height}px;border:1px solid var(--border,#8884);border-radius:var(--radius,8px)}</style></head><body><iframe src="${src}" title="Review" allow="clipboard-write"></iframe></body></html>`);

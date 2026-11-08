@@ -136,9 +136,9 @@ and follows your light or dark setting.
   the agent to check, or a new reply. *Approve* finishes the page, and so does posting a comment (which marks the page
   as needing an update); the next page that needs you opens and the finished one moves to *Done* in the picker. Pages that did not
   change since you approved them last round are done already. <kbd>N</kbd> jumps ahead.
-- **Before and after, nothing to set.** They sit side by side; where that would be too small to read (a tablet, an
-  agent chat), they are on top of each other with a handle to swipe between them. A page with phone screenshots shows
-  them underneath. Areas that changed since the last round are outlined.
+- **Before and after in one place.** One screenshot at a time: swap with the *Before / After* toggle, or press
+  <kbd>Space</kbd> or <kbd>B</kbd>. It swaps in place, so what changed jumps out. Each page opens on the after. Areas
+  that changed since the last round are outlined on it.
 - **Comment while you look, and point at what you mean.** The comment box is always under the page. Press
   <kbd>Enter</kbd> (or <kbd>G</kbd>) to write; while you write, each click on a screenshot puts a numbered marker on
   that spot and its number, like `[1]`, in your text where the cursor is, so one comment can point at several spots
@@ -156,7 +156,7 @@ and follows your light or dark setting.
   delivered.
 - **Know what's new.** The picker marks pages that *changed* or are *new* since the last round.
 - **Keyboard.** <kbd>J</kbd>/<kbd>K</kbd> next or previous page, <kbd>N</kbd> next page that needs you,
-  <kbd>1</kbd> approve, <kbd>Enter</kbd> write, <kbd>Shift</kbd>+<kbd>S</kbd> send, <kbd>?</kbd> for the list.
+  <kbd>1</kbd> approve, <kbd>Space</kbd> or <kbd>B</kbd> swap before and after, <kbd>Enter</kbd> write, <kbd>Shift</kbd>+<kbd>S</kbd> send, <kbd>?</kbd> for the list.
 
 ## Where the data lives
 
