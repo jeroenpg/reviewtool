@@ -335,7 +335,9 @@ const PREFIX = '(?:(?:marker|spot|point|pin|number|nummer|punt|plek)\\s+|#)';
 function spokenNumber(n) {
   const words = [String(n), EN[n], NL[n]].filter(Boolean).join('|');
   const een = n === 1 ? `|${PREFIX}een` : '';
-  return new RegExp(`(?<![\\p{L}\\p{N}\\[#])(?:${PREFIX}?(?:${words})${een})(?![\\p{L}\\p{N}\\]%])`, 'iu');
+  const num = `(?:${PREFIX}?(?:${words})${een})`;
+  // "(1)" as a whole, so it does not end up as "([1])".
+  return new RegExp(`\\(${num}\\)|(?<![\\p{L}\\p{N}\\[#])${num}(?![\\p{L}\\p{N}\\]%])`, 'iu');
 }
 function placeSpoken(before, after) {
   let p = 0;
