@@ -5,7 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Review</title>
 <link rel="icon" href="/favicon.svg">
-<script>try { const t = localStorage.getItem('reviewtool.theme'); if (t) document.documentElement.dataset.theme = t; } catch {}</script>
+<script>
+// In an agent chat (reviewtool embed, ?chat=1) the review sits on the chat's black background; elsewhere it follows
+// the system, or the theme picked earlier.
+if (new URLSearchParams(location.search).get('chat') === '1') { document.documentElement.dataset.theme = 'dark'; document.documentElement.classList.add('chat'); }
+else try { const t = localStorage.getItem('reviewtool.theme'); if (t) document.documentElement.dataset.theme = t; } catch {}
+</script>
 <link rel="stylesheet" href="/vendor/pico.zinc.min.css">
 <link rel="stylesheet" href="/app.css">
 <style>
@@ -99,6 +104,7 @@
   .pin.marker { background: var(--new); }
   .pin.marker:hover { background: var(--revert); }
   /* In an agent chat the reviewer talks in the chat itself: the page only approves and places numbered markers. */
+  :root.chat[data-theme="dark"] { --pico-background-color: #000 !important; --pico-card-background-color: #000 !important; --pico-card-sectioning-background-color: #0a0a0a !important; }
   .chat #composer, .chat #sendBtn, .chat #agentState, .chat #offCanvas { display: none !important; }
   .chathint { display: none; margin-top: .6rem; font-size: .9em; color: var(--pico-muted-color); }
   .chat .chathint { display: block; }
