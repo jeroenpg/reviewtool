@@ -109,23 +109,6 @@ function need(value, what) {
 
 const fmtDate = (iso) => new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 
-function printThread(t, rounds, slug) {
-  const round = rounds.find((r) => r.n === t.round);
-  const page = round?.pages.find((p) => p.id === t.page);
-  const pinned = t.pin ? `pinned on the ${t.pin.img} screenshot at ${t.pin.x}% across, ${t.pin.y}% down` : 'general comment';
-  console.log(`[${t.id}] ${page?.title ?? t.page} (${t.page}) · round ${t.round} · ${pinned}${t.status === 'resolved' ? ' · resolved' : ''}`);
-  if (t.pin && page) {
-    const file = t.pin.img === 'previous' ? rounds.find((r) => r.n === t.round - 1)?.pages.find((p) => p.id === t.page)?.after : page[t.pin.img];
-    if (file) console.log(`  image: ${store.imagePath(slug, file)}`);
-  }
-  for (const m of [t, ...t.replies]) {
-    const lines = m.text.split('\n');
-    console.log(`  ${m.author}${m.kind === 'agent' ? ' (agent)' : ''}, ${fmtDate(m.at)}: ${lines[0]}`);
-    for (const line of lines.slice(1)) console.log(`    ${line}`);
-  }
-  console.log('');
-}
-
 const CHANGE_TEXT = { same: 'unchanged', minor: 'barely changed', changed: 'changed', new: 'new', unknown: 'not compared' };
 
 function changeSummary(round) {

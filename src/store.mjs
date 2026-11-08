@@ -1,7 +1,8 @@
 // File-backed store for reviews. One folder per review under the store root:
 //   review.json    { slug, title, repo, pr, branch, createdAt }
 //   rounds.json    [{ n, title, notes, by, createdAt, pages: [{ id, title, route, before, beforeLabel, after, afterLabel, mobile, mobileLabel }] }]
-//   feedback.json  { verdicts: { "<round>/<page>": { verdict, by, at } }, comments: [{ id, round, page, author, kind, text, pin, replyTo, status, at }] }
+//   feedback.json  { verdicts: { "<round>/<page>": { verdict, by, at } }, comments: [{ id, round, page, author, kind, text, pins, replyTo, status, at }] }
+//                  pins: the spots a comment marks; its text names them as [1], [2], … (older comments hold one `pin`)
 //   images/<sha>.<ext>  content-addressed copies of every screenshot, so a deleted worktree never takes them along.
 import { createHash, randomBytes } from 'node:crypto';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
@@ -24,6 +25,7 @@ export function cleanGroup(group) {
   return parts.join('/');
 }
 const PIN_TARGETS = ['before', 'after', 'previous', 'mobile'];
+const MAX_PINS = 26;
 
 export function defaultRoot() {
   if (process.env.REVIEWTOOL_HOME) return resolve(process.env.REVIEWTOOL_HOME);
@@ -327,10 +329,13 @@ export class Store {
     });
   }
 
-  addComment(slug, { round, page, text, pin = null, replyTo = null, author, kind = 'human' }) {
+  addComment(slug, { round, page, text, pin = null, pins = null, replyTo = null, author, kind = 'human' }) {
     if (typeof text !== 'string' || !text.trim()) throw new ReviewError('empty comment');
     if (text.length > 20_000) throw new ReviewError('comment too long');
     if (!['human', 'agent'].includes(kind)) throw new ReviewError('kind must be human or agent');
+    const marks = (pins ?? (pin ? [pin] : [])).map(cleanPin);
+    if (marks.length > MAX_PINS) throw new ReviewError(`a comment marks at most ${MAX_PINS} spots`);
+    if (marks.some((m) => !m)) throw new ReviewError(`a marked spot needs img (${PIN_TARGETS.join(', ')}) and x, y from 0 to 100`);
     return this.mutateFeedback(slug, (feedback, rounds) => {
       let parent = null;
       if (replyTo) {
@@ -350,7 +355,7 @@ export class Store {
         author: String(author || (kind === 'agent' ? 'Agent' : 'You')).slice(0, 60),
         kind,
         text: text.trim(),
-        pin: parent ? null : cleanPin(pin),
+        pins: parent ? [] : marks,
         replyTo: parent?.id ?? null,
         status: 'open',
         at: now(),
@@ -466,6 +471,9 @@ function cleanPin(pin) {
   const ok = [pin.x, pin.y].every((n) => typeof n === 'number' && n >= 0 && n <= 100);
   return ok ? { img: pin.img, x: Math.round(pin.x * 10) / 10, y: Math.round(pin.y * 10) / 10 } : null;
 }
+
+/** The spots a comment marks, in the order its text numbers them ([1] is the first). */
+export const pinsOf = (c) => c.pins ?? (c.pin ? [c.pin] : []);
 
 /** Threads: each top-level comment with its replies, oldest first. */
 export function threads(comments) {

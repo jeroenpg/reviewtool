@@ -1,9 +1,10 @@
 // Renders the feedback an agent acts on: the reviewer's note, every thread waiting for a reply, and the verdicts.
 // The CLI prints it (`feedback`, `wait`) and the app sends it into an agent's chat thread.
-import { needsReply, threads } from './store.mjs';
+import { needsReply, pinsOf, threads } from './store.mjs';
 
 const fmtDate = (iso) => new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+const SHOT = { mobile: 'phone', previous: 'last round' };
 
 export function collectFeedback(store, slug, { all = false, round = null } = {}) {
   const { review, rounds, feedback } = store.get(slug);
@@ -26,13 +27,19 @@ export function feedbackText(store, slug, { all = false, round = null, submissio
   for (const t of list) {
     const r = rounds.find((x) => x.n === t.round);
     const page = r?.pages.find((p) => p.id === t.page);
-    const shot = { mobile: 'phone', previous: 'last round' }[t.pin?.img] ?? t.pin?.img;
-    const pinned = t.pin ? `pinned on the ${page?.device === 'phone' ? 'phone ' : ''}${shot} screenshot at ${t.pin.x}% across, ${t.pin.y}% down` : 'general comment';
+    const pins = pinsOf(t);
+    const phone = page?.device === 'phone' ? 'phone ' : '';
+    const spot = (pin) => `the ${phone}${SHOT[pin.img] ?? pin.img} screenshot at ${pin.x}% across, ${pin.y}% down`;
+    const image = (pin) => {
+      const file = pin.img === 'previous' ? rounds.find((x) => x.n === t.round - 1)?.pages.find((p) => p.id === t.page)?.after : page?.[pin.img];
+      return file ? store.imagePath(slug, file) : null;
+    };
+    // An older comment holds one spot and does not name it in its text.
+    const single = pins.length === 1 && !t.text.includes('[1]');
+    const pinned = !pins.length ? 'general comment' : single ? `pinned on ${spot(pins[0])}` : `marks ${plural(pins.length, 'spot')}, named [1]${pins.length > 1 ? `…[${pins.length}]` : ''} in the text`;
     out.push(`[${t.id}] ${page?.group ? `${page.group.split('/').join(' › ')} › ` : ''}${page?.title ?? t.page} (${t.page}) · round ${t.round} · ${pinned}${t.status === 'resolved' ? ' · resolved' : ''}`);
-    if (t.pin && page) {
-      const file = t.pin.img === 'previous' ? rounds.find((x) => x.n === t.round - 1)?.pages.find((p) => p.id === t.page)?.after : page[t.pin.img];
-      if (file) out.push(`  image: ${store.imagePath(slug, file)}`);
-    }
+    if (single && image(pins[0])) out.push(`  image: ${image(pins[0])}`);
+    if (!single) pins.forEach((pin, i) => out.push(`  [${i + 1}] on ${spot(pin)}${image(pin) ? ` · image: ${image(pin)}` : ''}`));
     for (const m of [t, ...t.replies]) {
       const lines = m.text.split('\n');
       out.push(`  ${m.author}${m.kind === 'agent' ? ' (agent)' : ''}, ${fmtDate(m.at)}: ${lines[0]}`);

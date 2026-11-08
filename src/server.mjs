@@ -74,9 +74,9 @@ export function createApp(store) {
       return send(res, 200, { verdict: store.setVerdict(slug, { round: Number(round), page: pageId, verdict, by }) });
     }
     if (method === 'POST' && rest[0] === 'comments' && rest.length === 1) {
-      const { round, page: pageId, text, pin, replyTo, author } = await body(req);
+      const { round, page: pageId, text, pin, pins, replyTo, author } = await body(req);
       // The browser always speaks for a person; agents use the CLI.
-      return send(res, 201, store.addComment(slug, { round, page: pageId, text, pin, replyTo, author, kind: 'human' }));
+      return send(res, 201, store.addComment(slug, { round, page: pageId, text, pin, pins, replyTo, author, kind: 'human' }));
     }
     if (method === 'POST' && rest[0] === 'submit' && rest.length === 1) {
       const { round, by, note } = await body(req);

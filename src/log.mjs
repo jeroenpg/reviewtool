@@ -1,6 +1,6 @@
 // The review log: every round, page verdict and comment thread as Markdown, for a pull request comment.
 import { execFileSync } from 'node:child_process';
-import { threads } from './store.mjs';
+import { pinsOf, threads } from './store.mjs';
 
 export const MARKER = '<!-- reviewtool:log -->';
 const LIMIT = 60_000; // GitHub caps a comment at 65,536 characters.
@@ -11,7 +11,12 @@ const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
 const date = (iso) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 const oneLine = (s) => s.replace(/\r?\n+/g, ' ⏎ ').replace(/\|/g, '\\|');
 const quoteBody = (s, indent) => s.split(/\r?\n/).map((line, i) => (i === 0 ? line : indent + line)).join('\n');
-const where = (c) => (c.pin ? `pinned on ${c.pin.img} (${c.pin.x}%, ${c.pin.y}%)` : 'general');
+const where = (c) => {
+  const pins = pinsOf(c);
+  if (!pins.length) return 'general';
+  const at = (p) => `${p.img} (${p.x}%, ${p.y}%)`;
+  return pins.length === 1 && !c.text.includes('[1]') ? `pinned on ${at(pins[0])}` : `marks ${pins.map((p, i) => `[${i + 1}] ${at(p)}`).join(', ')}`;
+};
 
 export function renderLog({ review, rounds, feedback }, { url = null, compactBefore = Infinity } = {}) {
   const all = threads(feedback.comments);

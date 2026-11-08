@@ -48,7 +48,16 @@
   .pages .settled .label { color: var(--pico-muted-color); }
   .rail-foot { padding: .6rem .75rem; border-top: 1px solid var(--pico-muted-border-color); font-size: .9em; display: flex; gap: .75rem; }
 
-  main { overflow-y: auto; min-width: 0; padding: 1rem 1.25rem 3rem; }
+  .work { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+  main { flex: 1; overflow-y: auto; min-width: 0; padding: 1rem 1.25rem 2rem; }
+
+  /* The comment box: always there. Clicking a screenshot puts a numbered marker in it, where the cursor is. */
+  .composer { flex: none; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .3rem .6rem; align-items: end; padding: .6rem 1.25rem .55rem; border-top: 1px solid var(--pico-muted-border-color); background: var(--pico-background-color); }
+  .composer textarea { min-height: 2.45rem; max-height: 12rem; resize: none; overflow-y: auto; }
+  .composer button { margin: 0; height: 2.45rem; }
+  .composer .hint { grid-column: 1 / -1; display: flex; gap: .9rem; flex-wrap: wrap; font-size: .8em; color: var(--pico-muted-color); }
+  .composer .hint kbd { font-size: .9em; padding: .05rem .3rem; }
+  .composer .hint .marks { color: var(--pico-primary); font-weight: 600; }
   .page-head { display: flex; align-items: flex-start; gap: 1rem; flex-wrap: wrap; }
   .page-head hgroup { margin: 0; min-width: 0; }
   .page-head h1 { font-size: 1.35rem; margin: 0; }
@@ -87,8 +96,10 @@
   .pin { all: unset; position: absolute; transform: translate(-50%, -50%); min-width: 24px; height: 24px; padding: 0 6px; box-sizing: border-box; border: 2px solid #fff; border-radius: 12px 12px 12px 3px; background: var(--pin); color: #fff; font-size: 12px; font-weight: 700; display: grid; place-items: center; box-shadow: 0 1px 4px rgb(0 0 0 / .4); cursor: pointer; pointer-events: auto; }
   .pin:hover, .pin.active { transform: translate(-50%, -50%) scale(1.15); z-index: 2; }
   .pin.resolved { background: #8a9592; }
-  .pin.draft { background: var(--pico-primary); animation: pulse 1.2s infinite; }
-  @keyframes pulse { 50% { transform: translate(-50%, -50%) scale(1.18); } }
+  .pin.draft { background: var(--pico-primary); }
+  .pin.draft:hover { background: var(--revert); }
+  .mark { display: inline-grid; place-items: center; min-width: 1.35em; height: 1.35em; padding: 0 .3em; border-radius: .7em .7em .7em .2em; background: var(--pin); color: #fff; font-size: .78em; font-weight: 700; vertical-align: .08em; cursor: pointer; }
+  .resolved .mark { background: #8a9592; }
   .swipe .over { position: absolute; inset: 0; clip-path: inset(0 calc(100% - var(--split)) 0 0); }
   .swipe .over img { display: block; width: 100%; height: auto; }
   .swipe .handle { position: absolute; top: 0; bottom: 0; left: var(--split); width: 2px; background: #fff; box-shadow: 0 0 0 1px rgb(0 0 0 / .35); transform: translateX(-1px); cursor: ew-resize; }
@@ -132,7 +143,7 @@
   dialog ul { margin: 0 0 .8rem; padding-left: 1.1rem; }
   dialog table { margin: 0; font-size: .95em; }
   dialog td { padding: .3rem .4rem; }
-  .toast { position: fixed; bottom: 1rem; left: 50%; transform: translateX(-50%); background: var(--pico-contrast-background); color: var(--pico-contrast-inverse); padding: .5rem .9rem; border-radius: var(--pico-border-radius); opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 30; }
+  .toast { position: fixed; bottom: 6rem; left: 50%; transform: translateX(-50%); background: var(--pico-contrast-background); color: var(--pico-contrast-inverse); padding: .5rem .9rem; border-radius: var(--pico-border-radius); opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 30; }
   .toast.show { opacity: 1; }
   .noround { padding: 3rem 1rem; text-align: center; }
 
@@ -146,7 +157,10 @@
     .rail { border-right: 0; border-bottom: 1px solid var(--pico-muted-border-color); }
     .pages, .rail-foot, #search, #filters { display: none !important; }
     #pageSelect { display: block; }
+    .work { display: block; }
     main { overflow: visible; padding: .9rem .75rem 1.5rem; }
+    .composer { position: sticky; bottom: 0; z-index: 10; padding-inline: .75rem; }
+    .composer .hint .keys { display: none; }
     .canvas[data-layout="side"], .canvas[data-phone="true"] { grid-template-columns: minmax(0, 1fr); }
     .frame { max-height: none; }
     .popover { left: .75rem !important; right: .75rem; width: auto; }
@@ -180,6 +194,7 @@
     <div class="rail-foot"><a id="logLink" href="#" target="_blank">Review log</a><span class="spacer"></span><a href="/">All reviews</a></div>
   </aside>
 
+  <div class="work">
   <main id="main">
     <div id="pageView" hidden>
       <div class="page-head">
@@ -208,14 +223,18 @@
           <button class="secondary outline" data-device="phone" title="Phone screenshots of this page (P)">Phone</button>
         </div>
         <button class="secondary outline" id="zoomBtn" title="Fit or 100% (Z)">100%</button>
-        <span class="spacer"></span>
-        <button class="secondary outline" id="generalBtn" title="A comment about the page as a whole (G)">Comment</button>
       </div>
       <div class="canvas" id="canvas"></div>
       <section class="offcanvas" id="offCanvas" hidden></section>
     </div>
     <div class="noround" id="noRound" hidden></div>
   </main>
+  <div class="composer" id="composer" hidden>
+    <textarea id="composeText" rows="1" aria-label="Comment"></textarea>
+    <button id="composeSend">Comment</button>
+    <div class="hint"><span id="composeMarks" class="marks" hidden></span><span>Click a screenshot to mark a spot in your comment</span><span class="keys" id="composeKeys"></span></div>
+  </div>
+  </div>
 
 </div>
 
@@ -248,9 +267,10 @@
       <tr><td><kbd>C</kbd></td><td>Compare with before or with the last round</td></tr>
       <tr><td><kbd>S</kbd> <kbd>W</kbd> <kbd>A</kbd></td><td>Side by side, swipe, after only</td></tr>
       <tr><td><kbd>P</kbd> <kbd>Z</kbd> <kbd>H</kbd></td><td>Desktop or phone, zoom, outline changes</td></tr>
-      <tr><td><kbd>G</kbd></td><td>Comment on the page as a whole</td></tr>
+      <tr><td><kbd>Enter</kbd> or <kbd>G</kbd></td><td>Write a comment; click a screenshot while you write to mark a spot</td></tr>
+      <tr><td><kbd>Ctrl</kbd> <kbd>Enter</kbd></td><td>Post the comment</td></tr>
+      <tr><td><kbd>Esc</kbd></td><td>Stop writing (your text stays) so the keys work again</td></tr>
       <tr><td><kbd>Shift</kbd> <kbd>S</kbd></td><td>Send your feedback</td></tr>
-      <tr><td><kbd>Ctrl</kbd> <kbd>Enter</kbd></td><td>Post what you are writing</td></tr>
     </table>
     <footer><button id="helpClose">Close</button></footer>
   </article>
@@ -280,8 +300,8 @@ const imgUrl = (file) => `/api/r/${encodeURIComponent(slug)}/img/${encodeURIComp
 let data = null;
 let roundN = null;
 let current = null;
-let draftPin = null;
-let openThread = null; // a thread id, 'draft' (new pinned comment) or 'general' (new page comment)
+let openThread = null; // the thread shown in the popover
+let openMark = 1; // which of its markers the popover sits next to
 const ui = {
   layout: pref.get('layout', 'side'),
   pair: pref.get('pair', 'before'),
@@ -294,6 +314,25 @@ const ui = {
 const lastVisit = pref.get(`seen.${slug}`, new Date().toISOString());
 pref.set(`seen.${slug}`, new Date().toISOString());
 const me = () => pref.get('me', '') || 'You';
+
+/* ---------- comment drafts ----------
+   One per page and round, kept in the browser until posted: { text, pins: [{ n, img, x, y }] }. The text names each
+   marker as [n]; deleting that from the text removes the marker. */
+let drafts = {};
+try { drafts = JSON.parse(pref.get(`drafts.${slug}`, '{}')) || {}; } catch {}
+let caret = null; // where a marker goes in the comment box: the last cursor position there
+const draftKey = (n = roundN, id = current) => `${n}/${id}`;
+const draftOf = (n, id) => drafts[draftKey(n, id)] ?? { text: '', pins: [] };
+const hasDraft = (n, id) => !!drafts[draftKey(n, id)]?.text.trim();
+function saveDraft(d) {
+  if (d.text.trim() || d.pins.length) drafts[draftKey()] = d;
+  else delete drafts[draftKey()];
+  pref.set(`drafts.${slug}`, JSON.stringify(drafts));
+}
+const pinsOf = (c) => c.pins ?? (c.pin ? [c.pin] : []);
+const LETTERS = 'abcdefghijklmnopqrstuvwxyz';
+// A thread's markers read as its number, with a letter when it marks more than one spot: 3, or 3a and 3b.
+const markLabel = (t, n, k) => `${n ?? ''}${pinsOf(t).length > 1 ? LETTERS[k - 1] : n == null ? k : ''}`;
 
 function toast(msg) {
   const t = $('toast');
@@ -384,7 +423,7 @@ function setHash() {
 function go(id) {
   if (!id || id === current) return;
   current = id;
-  draftPin = null;
+  caret = null;
   openThread = null;
   setHash();
   render();
@@ -394,7 +433,7 @@ function go(id) {
 function setRound(n) {
   roundN = n;
   current = pages().some((p) => p.id === current) ? current : firstForRound();
-  draftPin = null;
+  caret = null;
   openThread = null;
   setHash();
   render();
@@ -407,6 +446,7 @@ function render() {
   renderRail();
   renderPage(page());
   renderOffCanvas(page());
+  renderComposer(page());
   renderPopover();
   preloadNeighbours();
 }
@@ -490,6 +530,7 @@ function renderRail() {
   const groups = folders(shown);
   // One signal per row, the most urgent: new replies, then answered threads, then whether the page changed.
   const signal = (p) => {
+    if (hasDraft(roundN, p.id)) return '<span class="tag" title="A comment you have not posted yet">draft</span>';
     const ts = threadsOf(null, p.id);
     const nNew = ts.filter(hasNew).length;
     if (nNew) return `<span class="count new" title="${plural(nNew, 'new reply')}">${nNew}</span>`;
@@ -633,13 +674,25 @@ function outlinesHtml(p, key) {
 }
 
 function pinsHtml(p, key) {
+  return `<div class="pins" data-key="${key}">${pinsInner(p, key)}</div>`;
+}
+
+function pinsInner(p, key) {
   const nums = numbering(p);
-  const pins = threadsOf(roundN, p.id).filter((t) => t.pin?.img === key).map((t) => {
-    const n = nums.get(t.id);
-    return `<button class="pin${t.status === 'resolved' ? ' resolved' : ''}${openThread === t.id ? ' active' : ''}" data-thread="${t.id}" style="left:${t.pin.x}%;top:${t.pin.y}%" title="${esc(t.text.slice(0, 140))}" aria-label="Comment ${n}">${n}</button>`;
+  const pins = threadsOf(roundN, p.id).flatMap((t) => pinsOf(t).map((pin, i) => ({ t, pin, k: i + 1 }))).filter((x) => x.pin.img === key).map(({ t, pin, k }) => {
+    const label = markLabel(t, nums.get(t.id), k);
+    return `<button class="pin${t.status === 'resolved' ? ' resolved' : ''}${openThread === t.id ? ' active' : ''}" data-thread="${t.id}" data-k="${k}" style="left:${pin.x}%;top:${pin.y}%" title="${esc(t.text.slice(0, 140))}" aria-label="Comment ${label}">${label}</button>`;
   });
-  if (draftPin?.img === key) pins.push(`<span class="pin draft" data-thread="draft" style="left:${draftPin.x}%;top:${draftPin.y}%">+</span>`);
-  return `<div class="pins">${pins.join('')}</div>`;
+  for (const d of draftOf(roundN, p.id).pins.filter((x) => x.img === key)) {
+    pins.push(`<button class="pin draft" data-draft="${d.n}" style="left:${d.x}%;top:${d.y}%" title="[${d.n}] in your comment. Click to remove it." aria-label="Remove marker ${d.n}">${d.n}</button>`);
+  }
+  return pins.join('');
+}
+
+// Redraw only the markers, so the screenshots keep their scroll position.
+function updatePins() {
+  const p = page();
+  for (const layer of $('canvas').querySelectorAll('.pins[data-key]')) layer.innerHTML = pinsInner(p, layer.dataset.key);
 }
 
 function figureHtml(p, f) {
@@ -695,9 +748,21 @@ function preloadNeighbours() {
 }
 
 /* ---------- comments ---------- */
+// Where a thread's markers are, in words: "on the after", "on the before and after".
+function whereText(t) {
+  const imgs = [...new Set(pinsOf(t).map((x) => PIN_LABEL[x.img] ?? x.img))];
+  return imgs.length ? `on the ${imgs.join(' and ')}` : 'about the page';
+}
+
+// The comment text with each [n] it names shown as the marker it points at.
+function markedText(text, t, n) {
+  const count = pinsOf(t).length;
+  return esc(text).replace(/\[(\d+)\]/g, (all, k) => (Number(k) >= 1 && Number(k) <= count ? `<span class="mark" data-thread="${t.id}" data-k="${k}" title="Show this spot">${markLabel(t, n, Number(k))}</span>` : all));
+}
+
 function threadBody(t) {
-  const where = t.pin ? `on the ${PIN_LABEL[t.pin.img] ?? t.pin.img}` : 'general';
-  const msgs = [t, ...t.replies].map((m, i) => `<div class="msg ${m.kind}"><div class="meta"><b>${esc(m.author)}</b>${m.kind === 'agent' ? '<span>agent</span>' : ''}${i === 0 ? `<span>${where}</span>` : ''}<span>${when(m.at)}</span>${isNew(m) ? '<span class="tag new">new</span>' : ''}</div><div class="text">${esc(m.text)}</div></div>`).join('');
+  const n = t.round === roundN ? numbering(page()).get(t.id) : null;
+  const msgs = [t, ...t.replies].map((m, i) => `<div class="msg ${m.kind}"><div class="meta"><b>${esc(m.author)}</b>${m.kind === 'agent' ? '<span>agent</span>' : ''}${i === 0 ? `<span>${whereText(t)}</span>` : ''}<span>${when(m.at)}</span>${isNew(m) ? '<span class="tag new">new</span>' : ''}</div><div class="text">${markedText(m.text, t, n)}</div></div>`).join('');
   const state = waiting(t) ? '<span class="state waiting">Waiting for the agent</span>' : t.status === 'resolved' ? '<span class="state">Resolved</span>' : answered(t) ? '<span class="state answered">Answered, check it</span>' : '';
   return `${msgs}
     <textarea data-reply="${t.id}" placeholder="Reply" rows="1"></textarea>
@@ -708,9 +773,9 @@ function threadBody(t) {
     </div>`;
 }
 
-function threadCard(t, n, showRound, where = '') {
+function threadCard(t, n, showRound) {
   return `<article class="thread${t.status === 'resolved' ? ' resolved' : ''}${openThread === t.id ? ' hl' : ''}" data-id="${t.id}">
-    <header><span class="num${t.pin && n ? ' pinned' : ''}">${n ?? '·'}</span>${showRound ? `<span>Round ${t.round}</span>` : ''}${where ? `<span>${esc(where)}</span>` : ''}</header>
+    <header><span class="num${pinsOf(t).length && n ? ' pinned' : ''}">${n ?? '·'}</span>${showRound ? `<span>Round ${t.round}</span>` : ''}</header>
     ${threadBody(t)}
   </article>`;
 }
@@ -719,7 +784,7 @@ function renderOffCanvas(p) {
   const nums = numbering(p);
   const shown = visibleKeys(p);
   const others = threadsOf(null, p.id)
-    .filter((t) => !(t.round === roundN && t.pin && shown.has(t.pin.img)))
+    .filter((t) => !(t.round === roundN && pinsOf(t).some((x) => shown.has(x.img))))
     .sort((a, b) => b.round - a.round);
   const open = others.filter((t) => t.status !== 'resolved');
   const closed = others.filter((t) => t.status === 'resolved');
@@ -727,7 +792,7 @@ function renderOffCanvas(p) {
   const box = $('offCanvas');
   box.hidden = !others.length;
   if (!others.length) { box.innerHTML = ''; return; }
-  const card = (t) => threadCard(t, t.round === roundN ? nums.get(t.id) : null, t.round !== roundN, t.pin && t.round === roundN ? `on the ${PIN_LABEL[t.pin.img]} screenshot` : '');
+  const card = (t) => threadCard(t, t.round === roundN ? nums.get(t.id) : null, t.round !== roundN);
   box.innerHTML = `<h2>Other comments on this page${checkable.length > 1 ? `<button class="secondary outline small" data-act="resolveAnswered">Resolve all ${checkable.length} answered</button>` : ''}</h2>
     ${open.map(card).join('')}
     ${closed.length ? `<details class="resolved"><summary>${plural(closed.length, 'resolved thread')}</summary>${closed.map(card).join('')}</details>` : ''}`;
@@ -736,28 +801,9 @@ function renderOffCanvas(p) {
 function renderPopover() {
   const pop = $('popover');
   if (!openThread) { pop.hidden = true; return; }
-  if (openThread === 'general') {
-    pop.innerHTML = `<div class="ph"><b>Comment on this page</b><span class="spacer"></span><a href="#" data-act="closePop" aria-label="Close">✕</a></div>
-      <textarea id="generalText" placeholder="About the page as a whole"></textarea>
-      <div class="tools"><span class="muted">Ctrl+Enter</span><span class="spacer"></span><button class="small" data-act="sendGeneral">Comment</button></div>`;
-    pop.hidden = false;
-    placePopover();
-    $('generalText').focus({ preventScroll: true });
-    return;
-  }
-  if (openThread === 'draft') {
-    if (!draftPin) { openThread = null; pop.hidden = true; return; }
-    pop.innerHTML = `<div class="ph"><b>New comment</b><span>on the ${PIN_LABEL[draftPin.img] ?? draftPin.img}</span><span class="spacer"></span><a href="#" data-act="closePop" aria-label="Close">✕</a></div>
-      <textarea id="draftText" placeholder="What should change, stay, or go back?"></textarea>
-      <div class="tools"><span class="muted">Ctrl+Enter</span><span class="spacer"></span><button class="small" data-act="sendDraft">Comment</button></div>`;
-    pop.hidden = false;
-    placePopover();
-    $('draftText').focus({ preventScroll: true });
-    return;
-  }
   const t = threadById(openThread);
   if (!t) { openThread = null; pop.hidden = true; return; }
-  pop.innerHTML = `<div class="ph"><span class="num${t.pin ? ' pinned' : ''}">${numbering(page()).get(t.id) ?? '·'}</span>${t.round !== roundN ? `<span>Round ${t.round}</span>` : ''}<span class="spacer"></span><a href="#" data-act="closePop" aria-label="Close">✕</a></div>${threadBody(t)}`;
+  pop.innerHTML = `<div class="ph"><span class="num${pinsOf(t).length ? ' pinned' : ''}">${numbering(page()).get(t.id) ?? '·'}</span>${t.round !== roundN ? `<span>Round ${t.round}</span>` : ''}<span class="spacer"></span><a href="#" data-act="closePop" aria-label="Close">✕</a></div>${threadBody(t)}`;
   pop.hidden = false;
   placePopover();
 }
@@ -765,14 +811,14 @@ function renderPopover() {
 function placePopover() {
   const pop = $('popover');
   if (pop.hidden) return;
-  const anchor = openThread === 'general' ? $('generalBtn') : $('canvas').querySelector(`.pin[data-thread="${openThread}"]`);
+  const anchor = $('canvas').querySelector(`.pin[data-thread="${openThread}"][data-k="${openMark}"]`) ?? $('canvas').querySelector(`.pin[data-thread="${openThread}"]`);
   if (!anchor) return;
   const r = anchor.getBoundingClientRect();
   const w = Math.min(360, window.innerWidth - 24);
-  let left = openThread === 'general' ? r.right - w : r.right + 10;
+  let left = r.right + 10;
   if (left + w > window.innerWidth - 12) left = r.left - 10 - w;
   if (left < 12) left = 12;
-  let top = openThread === 'general' ? r.bottom + 8 : r.top - 10;
+  let top = r.top - 10;
   const h = pop.offsetHeight;
   if (top + h > window.innerHeight - 12) top = Math.max(12, window.innerHeight - 12 - h);
   pop.style.left = `${left}px`;
@@ -781,11 +827,11 @@ function placePopover() {
 window.addEventListener('resize', placePopover);
 $('main').addEventListener('scroll', placePopover);
 
-function focusThread(id) {
+function focusThread(id, k = 1) {
   openThread = id;
-  draftPin = null;
+  openMark = k;
   render();
-  const pin = $('canvas').querySelector(`.pin[data-thread="${id}"]`);
+  const pin = $('canvas').querySelector(`.pin[data-thread="${id}"][data-k="${k}"]`) ?? $('canvas').querySelector(`.pin[data-thread="${id}"]`);
   if (pin) {
     pin.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' });
     setTimeout(placePopover, 350);
@@ -808,13 +854,114 @@ async function setVerdict(v) {
   } catch (err) { toast(`Could not save: ${err.message}`); }
 }
 
-async function sendComment(text, pin) {
-  const c = await api('POST', '/comments', { round: roundN, page: current, text, pin, author: me() });
-  data.feedback.comments.push(c);
-  draftPin = null;
-  openThread = pin ? c.id : null;
-  render();
-  toast('Comment saved');
+/* ---------- the comment box ---------- */
+function renderComposer(p) {
+  const box = $('composeText');
+  $('composer').hidden = false;
+  box.placeholder = `Comment on ${shortTitle(p)}`;
+  // Only load the draft when the page changes, so a refresh never moves the cursor.
+  if (box.dataset.key !== draftKey()) {
+    box.dataset.key = draftKey();
+    box.value = draftOf(roundN, current).text;
+    autosize();
+  }
+  renderComposerHint();
+}
+
+function renderComposerHint() {
+  const n = draftOf(roundN, current).pins.length;
+  $('composeMarks').hidden = !n;
+  $('composeMarks').textContent = plural(n, 'marked spot');
+  const typing = document.activeElement === $('composeText');
+  $('composeKeys').innerHTML = typing ? '<kbd>Ctrl</kbd> <kbd>Enter</kbd> posts · <kbd>Esc</kbd> to use the keys again' : '<kbd>Enter</kbd> to write';
+  $('composeSend').className = $('composeText').value.trim() ? '' : 'secondary outline';
+}
+
+function autosize() {
+  const box = $('composeText');
+  box.style.height = 'auto';
+  box.style.height = `${Math.min(box.scrollHeight + 2, 192)}px`;
+}
+
+// Keep the draft in step with the text: a marker whose [n] was deleted goes away.
+function onComposeInput() {
+  const box = $('composeText');
+  const d = draftOf(roundN, current);
+  const before = d.pins.length;
+  const hadText = hasDraft(roundN, current);
+  d.text = box.value;
+  d.pins = d.pins.filter((x) => box.value.includes(`[${x.n}]`));
+  saveDraft(d);
+  caret = box.selectionStart;
+  autosize();
+  if (d.pins.length !== before) updatePins();
+  if (hadText !== hasDraft(roundN, current)) renderRail();
+  renderComposerHint();
+}
+
+function startWriting() {
+  const box = $('composeText');
+  box.focus({ preventScroll: true });
+  const at = caret ?? box.value.length;
+  box.setSelectionRange(at, at);
+}
+
+// A click on a screenshot puts [n] in the comment where the cursor was, and the marker on the screenshot.
+function addMarker(pin) {
+  const box = $('composeText');
+  const d = draftOf(roundN, current);
+  if (d.pins.length >= 26) return toast('A comment marks at most 26 spots');
+  const n = Math.max(0, ...d.pins.map((x) => x.n)) + 1;
+  const at = Math.min(caret ?? box.value.length, box.value.length);
+  const head = box.value.slice(0, at);
+  const tail = box.value.slice(at);
+  const token = `${head && !/\s$/.test(head) ? ' ' : ''}[${n}]${/^\s/.test(tail) ? '' : ' '}`;
+  box.value = head + token + tail;
+  caret = (head + token).length;
+  d.pins.push({ n, ...pin });
+  d.text = box.value;
+  saveDraft(d);
+  startWriting();
+  autosize();
+  updatePins();
+  renderRail();
+  renderComposerHint();
+}
+
+function removeMarker(n) {
+  const box = $('composeText');
+  const d = draftOf(roundN, current);
+  box.value = box.value.replace(new RegExp(` ?\\[${n}\\]`, 'g'), '');
+  caret = null;
+  onComposeInput();
+  d.pins = d.pins.filter((x) => x.n !== n);
+  saveDraft(d);
+  updatePins();
+  renderComposerHint();
+}
+
+// Markers are renumbered 1, 2, … in the order the text names them.
+async function postComment() {
+  const box = $('composeText');
+  const d = draftOf(roundN, current);
+  if (!box.value.trim()) return startWriting();
+  const order = [];
+  for (const [, k] of box.value.matchAll(/\[(\d+)\]/g)) if (d.pins.some((x) => x.n === Number(k)) && !order.includes(Number(k))) order.push(Number(k));
+  const text = box.value.trim().replace(/\[(\d+)\]/g, (all, k) => (order.includes(Number(k)) ? `[${order.indexOf(Number(k)) + 1}]` : all));
+  const pins = order.map((k) => { const { img, x, y } = d.pins.find((m) => m.n === k); return { img, x, y }; });
+  $('composeSend').setAttribute('aria-busy', 'true');
+  try {
+    const c = await api('POST', '/comments', { round: roundN, page: current, text, pins, author: me() });
+    data.feedback.comments.push(c);
+    saveDraft({ text: '', pins: [] });
+    box.value = '';
+    caret = null;
+    autosize();
+    box.blur(); // the keys work again right away; Enter starts the next comment
+    render();
+    toast('Comment saved');
+  } catch (err) { toast(`Could not save: ${err.message}`); }
+  $('composeSend').removeAttribute('aria-busy');
 }
 
 async function sendReply(id, box) {
@@ -838,9 +985,7 @@ async function onAction(el, scope) {
   const act = el.dataset.act;
   const id = el.dataset.id;
   try {
-    if (act === 'closePop') { openThread = null; draftPin = null; render(); }
-    else if (act === 'sendDraft') { const text = $('draftText').value.trim(); if (!text) return $('draftText').focus(); await sendComment(text, draftPin); }
-    else if (act === 'sendGeneral') { const text = $('generalText').value.trim(); if (!text) return $('generalText').focus(); await sendComment(text, null); }
+    if (act === 'closePop') { openThread = null; render(); }
     else if (act === 'send') await sendReply(id, scope.querySelector(`textarea[data-reply="${id}"]`));
     else if (act === 'status') { const t = threadById(id); await setStatus(id, t.status === 'resolved' ? 'open' : 'resolved'); render(); toast(t.status === 'resolved' ? 'Reopened' : 'Resolved'); }
     else if (act === 'delete') { if (!confirm('Delete this comment?')) return; await api('DELETE', `/comments/${id}`); data.feedback.comments = data.feedback.comments.filter((x) => x.id !== id && x.replyTo !== id); if (openThread === id) openThread = null; render(); }
@@ -868,7 +1013,9 @@ function openSend() {
   $('sendWho').innerHTML = data.waiting ? `${esc(data.waiting.by)} is waiting and starts as soon as you send.`
     : t ? `It arrives in ${t.link ? `<a href="${esc(t.link)}" target="_blank" rel="noopener">${esc(threadName(t))}</a>` : esc(threadName(t))} as a new message. If the agent is busy, it reads it next.`
     : 'No agent is waiting right now; the next one that runs "reviewtool wait" picks this up.';
+  const unposted = Object.values(drafts).filter((d) => d.text.trim()).length;
   $('sendSummary').innerHTML = (items.length ? items : ['Nothing new since you last sent']).map((x) => `<li>${esc(x)}</li>`).join('') +
+    (unposted ? `<li><strong>${plural(unposted, 'comment')} you wrote but did not post</strong>, so not included</li>` : '') +
     (open ? `<li class="muted">${plural(open, 'page')} still without a verdict</li>` : '');
   $('sendDlg').showModal();
   $('sendNote').focus();
@@ -889,6 +1036,7 @@ async function confirmSend() {
 }
 
 function renderNoRounds() {
+  $('composer').hidden = true;
   $('pageView').hidden = true;
   $('noRound').hidden = false;
   $('noRound').innerHTML = `<h2>No rounds yet</h2><p class="muted">An agent publishes the first one with <code>reviewtool round ${esc(slug)} manifest.json</code>. This page updates by itself.</p>`;
@@ -906,7 +1054,11 @@ $('pairs').addEventListener('click', (e) => { const b = e.target.closest('button
 $('layouts').addEventListener('click', (e) => { const b = e.target.closest('button[data-layout]'); if (b && !b.disabled) { ui.layout = b.dataset.layout; pref.set('layout', ui.layout); render(); } });
 $('devices').addEventListener('click', (e) => { const b = e.target.closest('[data-device]'); if (b) { ui.phone = b.dataset.device === 'phone'; render(); } });
 $('zoomBtn').addEventListener('click', () => { ui.zoom = ui.zoom === 'fit' ? 'full' : 'fit'; render(); });
-$('generalBtn').addEventListener('click', () => { draftPin = null; openThread = openThread === 'general' ? null : 'general'; renderPopover(); });
+$('composeText').addEventListener('input', onComposeInput);
+for (const ev of ['keyup', 'click', 'select']) $('composeText').addEventListener(ev, () => { caret = $('composeText').selectionStart; });
+$('composeText').addEventListener('focus', renderComposerHint);
+$('composeText').addEventListener('blur', () => { caret = $('composeText').selectionStart; renderComposerHint(); });
+$('composeSend').addEventListener('click', postComment);
 $('helpBtn').addEventListener('click', () => $('help').showModal());
 // Theme: follow the system, or force light or dark.
 const THEMES = { auto: ['◐', 'Theme: follows your system'], light: ['☀', 'Theme: light'], dark: ['☾', 'Theme: dark'] };
@@ -933,18 +1085,25 @@ $('sendBtn').addEventListener('click', openSend);
 $('sendCancel').addEventListener('click', () => $('sendDlg').close());
 $('sendConfirm').addEventListener('click', confirmSend);
 
+// Clicking a screenshot would take the focus from the comment box; keep it there while you write.
+$('canvas').addEventListener('mousedown', (e) => { if (document.activeElement === $('composeText') && e.target.closest('.frame[data-img]')) e.preventDefault(); });
 $('canvas').addEventListener('click', (e) => {
+  const draft = e.target.closest('.pin[data-draft]');
+  if (draft) return removeMarker(Number(draft.dataset.draft));
   const pin = e.target.closest('.pin[data-thread]');
-  if (pin && pin.dataset.thread !== 'draft') return focusThread(pin.dataset.thread);
+  if (pin) return focusThread(pin.dataset.thread, Number(pin.dataset.k));
   if (e.target.closest('.handle, .corner')) return;
   const frame = e.target.closest('.frame[data-img]');
   if (!frame || !frame.dataset.img) return;
   const box = frame.querySelector('.stage').getBoundingClientRect();
   const clamp = (n) => Math.round(Math.min(100, Math.max(0, n)) * 10) / 10;
-  draftPin = { img: frame.dataset.img, x: clamp(((e.clientX - box.left) / box.width) * 100), y: clamp(((e.clientY - box.top) / box.height) * 100) };
-  openThread = 'draft';
-  render();
+  addMarker({ img: frame.dataset.img, x: clamp(((e.clientX - box.left) / box.width) * 100), y: clamp(((e.clientY - box.top) / box.height) * 100) });
 });
+// A marker in a comment's text lights up its spot, and a click scrolls to it.
+const markPin = (m) => $('canvas').querySelector(`.pin[data-thread="${m.dataset.thread}"][data-k="${m.dataset.k}"]`);
+document.addEventListener('mouseover', (e) => { const m = e.target.closest('.mark'); if (m) markPin(m)?.classList.add('active'); });
+document.addEventListener('mouseout', (e) => { const m = e.target.closest('.mark'); if (m && m.dataset.thread !== openThread) markPin(m)?.classList.remove('active'); });
+document.addEventListener('click', (e) => { const m = e.target.closest('.mark'); if (m) { e.stopPropagation(); focusThread(m.dataset.thread, Number(m.dataset.k)); } }, true);
 $('offCanvas').addEventListener('click', (e) => {
   const act = e.target.closest('[data-act]');
   if (act) { e.preventDefault(); return onAction(act, e.target.closest('.thread') ?? $('offCanvas')); }
@@ -958,11 +1117,14 @@ document.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
       const box = e.target;
       if (box.id === 'sendNote') confirmSend();
-      else if (box.id === 'draftText') onAction({ dataset: { act: 'sendDraft' } });
-      else if (box.id === 'generalText') onAction({ dataset: { act: 'sendGeneral' } });
+      else if (box.id === 'composeText') postComment();
       else if (box.dataset.reply) sendReply(box.dataset.reply, box);
     }
-    if (e.key === 'Escape' && openThread) { openThread = null; draftPin = null; render(); }
+    if (e.key === 'Escape') {
+      // Close an open thread first; Escape again stops writing.
+      if (openThread) { openThread = null; render(); }
+      else if (e.target.id === 'composeText') e.target.blur();
+    }
     return;
   }
   if (!data?.rounds.length || e.ctrlKey || e.metaKey || e.altKey || document.querySelector('dialog[open]')) return;
@@ -970,7 +1132,8 @@ document.addEventListener('keydown', (e) => {
   const i = ps.findIndex((p) => p.id === current);
   const k = e.key;
   const view = (set) => { Object.assign(ui, set); for (const key of Object.keys(set)) if (key !== 'phone' && key !== 'zoom') pref.set(key, set[key]); render(); };
-  if (k === 'Escape') { openThread = null; draftPin = null; render(); }
+  if (k === 'Escape') { openThread = null; render(); }
+  else if (k === 'Enter' && !e.target.closest('button, a, summary')) { e.preventDefault(); startWriting(); }
   else if (k === 'j' || k === 'ArrowDown') { e.preventDefault(); go(ps[i + 1]?.id); }
   else if (k === 'k' || k === 'ArrowUp') { e.preventDefault(); go(ps[i - 1]?.id); }
   else if (k === 'n') { const n = [...ps.slice(i + 1), ...ps.slice(0, i + 1)].find(needsMe); if (n && n.id !== current) go(n.id); else toast('Nothing else needs you in this round'); }
@@ -981,14 +1144,14 @@ document.addEventListener('keydown', (e) => {
   else if (k === 'z') view({ zoom: ui.zoom === 'fit' ? 'full' : 'fit' });
   else if (k === 'h') { ui.changes = !ui.changes; pref.set('changes', ui.changes ? '1' : '0'); renderPage(page()); }
   else if (k === 'S') openSend();
-  else if (k === 'g') { e.preventDefault(); $('generalBtn').click(); }
+  else if (k === 'g') { e.preventDefault(); startWriting(); }
   else if (k === '?') $('help').showModal();
 });
 
 // Pick up agent replies and new rounds without a reload, but never while you are writing.
 setInterval(() => {
   const el = document.activeElement;
-  if (document.hidden || (el?.matches('textarea, input') && el.value) || openThread === 'draft' || openThread === 'general' || document.querySelector('dialog[open]')) return;
+  if (document.hidden || (el?.matches('textarea, input') && el.value) || document.querySelector('dialog[open]')) return;
   load().catch(() => {});
 }, 5000);
 
@@ -999,7 +1162,7 @@ window.addEventListener('hashchange', () => {
   if (!data.rounds.some((x) => x.n === n)) return;
   roundN = n;
   current = pages().some((p) => p.id === h) ? h : firstForRound();
-  draftPin = null; openThread = null;
+  caret = null; openThread = null;
   render();
 });
 

@@ -114,9 +114,13 @@ phone they stack, and the page list becomes a picker. It is built on
 - **Compare two ways.** Pick what to compare the after with (*vs Before* or *vs Last round*) and how (*Side by
   side*, *Swipe* with a draggable handle, or *After only*). *Phone* switches to the phone screenshots. *100%* zooms
   in, and the two screenshots then scroll together.
-- **Comment at the spot.** Click a screenshot and a comment box opens right there. Click a numbered pin to open its
-  thread. *Comment* (<kbd>G</kbd>) is for the page as a whole. Comments that are not a pin in the current view
-  (general ones, earlier rounds, the other screenshot) are listed under the screenshots, with resolved ones folded.
+- **Comment while you look, and point at what you mean.** The comment box is always under the page. Press
+  <kbd>Enter</kbd> (or <kbd>G</kbd>) to write; while you write, each click on a screenshot puts a numbered marker on
+  that spot and its number, like `[1]`, in your text where the cursor is, so one comment can point at several spots
+  (also on the before and the after). Delete `[1]` from the text, or click the marker, to take it away.
+  <kbd>Ctrl</kbd>+<kbd>Enter</kbd> posts, and <kbd>Esc</kbd> stops writing, so the keys work again; your text stays,
+  also when you go to another page. A comment without markers is about the page as a whole. Click a marker to open
+  its thread; comments without a marker in the current view are listed under the screenshots.
 - **See what changed since the last round.** Pages are marked *changed*, *tiny change* or *new*, and changed areas
   are outlined on the screenshot (<kbd>H</kbd> turns the outlines off). The top of the page list says how many pages
   changed, and offers to approve, in one click, every unchanged page you already approved last round. *Unchanged*

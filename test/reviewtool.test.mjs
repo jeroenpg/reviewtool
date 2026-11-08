@@ -40,7 +40,7 @@ test('threads wait for the agent until it replies, and again after the human ans
   store.create({ slug: 'demo' });
   store.addRound('demo', { pages: [{ id: 'inbox', after: 'after1.png' }] }, dir);
   const c = store.addComment('demo', { round: 'latest', page: 'inbox', text: 'Snooze is mid-row', pin: { img: 'after', x: 52.04, y: 31 }, author: 'Jeroen' });
-  assert.deepEqual(c.pin, { img: 'after', x: 52, y: 31 });
+  assert.deepEqual(c.pins, [{ img: 'after', x: 52, y: 31 }]);
   assert.equal(needsReply(store.get('demo').feedback.comments).length, 1);
 
   store.addComment('demo', { replyTo: c.id, text: 'Moved it to the end', author: 'Claude', kind: 'agent' });
@@ -54,6 +54,7 @@ test('threads wait for the agent until it replies, and again after the human ans
   assert.equal(needsReply(store.get('demo').feedback.comments).length, 1);
 
   assert.throws(() => store.addComment('demo', { round: 1, page: 'nope', text: 'x' }), /no page/);
+  assert.throws(() => store.addComment('demo', { round: 1, page: 'inbox', text: '[1]', pins: [{ img: 'side', x: 1, y: 1 }] }), /marked spot/);
   assert.throws(() => store.setVerdict('demo', { round: 1, page: 'inbox', verdict: 'maybe' }), /verdict/);
 });
 
@@ -113,6 +114,13 @@ test('the CLI runs the agent loop end to end', () => {
   const fb = cli('feedback', 'demo');
   assert.match(fb, new RegExp(`\\[${c.id}\\] Inbox \\(inbox\\) · round 1 · pinned on the after screenshot at 10% across, 5% down`));
   assert.match(fb, /image: .*\.png/);
+  const m = store.addComment('demo', { round: 1, page: 'inbox', text: 'Align [1] with [2]', pins: [{ img: 'after', x: 20, y: 30 }, { img: 'before', x: 25, y: 30 }], author: 'Jeroen' });
+  const fb2 = cli('feedback', 'demo');
+  assert.match(fb2, new RegExp(`\\[${m.id}\\] Inbox \\(inbox\\) · round 1 · marks 2 spots, named \\[1\\]…\\[2\\] in the text`));
+  assert.match(fb2, /\[1\] on the after screenshot at 20% across, 30% down · image: .*\.png/);
+  assert.match(fb2, /\[2\] on the before screenshot at 25% across, 30% down/);
+  assert.match(cli('log', 'demo'), /marks \[1\] after \(20%, 30%\), \[2\] before \(25%, 30%\)/);
+  cli('resolve', 'demo', m.id);
   cli('reply', 'demo', c.id, 'Bumped it to 20px', '--as', 'Claude');
   assert.match(cli('feedback', 'demo'), /^0 threads waiting/);
   assert.equal(JSON.parse(cli('feedback', 'demo', '--all', '--json')).threads[0].replies[0].author, 'Claude');

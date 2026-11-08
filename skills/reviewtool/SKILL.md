@@ -137,8 +137,9 @@ Each thread shows:
 
 - its id in brackets;
 - the page and the round;
-- where it is pinned, as a percentage across and down the screenshot;
-- the path to that image, so you can open it and look at the exact spot;
+- the spots it marks: the text names them `[1]`, `[2]`, … at the place the user means them, and each is listed with
+  its screenshot and a percentage across and down (a comment without spots is about the page as a whole);
+- the path to each image, so you can open it and look at the exact spot;
 - the conversation so far.
 
 Verdicts mean:
