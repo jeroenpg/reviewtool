@@ -48,6 +48,7 @@ The images are copied into the review store (`~/.local/share/reviewtool`), so la
     {
       "id": "inbox",
       "title": "Inbox",
+      "group": "Planning",
       "route": "/inbox",
       "before": "shots/before-inbox.png",
       "beforeLabel": "main",
@@ -65,6 +66,11 @@ reviewtool round <name> /tmp/round.json --as Claude
 reviewtool url <name>
 ```
 
+- **Put pages in folders with `group`** when a round has more than a handful of pages. Use the product's own areas
+  (`"CRM"`, `"Settings/Team & access"`), and use `/` to nest. A page keeps its folder in later rounds unless you name
+  another; `"group": ""` takes it out. To sort the pages of a round that is already published, run
+  `reviewtool group <name> <page-id>... --to "Settings/Team & access"`. Titles don't need to repeat the folder:
+  "Members" in `Settings/Team & access`, not "Settings · Members".
 - **Keep page ids the same across rounds.** Change detection, the "Last round" view and the "new" badges match
   pages by id.
 - **Look at every screenshot before you publish it.** Do not publish captures with error toasts, spinners, or the

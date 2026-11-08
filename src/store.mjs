@@ -13,6 +13,15 @@ export const VERDICTS = ['approve', 'update', 'revert'];
 export const IMAGE_FILE = /^[a-f0-9]{20}\.(png|jpe?g|webp|gif)$/;
 const SLUG = /^[a-z0-9][a-z0-9-]{0,63}$/;
 const PAGE_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
+
+/** A folder for a page: "Settings" or nested "Settings/Team & access". Empty means no folder. */
+export function cleanGroup(group) {
+  if (group == null) return '';
+  if (typeof group !== 'string') throw new ReviewError('group must be text, like "Settings" or "Settings/Team & access"');
+  const parts = group.split('/').map((x) => x.trim()).filter(Boolean);
+  if (parts.join('/').length > 120) throw new ReviewError(`group "${group}" is too long`);
+  return parts.join('/');
+}
 const PIN_TARGETS = ['before', 'after', 'previous', 'mobile'];
 
 export function defaultRoot() {
@@ -214,6 +223,7 @@ export class Store {
       if (seen.has(p.id)) throw new ReviewError(`page id "${p.id}" appears twice`);
       seen.add(p.id);
       if (!p.after) throw new ReviewError(`page "${p.id}" has no after image`);
+      cleanGroup(p.group);
     }
     // Copy images outside the lock (slow), then append the round under it.
     const imported = manifest.pages.map((p) => {
@@ -240,6 +250,8 @@ export class Store {
           return {
             id: p.id,
             title: p.title || p.id,
+            // A page keeps last round's folder unless the manifest names one ("" takes it out of its folder).
+            group: p.group === undefined ? prev?.group ?? '' : cleanGroup(p.group),
             route: p.route || '',
             before: before === undefined ? prev?.before ?? null : before,
             beforeLabel: p.beforeLabel || (before === undefined ? prev?.beforeLabel : null) || 'before',
@@ -280,6 +292,22 @@ export class Store {
       const result = fn(feedback, rounds);
       writeJson(join(dir, 'feedback.json'), feedback);
       return result;
+    });
+  }
+
+  /** Puts pages of a round into a folder (or out of any with ""). Returns the pages it moved. */
+  setGroup(slug, { round = 'latest', pages: ids, group }) {
+    const dir = this.mustDir(slug);
+    const clean = cleanGroup(group);
+    return withLock(dir, () => {
+      const rounds = readJson(join(dir, 'rounds.json'), []);
+      const r = round === 'latest' || round == null ? rounds.at(-1) : rounds.find((x) => x.n === Number(round));
+      if (!r) throw new ReviewError(`no round ${round}`, 404);
+      const missing = ids.filter((id) => !r.pages.some((p) => p.id === id));
+      if (missing.length) throw new ReviewError(`no page ${missing.map((m) => `"${m}"`).join(', ')} in round ${r.n}`, 404);
+      for (const p of r.pages) if (ids.includes(p.id)) p.group = clean;
+      writeJson(join(dir, 'rounds.json'), rounds);
+      return { round: r.n, group: clean, pages: ids };
     });
   }
 

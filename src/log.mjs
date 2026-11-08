@@ -6,6 +6,7 @@ export const MARKER = '<!-- reviewtool:log -->';
 const LIMIT = 60_000; // GitHub caps a comment at 65,536 characters.
 const VERDICT_TEXT = { approve: 'Approved', update: 'Needs update', revert: 'Revert' };
 
+const fullName = (p) => (p.group ? `${p.group.split('/').join(' › ')} › ${p.title}` : p.title);
 const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
 const date = (iso) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 const oneLine = (s) => s.replace(/\r?\n+/g, ' ⏎ ').replace(/\|/g, '\\|');
@@ -46,10 +47,10 @@ export function renderLog({ review, rounds, feedback }, { url = null, compactBef
     const quiet = rows.filter((r) => !r.v && !r.n);
     if (quiet.length < rows.length) {
       out.push('| Page | Verdict | Comments |', '| --- | --- | --- |');
-      for (const { p, v, n } of rows) if (v || n) out.push(`| ${oneLine(p.title)} | ${v ? VERDICT_TEXT[v] : '—'} | ${n || ''} |`);
+      for (const { p, v, n } of rows) if (v || n) out.push(`| ${oneLine(fullName(p))} | ${v ? VERDICT_TEXT[v] : '—'} | ${n || ''} |`);
       out.push('');
     }
-    if (quiet.length) out.push(`${quiet.length === rows.length ? 'No verdicts or comments yet on' : 'No verdict or comments:'} ${quiet.map((r) => r.p.title).join(', ')}.`);
+    if (quiet.length) out.push(`${quiet.length === rows.length ? 'No verdicts or comments yet on' : 'No verdict or comments:'} ${quiet.map((r) => fullName(r.p)).join(', ')}.`);
     if (!compact) {
       for (const p of round.pages) {
         const pageThreads = roundThreads.filter((t) => t.page === p.id);

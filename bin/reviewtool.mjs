@@ -27,6 +27,8 @@ Usage:
   reviewtool round <name> <manifest.json> [--title T] [--notes N] [--as Claude]
                                                         add the next round (images are copied into the store)
   reviewtool rounds <name>                              list rounds and their pages
+  reviewtool group <name> <page-id>... --to <folder> [--round N]
+                                                        put pages in a folder ("Settings/Team & access"; "" for none)
   reviewtool wait <name> [--as Claude] [--timeout SECONDS] [--json]
                                                         block until the reviewer presses "Send to agent", then print
                                                         the feedback (exit 0); exit 2 when the timeout passes first
@@ -44,8 +46,9 @@ Usage:
   reviewtool install-skill [--dir ~/.claude/skills]     install the agent skill
 
 Data lives in ${store.root} (REVIEWTOOL_HOME overrides).
-Manifest: { "title"?, "notes"?, "pages": [{ "id", "title", "route"?, "before"?, "beforeLabel"?, "after",
-            "afterLabel"?, "mobile"?, "mobileBefore"?, "note"? }] } — image paths relative to the manifest.`;
+Manifest: { "title"?, "notes"?, "pages": [{ "id", "title", "group"?, "route"?, "before"?, "beforeLabel"?, "after",
+            "afterLabel"?, "mobile"?, "mobileBefore"?, "note"? }] } — image paths relative to the manifest;
+            "group" is a folder like "Settings/Team & access" and carries over to later rounds.`;
 
 const OPTIONS = {
   port: { type: 'string' },
@@ -66,6 +69,7 @@ const OPTIONS = {
   reopen: { type: 'boolean' },
   timeout: { type: 'string' },
   here: { type: 'boolean' },
+  to: { type: 'string' },
   none: { type: 'boolean' },
   help: { type: 'boolean', short: 'h' },
 };
@@ -171,8 +175,17 @@ async function main() {
       if (o.json) return console.log(JSON.stringify(rounds, null, 2));
       for (const r of rounds) {
         console.log(`round ${r.n} · ${r.title} · ${fmtDate(r.createdAt)}${changeSummary(r) ? ` · ${changeSummary(r)}` : ''}`);
-        for (const p of r.pages) console.log(`  ${p.id}${p.change ? `  ${CHANGE_TEXT[p.change.status]}${p.change.ratio ? ` (${(p.change.ratio * 100).toFixed(1)}%)` : ''}` : ''}`);
+        for (const p of r.pages) console.log(`  ${p.group ? `${p.group}/` : ''}${p.id}${p.change ? `  ${CHANGE_TEXT[p.change.status]}${p.change.ratio ? ` (${(p.change.ratio * 100).toFixed(1)}%)` : ''}` : ''}`);
       }
+      return;
+    }
+    case 'group': {
+      const slug = need(args[0], 'review name');
+      const ids = args.slice(1);
+      if (!ids.length) throw new ReviewError('name the pages to move; see reviewtool --help');
+      if (o.to === undefined) throw new ReviewError('missing --to <folder> (use --to "" to take pages out of their folder)');
+      const res = store.setGroup(slug, { round: o.round ?? 'latest', pages: ids, group: o.to });
+      console.log(`moved ${res.pages.length} page${res.pages.length === 1 ? '' : 's'} in round ${res.round} ${res.group ? `to "${res.group}"` : 'out of their folder'}`);
       return;
     }
     case 'feedback': {

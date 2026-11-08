@@ -261,3 +261,26 @@ test('inside T3 Code, sending posts the feedback into the agent thread', async (
     server.close();
   }
 });
+
+test('pages sit in folders that carry over between rounds and can be moved', () => {
+  const { dir, store } = fixture();
+  store.create({ slug: 'demo' });
+  store.addRound('demo', { pages: [
+    { id: 'members', title: 'Members', group: ' Settings / Team & access/ ', after: 'after1.png' },
+    { id: 'inbox', title: 'Inbox', after: 'after1.png' },
+  ] }, dir);
+  const r2 = store.addRound('demo', { pages: [
+    { id: 'members', title: 'Members', after: 'after2.png' },
+    { id: 'inbox', title: 'Inbox', group: 'Planning', after: 'after2.png' },
+  ] }, dir);
+  assert.deepEqual(r2.pages.map((p) => p.group), ['Settings/Team & access', 'Planning']);
+  assert.throws(() => store.addRound('demo', { pages: [{ id: 'x', after: 'after1.png', group: 42 }] }, dir), /group must be text/);
+
+  const moved = store.setGroup('demo', { pages: ['inbox'], group: 'Planning/Daily' });
+  assert.deepEqual(moved, { round: 2, group: 'Planning/Daily', pages: ['inbox'] });
+  assert.equal(store.get('demo').rounds[1].pages[1].group, 'Planning/Daily');
+  store.setGroup('demo', { pages: ['inbox'], group: '' });
+  assert.equal(store.get('demo').rounds[1].pages[1].group, '');
+  assert.throws(() => store.setGroup('demo', { pages: ['nope'], group: 'X' }), /no page "nope"/);
+  assert.match(renderLog(store.get('demo')), /Settings › Team & access › Members/);
+});

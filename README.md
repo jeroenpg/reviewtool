@@ -73,6 +73,7 @@ A round manifest looks like this. Image paths are relative to the manifest file.
     {
       "id": "inbox",
       "title": "Inbox",
+      "group": "Planning",
       "route": "/inbox",
       "before": "shots/before-inbox.png",
       "beforeLabel": "main",
@@ -88,6 +89,9 @@ Rules for manifests:
 
 - **Only `id` and `after` are required.** Keep each page's `id` the same in every round. The "Last round" view and
   the "new" badge match pages by id.
+- **`group` puts a page in a folder** of the page list, such as `"CRM"` or nested `"Settings/Team & access"`. A page
+  keeps its folder in later rounds unless the manifest names another. `reviewtool group <name> <page-id>... --to
+  <folder>` re-sorts a round that is already published.
 - **You can leave out `before`.** A page without one reuses its before from the previous round, because the main
   screenshot rarely changes.
 
@@ -138,6 +142,7 @@ reviewtool set <name> [--title T] [--repo owner/name] [--pr N] [--branch B]
 reviewtool list
 reviewtool round <name> <manifest.json> [--title T] [--notes N] [--as Claude]
 reviewtool rounds <name>
+reviewtool group <name> <page-id>... --to <folder> [--round N]
 reviewtool wait <name> [--as Claude] [--timeout SECONDS] [--json]
 reviewtool feedback <name> [--all] [--round N] [--json]
 reviewtool reply <name> <comment-id> <text> [--as Claude] [--resolve]

@@ -38,8 +38,9 @@
   .rail-head [role="group"] button { font-size: .85em; padding: .25rem .4rem; }
   #pageSelect { display: none; }
   .pages { overflow-y: auto; padding: .4rem; flex: 1; }
-  .pages .group { font-size: .8em; font-weight: 600; color: var(--pico-muted-color); padding: .8rem .6rem .25rem; }
-  .pages button { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: .5rem; width: 100%; padding: .38rem .6rem; border-radius: var(--pico-border-radius); cursor: pointer; }
+  .pages .group { font-size: .8em; font-weight: 600; color: var(--pico-muted-color); padding: .8rem .6rem .25rem calc(.6rem + var(--depth, 0) * .85rem); }
+  .pages button { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: .5rem; width: 100%; padding: .38rem .6rem .38rem calc(.6rem + var(--depth, 0) * .85rem); border-radius: var(--pico-border-radius); cursor: pointer; }
+  .crumb { font-size: .85em; color: var(--pico-muted-color); margin-bottom: .1rem; }
   .pages button:hover { background: color-mix(in srgb, var(--pico-muted-border-color) 45%, transparent); }
   .pages button[aria-current="true"] { background: color-mix(in srgb, var(--pico-primary) 16%, transparent); font-weight: 600; }
   .pages button:focus-visible { outline: 2px solid var(--pico-primary); }
@@ -181,7 +182,7 @@
   <main id="main">
     <div id="pageView" hidden>
       <div class="page-head">
-        <hgroup><h1 id="title"></h1><p id="route"></p></hgroup>
+        <hgroup><div class="crumb" id="crumb" hidden></div><h1 id="title"></h1><p id="route"></p></hgroup>
         <span class="spacer"></span>
         <div role="group" id="verdicts" aria-label="Verdict">
           <button class="secondary outline" data-v="approve" title="Keep this page as it is now (1)">Approve</button>
@@ -479,16 +480,7 @@ function renderRail() {
   const q = ui.search.trim().toLowerCase();
   const shown = sets[ui.filter].filter((p) => !q || p.title.toLowerCase().includes(q) || (p.route || '').toLowerCase().includes(q));
 
-  const prefix = (p) => (p.title.includes(' · ') ? p.title.split(' · ')[0] : null);
-  const counts = {};
-  for (const p of shown) if (prefix(p)) counts[prefix(p)] = (counts[prefix(p)] || 0) + 1;
-  const groups = [];
-  for (const p of shown) {
-    const g = prefix(p) && counts[prefix(p)] >= 2 ? prefix(p) : '';
-    let bucket = groups.find((x) => x.name === g);
-    if (!bucket) groups.push((bucket = { name: g, items: [] }));
-    bucket.items.push(p);
-  }
+  const groups = folders(shown);
   // One signal per row, the most urgent: new replies, then answered threads, then whether the page changed.
   const signal = (p) => {
     const ts = threadsOf(null, p.id);
@@ -500,24 +492,73 @@ function renderRail() {
     if (changedKind(p) === 'changed') return `<span class="tag changed">${tiny(p) ? 'tiny change' : 'changed'}</span>`;
     return '';
   };
-  const item = (p, g) => {
-    const label = g && p.title.startsWith(g + ' · ') ? p.title.slice(g.length + 3) : p.title;
-    return `<button data-id="${esc(p.id)}" aria-current="${p.id === current}" class="${settled(p) ? 'settled' : ''}" title="${esc(p.title)}${settled(p) ? ' · unchanged, approved last round' : ''}"><span class="dot ${verdictOf(r.n, p.id) ?? ''}"></span><span class="label">${esc(label)}</span>${signal(p)}</button>`;
+  const item = (p, path) => {
+    const label = shortTitle(p, path);
+    return `<button data-id="${esc(p.id)}" aria-current="${p.id === current}" class="${settled(p) ? 'settled' : ''}" style="--depth:${path.length}" title="${esc(p.title)}${settled(p) ? ' · unchanged, approved last round' : ''}"><span class="dot ${verdictOf(r.n, p.id) ?? ''}"></span><span class="label">${esc(label)}</span>${signal(p)}</button>`;
   };
-  $('pages').innerHTML = groups.map((g) => `${g.name ? `<div class="group">${esc(g.name)}</div>` : ''}${g.items.map((p) => item(p, g.name)).join('')}`).join('') || '<div class="empty">No pages match.</div>';
+  // A folder tree: a heading for each folder level that differs from the folder before it.
+  let before = [];
+  $('pages').innerHTML = groups.map((g) => {
+    let same = 0;
+    while (same < g.path.length && g.path[same] === before[same]) same++;
+    before = g.path;
+    return g.path.slice(same).map((name, i) => `<div class="group" style="--depth:${same + i}">${esc(name)}</div>`).join('') + g.items.map((p) => item(p, g.path)).join('');
+  }).join('') || '<div class="empty">No pages match.</div>';
   if (renderRail.shown !== `${roundN}/${current}`) {
     renderRail.shown = `${roundN}/${current}`;
     $('pages').querySelector('[aria-current="true"]')?.scrollIntoView({ block: 'nearest' });
   }
   // Narrow screens pick a page here instead of the list.
   const mark = (p) => (verdictOf(r.n, p.id) ? '✓ ' : needsMe(p) ? '• ' : '  ');
-  $('pageSelect').innerHTML = ps.map((p) => `<option value="${esc(p.id)}" ${p.id === current ? 'selected' : ''}>${mark(p)}${esc(p.title)}${changedKind(p) === 'changed' ? ' (changed)' : changedKind(p) === 'new' ? ' (new)' : ''}</option>`).join('');
+  const option = (p) => `<option value="${esc(p.id)}" ${p.id === current ? 'selected' : ''}>${mark(p)}${esc(p.title)}${changedKind(p) === 'changed' ? ' (changed)' : changedKind(p) === 'new' ? ' (new)' : ''}</option>`;
+  $('pageSelect').innerHTML = folders(ps).map((g) => (g.path.length ? `<optgroup label="${esc(g.path.join(' › '))}">${g.items.map(option).join('')}</optgroup>` : g.items.map(option).join(''))).join('');
+}
+
+// "Settings · Members" in the Settings folder reads as "Members": a title prefix that repeats a folder is dropped.
+function shortTitle(p, path = (p.group || '').split('/').filter(Boolean)) {
+  const seg = path.find((x) => p.title.startsWith(`${x} · `));
+  return seg ? p.title.slice(seg.length + 3) : p.title;
+}
+
+/**
+ * Pages in folders, in the order they first appear, with sub-folders kept under their parent. Without folders from the
+ * agent, pages that share a "Prefix · " in their title are grouped under that prefix.
+ */
+function folders(list) {
+  const agentFolders = pages().some((p) => p.group);
+  const prefix = (p) => (p.title.includes(' · ') ? p.title.split(' · ')[0] : null);
+  const counts = {};
+  if (!agentFolders) for (const p of list) if (prefix(p)) counts[prefix(p)] = (counts[prefix(p)] || 0) + 1;
+  const pathOf = (p) => (agentFolders ? (p.group ? p.group.split('/') : []) : prefix(p) && counts[prefix(p)] >= 2 ? [prefix(p)] : []);
+  const buckets = [];
+  for (const p of list) {
+    const path = pathOf(p);
+    const key = path.join('/');
+    let b = buckets.find((x) => x.key === key);
+    if (!b) buckets.push((b = { key, path, items: [], order: buckets.length }));
+    b.items.push(p);
+  }
+  // Keep each folder's sub-folders right after it: sort by the first appearance of every ancestor in turn.
+  const firstSeen = new Map();
+  buckets.forEach((b) => b.path.forEach((_, i) => { const k = b.path.slice(0, i + 1).join('/'); if (!firstSeen.has(k)) firstSeen.set(k, b.order); }));
+  const rank = (b) => b.path.map((_, i) => firstSeen.get(b.path.slice(0, i + 1).join('/')));
+  return buckets.sort((a, b) => {
+    const ra = rank(a), rb = rank(b);
+    for (let i = 0; i < Math.max(ra.length, rb.length); i++) {
+      if (ra[i] === undefined) return -1;
+      if (rb[i] === undefined) return 1;
+      if (ra[i] !== rb[i]) return ra[i] - rb[i];
+    }
+    return a.order - b.order;
+  });
 }
 
 function renderPage(p) {
   $('noRound').hidden = true;
   $('pageView').hidden = false;
-  $('title').textContent = p.title;
+  $('title').textContent = shortTitle(p);
+  $('crumb').hidden = !p.group;
+  $('crumb').textContent = (p.group || '').split('/').join(' › ');
   $('route').textContent = p.route || '';
   $('route').hidden = !p.route;
   $('note').hidden = !p.note;

@@ -27,7 +27,7 @@ export function feedbackText(store, slug, { all = false, round = null, submissio
     const r = rounds.find((x) => x.n === t.round);
     const page = r?.pages.find((p) => p.id === t.page);
     const pinned = t.pin ? `pinned on the ${t.pin.img} screenshot at ${t.pin.x}% across, ${t.pin.y}% down` : 'general comment';
-    out.push(`[${t.id}] ${page?.title ?? t.page} (${t.page}) · round ${t.round} · ${pinned}${t.status === 'resolved' ? ' · resolved' : ''}`);
+    out.push(`[${t.id}] ${page?.group ? `${page.group.split('/').join(' › ')} › ` : ''}${page?.title ?? t.page} (${t.page}) · round ${t.round} · ${pinned}${t.status === 'resolved' ? ' · resolved' : ''}`);
     if (t.pin && page) {
       const file = t.pin.img === 'previous' ? rounds.find((x) => x.n === t.round - 1)?.pages.find((p) => p.id === t.page)?.after : page[t.pin.img];
       if (file) out.push(`  image: ${store.imagePath(slug, file)}`);
