@@ -33,7 +33,7 @@ function send(res, status, payload, type = 'application/json; charset=utf-8', ex
 }
 
 // Served to anyone, also without the key: they hold nothing about a review.
-const OPEN = new Set(['/favicon.svg', '/vendor/pico.zinc.min.css', '/app.css']);
+const OPEN = new Set(['/favicon.svg', '/vendor/pico.zinc.min.css', '/app.css', '/marks.js']);
 
 function sameKey(given, key) {
   const a = Buffer.from(String(given ?? ''));
@@ -72,6 +72,7 @@ export function createApp(store, { key = null } = {}) {
     }
     if (method === 'GET' && url.pathname === '/favicon.svg') return send(res, 200, page('favicon.svg'), 'image/svg+xml', { 'cache-control': 'max-age=86400' });
     if (method === 'GET' && url.pathname === '/vendor/pico.zinc.min.css') return send(res, 200, page('vendor/pico.zinc.min.css'), 'text/css; charset=utf-8', { 'cache-control': 'max-age=86400' });
+    if (method === 'GET' && url.pathname === '/marks.js') return send(res, 200, page('marks.js'), 'text/javascript; charset=utf-8', { 'cache-control': 'no-cache' });
     if (method === 'GET' && url.pathname === '/app.css') return send(res, 200, page('app.css'), 'text/css; charset=utf-8', { 'cache-control': 'no-cache' });
     if (parts[0] !== 'api') return send(res, 404, { error: 'not found' });
 

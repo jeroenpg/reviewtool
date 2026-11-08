@@ -128,8 +128,10 @@ The app has two columns that stay put: the pages of the round on the left, and t
 phone they stack, and the page list becomes a picker. It is built on
 [Pico CSS](https://picocss.com), which ships inside the package, and follows your light or dark setting; the ◐ button in the top bar switches between following the system, light and dark.
 
-- **Opens where you are needed.** A review opens on the first page that needs you: no verdict yet, an answer from
-  the agent to check, or a new reply. <kbd>N</kbd> jumps to the next one.
+- **A gallery of what needs you.** A review opens on the first page that needs you: no verdict yet, an answer from
+  the agent to check, or a new reply. *Approve* or *Revert* finishes the page, and so does posting a comment (which
+  marks a page without a verdict as *Needs update*); the next page that needs you opens, and the finished one moves
+  from *Needs you* (or *To do* in the picker on a tablet) to the rest. <kbd>N</kbd> jumps ahead.
 - **Compare two ways.** Pick what to compare the after with (*vs Before* or *vs Last round*) and how (*Side by
   side*, *Swipe* with a draggable handle, or *After only*). *Phone* switches to the phone screenshots. *100%* zooms
   in, and the two screenshots then scroll together.

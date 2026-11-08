@@ -298,6 +298,7 @@
   </article>
 </dialog>
 <div class="toast" id="toast"></div>
+<script src="/marks.js"></script>
 
 <script>
 const $ = (id) => document.getElementById(id);
@@ -336,7 +337,7 @@ const ui = {
   pair: pref.get('pair', 'before'),
   phone: false,
   zoom: 'fit',
-  filter: 'all',
+  filter: 'attention', // falls back to all pages when nothing needs you
   search: '',
   changes: pref.get('changes', '1') === '1',
 };
@@ -353,42 +354,6 @@ let caret = null; // where a marker goes in the comment box: the last cursor pos
 let spoken = []; // markers clicked while dictating, waiting for the text that says their number
 let composeBefore = ''; // the box's text just before the latest input
 
-/* Dictation (Wispr Flow, a phone keyboard) puts in a whole phrase at once, after the clicks you made while speaking.
-   A marker clicked since you last typed by hand moves to where that phrase says its number: "this card two" or
-   "this card 2" becomes "this card [2]". Dutch works too; "een" only as "nummer een" or "punt een", since it is
-   also the word "a". */
-const EN = ',one,two,three,four,five,six,seven,eight,nine,ten,eleven,twelve,thirteen,fourteen,fifteen,sixteen,seventeen,eighteen,nineteen,twenty'.split(',');
-const NL = ',één,twee,drie,vier,vijf,zes,zeven,acht,negen,tien,elf,twaalf,dertien,veertien,vijftien,zestien,zeventien,achttien,negentien,twintig'.split(',');
-const PREFIX = '(?:(?:marker|spot|point|pin|number|nummer|punt|plek)\\s+|#)';
-function spokenNumber(n) {
-  const words = [String(n), EN[n], NL[n]].filter(Boolean).join('|');
-  const een = n === 1 ? `|${PREFIX}een` : '';
-  const num = `(?:${PREFIX}?(?:${words})${een})`;
-  // "(1)" as a whole, so it does not end up as "([1])".
-  return new RegExp(`\\(${num}\\)|(?<![\\p{L}\\p{N}\\[#])${num}(?![\\p{L}\\p{N}\\]%])`, 'iu');
-}
-function placeSpoken(before, after) {
-  let p = 0;
-  while (p < before.length && p < after.length && before[p] === after[p]) p++;
-  let e = 0;
-  while (e < before.length - p && e < after.length - p && before.at(-1 - e) === after.at(-1 - e)) e++;
-  let chunk = after.slice(p, after.length - e);
-  if (chunk.length === 1) spoken = []; // typing by hand: the markers stay where you clicked them
-  if (chunk.length < 2 || !spoken.length) return null;
-  let head = after.slice(0, p);
-  let tail = after.slice(after.length - e);
-  const placed = spoken.filter((n) => spokenNumber(n).test(chunk));
-  if (!placed.length) return null;
-  for (const n of placed) {
-    chunk = chunk.replace(spokenNumber(n), `[${n}]`);
-    const old = new RegExp(`\\[${n}\\] ?`);
-    head = head.replace(old, '');
-    tail = tail.replace(old, '');
-  }
-  spoken = spoken.filter((n) => !placed.includes(n));
-  if (head && !/\s$/.test(head) && !/^\s/.test(chunk)) head += ' ';
-  return { value: head + chunk + tail, caret: (head + chunk).length };
-}
 const draftKey = (n = roundN, id = current) => `${n}/${id}`;
 const draftOf = (n, id) => drafts[draftKey(n, id)] ?? { text: '', pins: [] };
 const hasDraft = (n, id) => !!drafts[draftKey(n, id)]?.text.trim();
@@ -397,10 +362,7 @@ function saveDraft(d) {
   else delete drafts[draftKey()];
   pref.set(`drafts.${slug}`, JSON.stringify(drafts));
 }
-const pinsOf = (c) => c.pins ?? (c.pin ? [c.pin] : []);
-const LETTERS = 'abcdefghijklmnopqrstuvwxyz';
-// A thread's markers read as its number, with a letter when it marks more than one spot: 3, or 3a and 3b.
-const markLabel = (t, n, k) => `${n ?? ''}${pinsOf(t).length > 1 ? LETTERS[k - 1] : n == null ? k : ''}`;
+const { pinsOf, label: markLabel } = Marks;
 
 function toast(msg) {
   const t = $('toast');
@@ -594,7 +556,7 @@ function renderRail() {
     changed: ps.filter((p) => ['changed', 'new'].includes(changedKind(p))),
   };
   const labels = { all: 'All', attention: 'Needs you', changed: 'Changed' };
-  if (!sets[ui.filter]) ui.filter = 'all';
+  if (!sets[ui.filter] || (ui.filter === 'attention' && !sets.attention.length && !renderRail.picked)) ui.filter = 'all';
   $('filters').innerHTML = Object.keys(sets).filter((k) => k !== 'changed' || compared).map((k) => `<button class="secondary outline" data-filter="${k}" aria-pressed="${ui.filter === k}">${labels[k]} ${sets[k].length}</button>`).join('');
   const q = ui.search.trim().toLowerCase();
   const shown = sets[ui.filter].filter((p) => !q || p.title.toLowerCase().includes(q) || (p.route || '').toLowerCase().includes(q));
@@ -629,12 +591,14 @@ function renderRail() {
     $('pages').querySelector('[aria-current="true"]')?.scrollIntoView({ block: 'nearest' });
   }
   // Narrow screens pick a page here instead of the list.
-  const mark = (p) => (verdictOf(r.n, p.id) ? '✓ ' : needsMe(p) ? '• ' : '  ');
-  const option = (p) => `<option value="${esc(p.id)}" ${p.id === current ? 'selected' : ''}>${mark(p)}${esc(p.title)}${changedKind(p) === 'changed' ? ' (changed)' : changedKind(p) === 'new' ? ' (new)' : ''}</option>`;
+  // A gallery: the pages that still need you, then the ones you are done with.
+  const option = (p) => `<option value="${esc(p.id)}" ${p.id === current ? 'selected' : ''}>${esc([...(p.group ? p.group.split('/') : []), shortTitle(p)].join(' › '))}${changedKind(p) === 'changed' ? ' (changed)' : changedKind(p) === 'new' ? ' (new)' : ''}</option>`;
+  const todo = ps.filter(needsMe);
+  const done = ps.filter((p) => !needsMe(p));
   const at = ps.findIndex((p) => p.id === current);
   $('prevPage').disabled = at <= 0;
   $('nextPage').disabled = at >= ps.length - 1;
-  $('pageSelect').innerHTML = folders(ps).map((g) => (g.path.length ? `<optgroup label="${esc(g.path.join(' › '))}">${g.items.map(option).join('')}</optgroup>` : g.items.map(option).join(''))).join('');
+  $('pageSelect').innerHTML = [[`To do (${todo.length})`, todo], [`Done (${done.length})`, done]].filter(([, list]) => list.length).map(([name, list]) => `<optgroup label="${name}">${list.map(option).join('')}</optgroup>`).join('');
 }
 
 // "Settings · Members" in the Settings folder reads as "Members": a title prefix that repeats a folder is dropped.
@@ -918,14 +882,27 @@ function focusThread(id, k = 1) {
 }
 
 /* ---------- actions ---------- */
+// Gallery: go on to the next page that still needs you.
+function advance(said) {
+  const ps = pages();
+  const i = ps.findIndex((p) => p.id === current);
+  const next = [...ps.slice(i + 1), ...ps.slice(0, i)].find(needsMe);
+  if (next) { go(next.id); toast(said); return; }
+  render();
+  toast(`${said}. That was the last page; send your feedback when you are ready`);
+}
+
 async function setVerdict(v) {
   const verdict = verdictOf(roundN, current) === v ? null : v;
   try {
     const res = await api('PUT', '/verdict', { round: roundN, page: current, verdict, by: me() });
     if (res.verdict) data.feedback.verdicts[`${roundN}/${current}`] = res.verdict;
     else delete data.feedback.verdicts[`${roundN}/${current}`];
+    const said = verdict ? `${VERDICT_TEXT[verdict]}: ${page().title}` : 'Verdict cleared';
+    // Approve and revert finish a page; after "needs update" you usually write what, so it stays.
+    if (verdict === 'approve' || verdict === 'revert') return advance(said);
     render();
-    toast(verdict ? `${VERDICT_TEXT[verdict]}: ${page().title}` : 'Verdict cleared');
+    toast(said);
   } catch (err) { toast(`Could not save: ${err.message}`); }
 }
 
@@ -961,8 +938,9 @@ function autosize() {
 // Keep the draft in step with the text: a marker whose [n] was deleted goes away.
 function onComposeInput() {
   const box = $('composeText');
-  const moved = placeSpoken(composeBefore, box.value);
-  if (moved) { box.value = moved.value; box.setSelectionRange(moved.caret, moved.caret); }
+  const moved = Marks.placeSpoken(composeBefore, box.value, spoken);
+  if (moved?.handTyped) spoken = []; // typing by hand: the markers stay where you clicked them
+  else if (moved) { box.value = moved.value; box.setSelectionRange(moved.caret, moved.caret); spoken = spoken.filter((n) => !moved.placed.includes(n)); }
   composeBefore = box.value;
   const d = draftOf(roundN, current);
   const before = d.pins.length;
@@ -990,12 +968,9 @@ function addMarker(pin) {
   const d = draftOf(roundN, current);
   if (d.pins.length >= 26) return toast('A comment marks at most 26 spots');
   const n = Math.max(0, ...d.pins.map((x) => x.n)) + 1;
-  const at = Math.min(caret ?? box.value.length, box.value.length);
-  const head = box.value.slice(0, at);
-  const tail = box.value.slice(at);
-  const token = `${head && !/\s$/.test(head) ? ' ' : ''}[${n}]${/^\s/.test(tail) ? '' : ' '}`;
-  box.value = head + token + tail;
-  caret = (head + token).length;
+  const put = Marks.insertToken(box.value, Math.min(caret ?? box.value.length, box.value.length), n);
+  box.value = put.value;
+  caret = put.caret;
   d.pins.push({ n, ...pin });
   spoken.push(n);
   d.text = box.value;
@@ -1010,7 +985,7 @@ function addMarker(pin) {
 function removeMarker(n) {
   const box = $('composeText');
   const d = draftOf(roundN, current);
-  box.value = box.value.replace(new RegExp(` ?\\[${n}\\]`, 'g'), '');
+  box.value = Marks.removeToken(box.value, n);
   caret = null;
   spoken = spoken.filter((x) => x !== n);
   composeBefore = box.value;
@@ -1026,22 +1001,21 @@ async function postComment() {
   const box = $('composeText');
   const d = draftOf(roundN, current);
   if (!box.value.trim()) return startWriting();
-  const order = [];
-  for (const [, k] of box.value.matchAll(/\[(\d+)\]/g)) if (d.pins.some((x) => x.n === Number(k)) && !order.includes(Number(k))) order.push(Number(k));
-  const text = box.value.trim().replace(/\[(\d+)\]/g, (all, k) => (order.includes(Number(k)) ? `[${order.indexOf(Number(k)) + 1}]` : all));
-  const pins = order.map((k) => { const { img, x, y } = d.pins.find((m) => m.n === k); return { img, x, y }; });
+  const { text, pins } = Marks.forPosting(box.value, d.pins);
   $('composeSend').setAttribute('aria-busy', 'true');
   try {
     const c = await api('POST', '/comments', { round: roundN, page: current, text, pins, author: me() });
     data.feedback.comments.push(c);
+    // A comment asks for a change: without a verdict yet, the page needs an update.
+    if (!verdictOf(roundN, current)) data.feedback.verdicts[`${roundN}/${current}`] = (await api('PUT', '/verdict', { round: roundN, page: current, verdict: 'update', by: me() })).verdict;
     saveDraft({ text: '', pins: [] });
     box.value = '';
     caret = null;
     spoken = [];
     autosize();
     box.blur(); // the keys work again right away; Enter starts the next comment
-    render();
-    toast('Comment saved');
+    $('composeSend').removeAttribute('aria-busy');
+    return advance('Comment saved');
   } catch (err) { toast(`Could not save: ${err.message}`); }
   $('composeSend').removeAttribute('aria-busy');
 }
@@ -1134,7 +1108,7 @@ $('pageSelect').addEventListener('change', () => go($('pageSelect').value));
 const step = (d) => { const ps = pages(); const i = ps.findIndex((p) => p.id === current); go(ps[i + d]?.id); };
 $('prevPage').addEventListener('click', () => step(-1));
 $('nextPage').addEventListener('click', () => step(1));
-$('filters').addEventListener('click', (e) => { const b = e.target.closest('[data-filter]'); if (b) { ui.filter = b.dataset.filter; renderRail(); } });
+$('filters').addEventListener('click', (e) => { const b = e.target.closest('[data-filter]'); if (b) { ui.filter = b.dataset.filter; renderRail.picked = true; renderRail(); } });
 $('search').addEventListener('input', () => { ui.search = $('search').value; renderRail(); });
 $('round').addEventListener('change', () => setRound(Number($('round').value)));
 $('verdicts').addEventListener('click', (e) => { const b = e.target.closest('button[data-v]'); if (b) setVerdict(b.dataset.v); });
