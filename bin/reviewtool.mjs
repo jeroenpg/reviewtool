@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // reviewtool: rounds of before/after screenshots that people comment on and agents answer.
-import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { cpSync, existsSync, lstatSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -15,7 +16,24 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const store = new Store();
-const baseUrl = () => (process.env.REVIEWTOOL_URL || 'http://localhost:4477').replace(/\/$/, '');
+// Settings that outlive a shell: where people open the app (set by "reviewtool tailscale").
+const configFile = join(process.env.XDG_CONFIG_HOME || join(homedir(), '.config'), 'reviewtool', 'config.json');
+function readConfig() {
+  try {
+    return JSON.parse(readFileSync(configFile, 'utf8'));
+  } catch {
+    return {};
+  }
+}
+function writeConfig(patch) {
+  mkdirSync(dirname(configFile), { recursive: true });
+  writeFileSync(configFile, JSON.stringify({ ...readConfig(), ...patch }, null, 2) + '\n');
+}
+const baseUrl = () => (process.env.REVIEWTOOL_URL || readConfig().url || 'http://localhost:4477').replace(/\/$/, '');
+
+// Global skill folders: Claude Code reads ~/.claude/skills; Codex, Pi and OpenCode read ~/.agents/skills
+// (OpenCode reads both).
+const SKILL_DIRS = [join(homedir(), '.claude', 'skills'), join(homedir(), '.agents', 'skills')];
 
 const HELP = `reviewtool — review rounds of before/after screenshots in the browser; agents read the feedback and reply.
 
@@ -43,7 +61,13 @@ Usage:
   reviewtool target <name> [--here | --none]            where "send" delivers feedback: this T3 Code thread
                                                         (--here; automatic for init, round and wait inside T3),
                                                         or nowhere, for agents that use wait (--none)
-  reviewtool install-skill [--dir ~/.claude/skills]     install the agent skill
+  reviewtool install-skill [--dir D] [--copy]           install the agent skill for Claude Code (~/.claude/skills)
+                                                        and Codex, Pi and OpenCode (~/.agents/skills), as a link
+                                                        to this package so updates come along (--copy to copy)
+  reviewtool service [--port 4477] [--remove]           run the app as a systemd user service that starts at boot
+  reviewtool tailscale [--port 4477] [--https-port 14477]
+                                                        open the app to your tailnet with tailscale serve and use that
+                                                        address in the links agents print
 
 Data lives in ${store.root} (REVIEWTOOL_HOME overrides).
 Manifest: { "title"?, "notes"?, "pages": [{ "id", "title", "group"?, "device"?, "route"?, "before"?, "beforeLabel"?,
@@ -63,6 +87,9 @@ const OPTIONS = {
   round: { type: 'string' },
   out: { type: 'string' },
   dir: { type: 'string' },
+  copy: { type: 'boolean' },
+  remove: { type: 'boolean' },
+  'https-port': { type: 'string' },
   all: { type: 'boolean' },
   json: { type: 'boolean' },
   post: { type: 'boolean' },
@@ -124,6 +151,22 @@ function linkThread(slug, agent) {
   if (current?.kind === 't3' && current.thread === target.thread && current.title === target.title && current.agent === (agent ?? current.agent)) return current;
   store.setTarget(slug, { ...target, agent: agent ?? current?.agent ?? null });
   return target;
+}
+
+function isLink(path) {
+  try {
+    return lstatSync(path).isSymbolicLink();
+  } catch {
+    return false;
+  }
+}
+
+function readFileSafe(path) {
+  try {
+    return readFileSync(path, 'utf8');
+  } catch {
+    return '';
+  }
 }
 
 async function main() {
@@ -275,10 +318,81 @@ async function main() {
       return;
     }
     case 'install-skill': {
-      const dir = resolve(o.dir ?? join(homedir(), '.claude', 'skills'), 'reviewtool');
-      mkdirSync(dir, { recursive: true });
-      cpSync(join(root, 'skills', 'reviewtool'), dir, { recursive: true });
-      console.log(`installed the reviewtool skill in ${dir}${existsSync(join(dir, 'SKILL.md')) ? '' : ' (SKILL.md missing!)'}`);
+      const source = join(root, 'skills', 'reviewtool');
+      for (const parent of o.dir ? [resolve(o.dir)] : SKILL_DIRS) {
+        const dir = join(parent, 'reviewtool');
+        mkdirSync(parent, { recursive: true });
+        // Replace an earlier install of this skill, never something else that happens to use the name.
+        if (existsSync(dir) || isLink(dir)) {
+          const ours = isLink(dir) || /^name:\s*reviewtool\s*$/m.test(readFileSafe(join(dir, 'SKILL.md')));
+          if (!ours) throw new ReviewError(`${dir} exists and is not the reviewtool skill; move it away first`);
+          rmSync(dir, { recursive: true, force: true });
+        }
+        let how = 'copied';
+        if (!o.copy) {
+          try {
+            symlinkSync(source, dir, 'dir');
+            how = 'linked';
+          } catch {}
+        }
+        if (how === 'copied') cpSync(source, dir, { recursive: true });
+        console.log(`${how} the reviewtool skill into ${dir}`);
+      }
+      return;
+    }
+    case 'service': {
+      if (process.platform !== 'linux') throw new ReviewError('reviewtool service sets up a systemd user service, which needs Linux; on other systems run "reviewtool serve" with your own service manager');
+      const port = Number(o.port ?? 4477);
+      const unitDir = join(process.env.XDG_CONFIG_HOME || join(homedir(), '.config'), 'systemd', 'user');
+      const unit = join(unitDir, 'reviewtool.service');
+      const systemctl = (...a) => execFileSync('systemctl', ['--user', ...a], { stdio: 'inherit' });
+      if (o.remove) {
+        try { systemctl('disable', '--now', 'reviewtool.service'); } catch {}
+        rmSync(unit, { force: true });
+        systemctl('daemon-reload');
+        console.log('removed the reviewtool service');
+        return;
+      }
+      mkdirSync(unitDir, { recursive: true });
+      writeFileSync(unit, [
+        '[Unit]',
+        'Description=reviewtool: screenshot review rounds',
+        'After=network-online.target',
+        '',
+        '[Service]',
+        `ExecStart=${process.execPath} ${join(root, 'bin', 'reviewtool.mjs')} serve --port ${port}`,
+        ...(process.env.REVIEWTOOL_HOME ? [`Environment=REVIEWTOOL_HOME=${process.env.REVIEWTOOL_HOME}`] : []),
+        'Restart=on-failure',
+        'RestartSec=3',
+        '',
+        '[Install]',
+        'WantedBy=default.target',
+        '',
+      ].join('\n'));
+      systemctl('daemon-reload');
+      systemctl('enable', 'reviewtool.service');
+      systemctl('restart', 'reviewtool.service');
+      console.log(`reviewtool runs as a user service on http://127.0.0.1:${port} (${unit}). It starts at boot when user lingering is on: loginctl enable-linger`);
+      return;
+    }
+    case 'tailscale': {
+      const port = Number(o.port ?? 4477);
+      const httpsPort = Number(o['https-port'] ?? 14477);
+      const ts = (...a) => execFileSync('tailscale', a, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+      let host;
+      try {
+        host = JSON.parse(ts('status', '--json')).Self.DNSName.replace(/\.$/, '');
+      } catch (error) {
+        throw new ReviewError(`could not read this machine's tailnet name: ${error.stderr?.toString().trim() || error.message}`);
+      }
+      try {
+        ts('serve', '--bg', `--https=${httpsPort}`, `http://127.0.0.1:${port}`);
+      } catch (error) {
+        throw new ReviewError(`tailscale serve failed: ${error.stderr?.toString().trim() || error.message}\n(if it asks for permission, run once: sudo tailscale set --operator=$USER)`);
+      }
+      const url = `https://${host}${httpsPort === 443 ? '' : `:${httpsPort}`}`;
+      writeConfig({ url });
+      console.log(`the app is on your tailnet at ${url} (only devices on your tailnet can open it); agents now print links to it`);
       return;
     }
     default:

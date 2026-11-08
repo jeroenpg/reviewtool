@@ -23,15 +23,19 @@ The tool needs no dependencies, only Node.js 20 or newer. The web app's styling,
 
 ```sh
 npm install -g github:jeroenpg/reviewtool
-reviewtool install-skill              # copies the skill to ~/.claude/skills/reviewtool
-reviewtool serve                      # http://127.0.0.1:4477
+reviewtool install-skill   # Claude Code (~/.claude/skills) and Codex, Pi, OpenCode (~/.agents/skills)
+reviewtool service         # keep the app running on http://127.0.0.1:4477, also after a reboot (Linux)
+reviewtool tailscale       # open it to your tailnet: https://<machine>.<tailnet>.ts.net:14477
 ```
 
-For an agent other than Claude Code, point it at `skills/reviewtool/SKILL.md`. For example, reference it from your
-`AGENTS.md`, or install it into that agent's skills folder with `reviewtool install-skill --dir <folder>`.
-
-The server listens only on localhost. To open it from other devices, put it behind something like `tailscale serve`
-or an SSH tunnel. Then set `REVIEWTOOL_URL` to that address so the agent prints links you can open.
+- **`install-skill`** links the skill into the global skill folders of Claude Code, Codex, Pi and OpenCode, so
+  updating the package updates the skill. `--copy` copies it instead, and `--dir` installs into another folder.
+- **`service`** writes a systemd user service. It starts at boot when user lingering is on
+  (`loginctl enable-linger`). Elsewhere, run `reviewtool serve` with your own service manager.
+- **`tailscale`** runs `tailscale serve` in the background, so only devices on your tailnet can open the app. It also
+  remembers the address, so the links agents print work on your phone and other machines. If Tailscale asks for
+  permission, run `sudo tailscale set --operator=$USER` once. Without Tailscale, the app listens on localhost only;
+  set `REVIEWTOOL_URL` to whatever address you put in front of it.
 
 ## How a review goes
 

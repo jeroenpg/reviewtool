@@ -24,9 +24,16 @@ reviewtool init <name> --title "Declutter the inbox" --repo owner/repo --pr 123 
 `--repo` and `--pr` later with `reviewtool set <name> --pr 123` once the PR exists.
 
 The app must be running for the user to see anything. Check with `curl -s localhost:4477/api/reviews`. If nothing
-answers, start it in the background with `reviewtool serve --port 4477`. Leave it running and do not restart a server
-someone else started. Set `REVIEWTOOL_URL` when the user reaches the app at another address, such as a tailnet
-hostname, so the links you print work for them.
+answers:
+
+- **Usually the service is installed.** `systemctl --user start reviewtool` starts it again.
+- **On a machine where it was never set up**, offer the user `reviewtool service` (keeps it running, also after a
+  reboot) and `reviewtool tailscale` (opens it to their tailnet). For a one-off, start it in the background with
+  `reviewtool serve --port 4477`.
+- **Do not restart or stop a server someone else started.**
+
+The links `reviewtool url` prints use the tailnet address once `reviewtool tailscale` has run. Give the user those
+links, not localhost.
 
 ## 2. Publish a round
 
