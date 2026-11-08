@@ -110,14 +110,19 @@ else try { const t = localStorage.getItem('reviewtool.theme'); if (t) document.d
   .chat .pagenav { max-width: none; flex: 1 1 auto; }
   .chat #roundChanges, .chat #changeBar, .chat .page-head, .chat #note { display: none !important; }
   .chat #approveBtn { flex: none; padding-block: .35rem; }
-  .chat main { padding: .5rem .75rem .4rem; }
+  .chat main { padding: 0 0 .3rem; }
   .chat .canvas { margin-top: 0; }
-  .chat .flip figcaption { margin-bottom: .35rem; }
-  .chat .flip .seg small { display: none; }
-  .chat .frame { max-height: none; overflow: visible; border: 0; background: transparent; }
-  .chat .stage { width: fit-content; max-width: 100%; margin-inline: auto; border: 1px solid var(--pico-muted-border-color); border-radius: var(--pico-border-radius); overflow: hidden; }
-  .chat .stage > img { width: auto; max-width: 100%; max-height: calc(100vh - 12rem); }
-  .chat .chathint { margin-top: .3rem; font-size: .82em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .chat .flip figcaption { display: none; } /* its toggle sits in the strip */
+  .chat .rail-head .seg { display: inline-flex; width: auto; flex: none; }
+  .chat .rail-head .seg button { padding: .35rem .8rem; }
+  /* Desktop screenshots run edge to edge; one taller than the frame scrolls inside it. */
+  .chat .flip, .chat .flip.phone { max-width: none; }
+  .chat .frame { border: 0; border-radius: 0; background: transparent; max-height: calc(100vh - 7.4rem); overflow-y: auto; scrollbar-width: thin; }
+  /* Phone screenshots would be very tall at full width: scaled to the height that is left, centred. */
+  .chat .flip.phone .frame { max-height: none; overflow: visible; }
+  .chat .flip.phone .stage { width: fit-content; max-width: 100%; margin-inline: auto; }
+  .chat .flip.phone .stage > img { width: auto; max-width: 100%; max-height: calc(100vh - 8rem); }
+  .chat .chathint { margin: .25rem .75rem 0; font-size: .82em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .pin.draft:hover { background: var(--revert); }
   .mark { display: inline-grid; place-items: center; min-width: 1.35em; height: 1.35em; padding: 0 .3em; border-radius: .7em .7em .7em .2em; background: var(--pin); color: #fff; font-size: .78em; font-weight: 700; vertical-align: .08em; cursor: pointer; }
   .resolved .mark { background: #8a9592; }
@@ -281,7 +286,15 @@ const slug = decodeURIComponent(location.pathname.split('/').filter(Boolean)[1] 
 const CHAT = new URLSearchParams(location.search).get('chat') === '1';
 if (CHAT) {
   document.documentElement.classList.add('chat');
-  document.querySelector('.rail-head').append($('approveBtn')); // next to the page picker
+  // One strip: the page, before or after, and Approve.
+  const seg = document.createElement('div');
+  seg.className = 'seg';
+  seg.id = 'chatSeg';
+  seg.setAttribute('role', 'group');
+  seg.setAttribute('aria-label', 'Before or after');
+  seg.innerHTML = '<button class="secondary outline" data-show="before" title="Show the before (Space)">Before</button><button class="secondary outline" data-show="after" title="Show the after (Space)">After</button>';
+  seg.addEventListener('click', (e) => { const b = e.target.closest('button[data-show]'); if (b && !b.disabled) setShowing(b.dataset.show); });
+  document.querySelector('.rail-head').append(seg, $('approveBtn'));
 }
 const PIN_LABEL = { before: 'before', after: 'after', previous: 'last round', mobile: 'phone' };
 const VERDICT_TEXT = { approve: 'Approved', update: 'Needs update', revert: 'Revert' };
@@ -614,6 +627,11 @@ function setShowing(which) {
     for (const b of fig.querySelectorAll('.seg button')) b.setAttribute('aria-pressed', b.dataset.show === show);
   }
   showing = which;
+  const fig = $('canvas').querySelector('.flip');
+  for (const b of $('chatSeg')?.querySelectorAll('button') ?? []) {
+    b.setAttribute('aria-pressed', b.dataset.show === fig?.dataset.show);
+    b.disabled = b.dataset.show === 'before' && fig?.dataset.hasBefore !== 'true';
+  }
   placePopover();
 }
 const swap = () => setShowing(showing === 'after' ? 'before' : 'after');
