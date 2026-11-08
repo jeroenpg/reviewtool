@@ -136,6 +136,10 @@ and follows your light or dark setting.
   the agent to check, or a new reply. *Approve* finishes the page, and so does posting a comment (which marks the page
   as needing an update); the next page that needs you opens and the finished one moves to *Done* in the picker. Pages that did not
   change since you approved them last round are done already. <kbd>N</kbd> jumps ahead.
+- **Previous and next at your fingertips.** Hovering a screenshot shows ‹ and › at its edges for the previous and
+  next page (<kbd>K</kbd> and <kbd>J</kbd> do the same).
+- **A heading that says what this is.** The top bar reads "*T3 thread* · *what this round changes*": the agent sums
+  up each round in about five words (the round's title).
 - **Before and after in one place.** One screenshot at a time: swap with the *Before / After* toggle, or press
   <kbd>Space</kbd> or <kbd>B</kbd>. It swaps in place, so what changed jumps out. Each page opens on the after. Areas
   that changed since the last round are outlined on it.

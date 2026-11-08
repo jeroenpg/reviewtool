@@ -44,6 +44,10 @@ touches, in the states the change is about (hovered, open, empty, error).
   in the manifest has no `before`, reviewtool reuses the before from the previous round.
 - **After**: the current state of your branch.
 
+**Give every round a title of about five words that sums up what it changes** ("Calmer sidebars, fewer buttons"), in
+the manifest's `title` or with `--title`. The app shows it in its top bar after the name of your T3 thread (or the
+review's name): "Reduce frontend clutter · Calmer sidebars, fewer buttons".
+
 Then write a manifest anywhere you like, for example `/tmp/round.json`. Image paths are relative to the manifest file.
 The images are copied into the review store (`~/.local/share/reviewtool`), so later cleanups cannot delete them.
 

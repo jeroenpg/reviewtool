@@ -76,6 +76,14 @@ else try { const t = localStorage.getItem('reviewtool.theme'); if (t) document.d
   .flip .seg button { padding: .25rem .9rem; font-size: .92em; }
   .flip .seg button small { font-weight: 400; opacity: .75; margin-left: .3rem; }
   .flip.phone { max-width: 400px; }
+  /* Previous and next page: arrows at the screenshot's edges, shown while the pointer is over it. */
+  .view { position: relative; }
+  .view .step { all: unset; position: absolute; z-index: 3; top: 50%; transform: translateY(-50%); width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; font-size: 26px; line-height: 1; color: #fff; background: rgb(0 0 0 / .55); box-shadow: 0 1px 6px rgb(0 0 0 / .35); cursor: pointer; opacity: 0; transition: opacity .15s; }
+  .view .step.prev { left: 10px; }
+  .view .step.next { right: 10px; }
+  .view:hover .step:not([hidden]), .view .step:focus-visible { opacity: .9; }
+  .view .step:hover { opacity: 1; background: rgb(0 0 0 / .75); }
+  @media (hover: none) { .view .step:not([hidden]) { opacity: .6; } }
   .flip[data-show="after"] .shot.before, .flip[data-show="before"] .shot.after,
   .flip[data-show="after"] .pins[data-key="before"], .flip[data-show="before"] .pins[data-key="after"],
   .flip[data-show="before"] .outlines { display: none; }
@@ -475,8 +483,15 @@ function render() {
 
 function renderBar() {
   const { review } = data;
-  document.title = `${review.title}${roundN ? ` · round ${roundN}` : ''}`;
-  $('reviewTitle').textContent = review.title;
+  // "<T3 thread name> · <what this round changes>": the thread names the work, the agent sums up the round in about
+  // five words (its title). Without a thread, the review's own name.
+  const r = round();
+  const summary = r?.title && r.title !== `Round ${r.n}` ? r.title : '';
+  const name = (review.target?.kind === 't3' && review.target.title) || review.title;
+  const heading = summary ? `${name} · ${summary}` : name;
+  document.title = heading;
+  $('reviewTitle').textContent = heading;
+  $('reviewTitle').title = heading;
   const pr = $('prLink');
   pr.hidden = !(review.repo && review.pr);
   if (!pr.hidden) { pr.href = `https://github.com/${review.repo}/pull/${review.pr}`; pr.textContent = `#${review.pr}`; }
@@ -684,8 +699,20 @@ function flipHtml(p, r) {
   const img = (f, which) => (f?.file ? `<img class="shot ${which}" src="${imgUrl(f.file)}" alt="${esc(`${which}: ${p.title}`)}" draggable="false">` : '');
   return `${r.title ? `<h3 class="rowtitle">${r.title}</h3>` : ''}<figure class="flip${r.narrow ? ' phone' : ''}" data-show="after" data-has-before="${!!cmp}" data-before-pins="${!!cmp && !cmp.noPin}">
     <figcaption><div class="seg" role="group" aria-label="Before or after">${tab(cmp, 'before', !cmp)}${tab(base, 'after')}</div>${cmp ? '<small class="muted">Space swaps</small>' : `<small class="muted">${p.change?.status === 'new' ? 'New page, nothing to compare with' : 'No before screenshot'}</small>`}</figcaption>
-    <div class="frame" data-img="after" title="Click to mark a spot"><div class="stage">${img(cmp, 'before')}${img(base, 'after')}${outlinesHtml(p, 'after')}${pinsHtml(p, 'after')}${cmp && !cmp.noPin ? pinsHtml(p, cmp.key) : ''}</div></div>
+    <div class="view"><div class="frame" data-img="after" title="Click to mark a spot"><div class="stage">${img(cmp, 'before')}${img(base, 'after')}${outlinesHtml(p, 'after')}${pinsHtml(p, 'after')}${cmp && !cmp.noPin ? pinsHtml(p, cmp.key) : ''}</div></div>${stepButtons(p)}</div>
   </figure>`;
+}
+
+// The page before and after this one, in the order of the round.
+function neighbours(p) {
+  const ps = pages();
+  const i = ps.findIndex((x) => x.id === p.id);
+  return { prev: ps[i - 1] ?? null, next: ps[i + 1] ?? null };
+}
+function stepButtons(p) {
+  const { prev, next } = neighbours(p);
+  const button = (dir, to, glyph, label) => `<button class="step ${dir}" data-step="${dir}"${to ? ` title="${label}: ${esc(to.title)} (${dir === 'prev' ? 'K' : 'J'})"` : ' hidden'} aria-label="${label}">${glyph}</button>`;
+  return button('prev', prev, '‹', 'Previous page') + button('next', next, '›', 'Next page');
 }
 
 function bindCanvas() {
@@ -1060,6 +1087,8 @@ async function chatClick(e) {
 }
 
 $('canvas').addEventListener('click', (e) => {
+  const step = e.target.closest('.step[data-step]');
+  if (step) { const { prev, next } = neighbours(page()); return go((step.dataset.step === 'prev' ? prev : next)?.id); }
   if (CHAT) return chatClick(e);
   const draft = e.target.closest('.pin[data-draft]');
   if (draft) return removeMarker(Number(draft.dataset.draft));
