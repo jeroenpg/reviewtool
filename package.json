@@ -1,0 +1,13 @@
+{
+  "name": "reviewtool",
+  "version": "0.1.0",
+  "description": "Review rounds of before/after screenshots in the browser; AI agents read the pinned feedback, reply, and post the review log on the pull request.",
+  "type": "module",
+  "bin": { "reviewtool": "bin/reviewtool.mjs" },
+  "files": ["bin", "src", "public", "skills"],
+  "scripts": { "test": "node --test test/", "start": "node bin/reviewtool.mjs serve" },
+  "engines": { "node": ">=20" },
+  "keywords": ["review", "screenshots", "claude-code", "agent-skill", "design-review"],
+  "repository": { "type": "git", "url": "git+https://github.com/jeroenpg/reviewtool.git" },
+  "license": "MIT"
+}

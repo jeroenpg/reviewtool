@@ -1,0 +1,324 @@
+// File-backed store for reviews. One folder per review under the store root:
+//   review.json    { slug, title, repo, pr, branch, createdAt }
+//   rounds.json    [{ n, title, notes, by, createdAt, pages: [{ id, title, route, before, beforeLabel, after, afterLabel, mobile, mobileLabel }] }]
+//   feedback.json  { verdicts: { "<round>/<page>": { verdict, by, at } }, comments: [{ id, round, page, author, kind, text, pin, replyTo, status, at }] }
+//   images/<sha>.<ext>  content-addressed copies of every screenshot, so a deleted worktree never takes them along.
+import { createHash, randomBytes } from 'node:crypto';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { extname, join, resolve } from 'node:path';
+
+export const VERDICTS = ['approve', 'update', 'revert'];
+export const IMAGE_FILE = /^[a-f0-9]{20}\.(png|jpe?g|webp|gif)$/;
+const SLUG = /^[a-z0-9][a-z0-9-]{0,63}$/;
+const PAGE_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
+const PIN_TARGETS = ['before', 'after', 'previous', 'mobile'];
+
+export function defaultRoot() {
+  if (process.env.REVIEWTOOL_HOME) return resolve(process.env.REVIEWTOOL_HOME);
+  const data = process.env.XDG_DATA_HOME || join(homedir(), '.local', 'share');
+  return join(data, 'reviewtool');
+}
+
+export class ReviewError extends Error {
+  constructor(message, status = 400) {
+    super(message);
+    this.status = status;
+  }
+}
+
+function readJson(file, fallback) {
+  try {
+    return JSON.parse(readFileSync(file, 'utf8'));
+  } catch (error) {
+    if (error.code === 'ENOENT') return fallback;
+    throw error;
+  }
+}
+
+function writeJson(file, value) {
+  const tmp = `${file}.${process.pid}.${randomBytes(3).toString('hex')}.tmp`;
+  writeFileSync(tmp, JSON.stringify(value, null, 2) + '\n');
+  renameSync(tmp, file);
+}
+
+function sleepSync(ms) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
+// A directory lock shared by the server and the CLI, so an agent replying while the user comments never loses a write.
+function withLock(dir, fn) {
+  const lock = join(dir, '.lock');
+  const started = Date.now();
+  for (;;) {
+    try {
+      mkdirSync(lock);
+      break;
+    } catch (error) {
+      if (error.code !== 'EEXIST') throw error;
+      try {
+        if (Date.now() - statSync(lock).mtimeMs > 10_000) rmSync(lock, { recursive: true, force: true });
+      } catch {}
+      if (Date.now() - started > 15_000) throw new ReviewError('review is locked by another writer', 503);
+      sleepSync(15);
+    }
+  }
+  try {
+    return fn();
+  } finally {
+    rmSync(lock, { recursive: true, force: true });
+  }
+}
+
+const now = () => new Date().toISOString();
+const key = (round, page) => `${round}/${page}`;
+
+export class Store {
+  constructor(root = defaultRoot()) {
+    this.root = root;
+    this.reviewsDir = join(root, 'reviews');
+  }
+
+  dir(slug) {
+    if (!SLUG.test(String(slug))) throw new ReviewError(`invalid review name "${slug}": use lowercase letters, digits and dashes`);
+    return join(this.reviewsDir, slug);
+  }
+
+  exists(slug) {
+    return existsSync(join(this.dir(slug), 'review.json'));
+  }
+
+  list() {
+    if (!existsSync(this.reviewsDir)) return [];
+    return readdirSync(this.reviewsDir)
+      .filter((slug) => SLUG.test(slug) && existsSync(join(this.reviewsDir, slug, 'review.json')))
+      .map((slug) => {
+        const { review, rounds, feedback } = this.get(slug);
+        const latest = rounds.at(-1);
+        return {
+          ...review,
+          rounds: rounds.length,
+          pages: latest?.pages.length ?? 0,
+          open: needsReply(feedback.comments).length,
+          updatedAt: [review.createdAt, latest?.createdAt, ...feedback.comments.map((c) => c.at)].filter(Boolean).sort().at(-1),
+        };
+      })
+      .sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''));
+  }
+
+  create({ slug, title, repo = null, pr = null, branch = null }) {
+    const dir = this.dir(slug);
+    if (this.exists(slug)) throw new ReviewError(`review "${slug}" already exists`, 409);
+    if (repo && !/^[\w.-]+\/[\w.-]+$/.test(repo)) throw new ReviewError('repo must look like owner/name');
+    mkdirSync(join(dir, 'images'), { recursive: true });
+    const review = { slug, title: title || slug, repo, pr: pr == null ? null : Number(pr), branch, createdAt: now() };
+    writeJson(join(dir, 'review.json'), review);
+    writeJson(join(dir, 'rounds.json'), []);
+    writeJson(join(dir, 'feedback.json'), { verdicts: {}, comments: [] });
+    return review;
+  }
+
+  update(slug, patch) {
+    const dir = this.mustDir(slug);
+    return withLock(dir, () => {
+      const review = readJson(join(dir, 'review.json'));
+      for (const field of ['title', 'repo', 'pr', 'branch']) if (patch[field] !== undefined) review[field] = field === 'pr' && patch.pr != null ? Number(patch.pr) : patch[field];
+      writeJson(join(dir, 'review.json'), review);
+      return review;
+    });
+  }
+
+  mustDir(slug) {
+    const dir = this.dir(slug);
+    if (!existsSync(join(dir, 'review.json'))) throw new ReviewError(`no review "${slug}"; create it with: reviewtool init ${slug}`, 404);
+    return dir;
+  }
+
+  get(slug) {
+    const dir = this.mustDir(slug);
+    return {
+      review: readJson(join(dir, 'review.json')),
+      rounds: readJson(join(dir, 'rounds.json'), []),
+      feedback: readJson(join(dir, 'feedback.json'), { verdicts: {}, comments: [] }),
+    };
+  }
+
+  imagePath(slug, file) {
+    if (!IMAGE_FILE.test(file)) throw new ReviewError('bad image name', 404);
+    return join(this.mustDir(slug), 'images', file);
+  }
+
+  importImage(slug, source) {
+    const ext = extname(source).toLowerCase().replace('.jpeg', '.jpg');
+    if (!/^\.(png|jpg|webp|gif)$/.test(ext)) throw new ReviewError(`unsupported image type: ${source} (png, jpg, webp or gif)`);
+    let bytes;
+    try {
+      bytes = readFileSync(source);
+    } catch {
+      throw new ReviewError(`image not found: ${source}`);
+    }
+    const name = createHash('sha256').update(bytes).digest('hex').slice(0, 20) + ext;
+    const target = join(this.mustDir(slug), 'images', name);
+    if (!existsSync(target)) copyFileSync(source, target);
+    return name;
+  }
+
+  /**
+   * Adds the next round. Image paths are files on disk, relative to baseDir. A page that names no before reuses the
+   * before of the same page in the previous round (the "main" screenshot rarely changes); pass before: null to drop it.
+   */
+  addRound(slug, manifest, baseDir = process.cwd()) {
+    const dir = this.mustDir(slug);
+    if (!manifest || !Array.isArray(manifest.pages) || manifest.pages.length === 0) throw new ReviewError('a round needs at least one page');
+    const seen = new Set();
+    for (const p of manifest.pages) {
+      if (!PAGE_ID.test(String(p.id ?? ''))) throw new ReviewError(`page id "${p.id}" is invalid: letters, digits, dot, dash, underscore`);
+      if (seen.has(p.id)) throw new ReviewError(`page id "${p.id}" appears twice`);
+      seen.add(p.id);
+      if (!p.after) throw new ReviewError(`page "${p.id}" has no after image`);
+    }
+    // Copy images outside the lock (slow), then append the round under it.
+    const imported = manifest.pages.map((p) => {
+      const img = (field) => (p[field] ? this.importImage(slug, resolve(baseDir, p[field])) : p[field] === null ? null : undefined);
+      return { p, before: img('before'), after: img('after'), mobile: img('mobile'), mobileBefore: img('mobileBefore') };
+    });
+    return withLock(dir, () => {
+      const rounds = readJson(join(dir, 'rounds.json'), []);
+      const previous = rounds.at(-1);
+      const round = {
+        n: (previous?.n ?? 0) + 1,
+        title: manifest.title || `Round ${(previous?.n ?? 0) + 1}`,
+        notes: manifest.notes || '',
+        by: manifest.by || null,
+        createdAt: now(),
+        pages: imported.map(({ p, before, after, mobile, mobileBefore }) => {
+          const prev = previous?.pages.find((x) => x.id === p.id);
+          return {
+            id: p.id,
+            title: p.title || p.id,
+            route: p.route || '',
+            before: before === undefined ? prev?.before ?? null : before,
+            beforeLabel: p.beforeLabel || (before === undefined ? prev?.beforeLabel : null) || 'before',
+            after,
+            afterLabel: p.afterLabel || 'after',
+            mobile: mobile ?? null,
+            mobileBefore: mobileBefore === undefined ? (prev?.mobileBefore ?? null) : mobileBefore,
+            note: p.note || '',
+          };
+        }),
+      };
+      rounds.push(round);
+      writeJson(join(dir, 'rounds.json'), rounds);
+      return round;
+    });
+  }
+
+  mutateFeedback(slug, fn) {
+    const dir = this.mustDir(slug);
+    return withLock(dir, () => {
+      const rounds = readJson(join(dir, 'rounds.json'), []);
+      const feedback = readJson(join(dir, 'feedback.json'), { verdicts: {}, comments: [] });
+      const result = fn(feedback, rounds);
+      writeJson(join(dir, 'feedback.json'), feedback);
+      return result;
+    });
+  }
+
+  setVerdict(slug, { round, page, verdict, by = null }) {
+    if (verdict != null && !VERDICTS.includes(verdict)) throw new ReviewError(`verdict must be one of ${VERDICTS.join(', ')} or empty`);
+    return this.mutateFeedback(slug, (feedback, rounds) => {
+      findPage(rounds, round, page);
+      if (verdict == null) delete feedback.verdicts[key(round, page)];
+      else feedback.verdicts[key(round, page)] = { verdict, by, at: now() };
+      return feedback.verdicts[key(round, page)] ?? null;
+    });
+  }
+
+  addComment(slug, { round, page, text, pin = null, replyTo = null, author, kind = 'human' }) {
+    if (typeof text !== 'string' || !text.trim()) throw new ReviewError('empty comment');
+    if (text.length > 20_000) throw new ReviewError('comment too long');
+    if (!['human', 'agent'].includes(kind)) throw new ReviewError('kind must be human or agent');
+    return this.mutateFeedback(slug, (feedback, rounds) => {
+      let parent = null;
+      if (replyTo) {
+        parent = feedback.comments.find((c) => c.id === replyTo);
+        if (!parent) throw new ReviewError(`no comment ${replyTo}`, 404);
+        if (parent.replyTo) parent = feedback.comments.find((c) => c.id === parent.replyTo) ?? parent;
+        round = parent.round;
+        page = parent.page;
+      } else {
+        if (round == null || round === 'latest') round = rounds.at(-1)?.n;
+        findPage(rounds, Number(round), page);
+      }
+      const comment = {
+        id: newId(feedback.comments),
+        round: Number(round),
+        page,
+        author: String(author || (kind === 'agent' ? 'Agent' : 'You')).slice(0, 60),
+        kind,
+        text: text.trim(),
+        pin: parent ? null : cleanPin(pin),
+        replyTo: parent?.id ?? null,
+        status: 'open',
+        at: now(),
+      };
+      feedback.comments.push(comment);
+      // A human answering reopens the thread; it needs the agent again.
+      if (parent && kind === 'human' && parent.status === 'resolved') parent.status = 'open';
+      return comment;
+    });
+  }
+
+  setStatus(slug, id, status) {
+    if (!['open', 'resolved'].includes(status)) throw new ReviewError('status must be open or resolved');
+    return this.mutateFeedback(slug, (feedback) => {
+      const c = feedback.comments.find((x) => x.id === id);
+      if (!c) throw new ReviewError(`no comment ${id}`, 404);
+      const root = c.replyTo ? feedback.comments.find((x) => x.id === c.replyTo) : c;
+      root.status = status;
+      root.statusAt = now();
+      return root;
+    });
+  }
+
+  deleteComment(slug, id) {
+    return this.mutateFeedback(slug, (feedback) => {
+      const before = feedback.comments.length;
+      feedback.comments = feedback.comments.filter((c) => c.id !== id && c.replyTo !== id);
+      if (feedback.comments.length === before) throw new ReviewError(`no comment ${id}`, 404);
+      return true;
+    });
+  }
+}
+
+function findPage(rounds, round, page) {
+  const r = rounds.find((x) => x.n === Number(round));
+  if (!r) throw new ReviewError(`no round ${round}`, 404);
+  const p = r.pages.find((x) => x.id === page);
+  if (!p) throw new ReviewError(`no page "${page}" in round ${round}`, 404);
+  return p;
+}
+
+function newId(comments) {
+  for (;;) {
+    const id = randomBytes(4).toString('hex');
+    if (!comments.some((c) => c.id === id)) return id;
+  }
+}
+
+function cleanPin(pin) {
+  if (!pin || !PIN_TARGETS.includes(pin.img)) return null;
+  const ok = [pin.x, pin.y].every((n) => typeof n === 'number' && n >= 0 && n <= 100);
+  return ok ? { img: pin.img, x: Math.round(pin.x * 10) / 10, y: Math.round(pin.y * 10) / 10 } : null;
+}
+
+/** Threads: each top-level comment with its replies, oldest first. */
+export function threads(comments) {
+  const roots = comments.filter((c) => !c.replyTo);
+  return roots.map((root) => ({ ...root, replies: comments.filter((c) => c.replyTo === root.id) }));
+}
+
+/** Open threads whose last word is a human's: the ones an agent still has to act on. */
+export function needsReply(comments) {
+  return threads(comments).filter((t) => t.status !== 'resolved' && [t, ...t.replies].at(-1).kind === 'human');
+}

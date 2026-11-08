@@ -1,0 +1,552 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Review</title>
+<link rel="icon" href="/favicon.svg">
+<style>
+  :root {
+    --bg: #f6f7f7; --panel: #fff; --ink: #1c2422; --muted: #5d6966; --line: #e2e6e5;
+    --accent: #0e6b61; --accent-ink: #fff; --accent-soft: #e3f1ef; --agent-line: #c4e0dc;
+    --approve: #1f7a3d; --update: #9a5b00; --revert: #b42318; --pin: #e8590c; --new: #6d3fc0;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #121615; --panel: #1b2120; --ink: #e6ecea; --muted: #9aa7a4; --line: #2c3533;
+      --accent: #3fb5a5; --accent-ink: #08201d; --accent-soft: #17302c; --agent-line: #275049;
+      --approve: #4cc27a; --update: #e0a13a; --revert: #f06b5f; --pin: #ff8a3d; --new: #a88bf0;
+      color-scheme: dark;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--ink); background: var(--bg); display: grid; grid-template-columns: 270px 1fr; }
+  button, select, input, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  a { color: var(--accent); }
+  aside { border-right: 1px solid var(--line); background: var(--panel); overflow-y: auto; display: flex; flex-direction: column; min-height: 0; }
+  aside header { padding: 14px 16px 12px; border-bottom: 1px solid var(--line); display: grid; gap: 8px; }
+  .crumbs { font-size: 12px; color: var(--muted); display: flex; gap: 6px; flex-wrap: wrap; }
+  .crumbs a { text-decoration: none; }
+  aside h1 { font-size: 15px; margin: 0; }
+  select { border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; background: var(--panel); width: 100%; }
+  .progress { color: var(--muted); font-size: 12px; }
+  .bar { height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; }
+  .bar span { display: block; height: 100%; background: var(--accent); transition: width .2s; }
+  nav { padding: 6px; display: flex; flex-direction: column; gap: 1px; }
+  nav button { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; border: 0; background: none; padding: 7px 10px; border-radius: 6px; }
+  nav button:hover { background: var(--bg); }
+  nav button[aria-current="true"] { background: var(--accent-soft); font-weight: 600; }
+  nav .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .count { font-size: 11px; font-weight: 700; color: #fff; background: var(--pin); border-radius: 9px; padding: 0 6px; }
+  .tag { font-size: 11px; color: var(--new); border: 1px solid currentColor; border-radius: 9px; padding: 0 6px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid var(--muted); flex: none; opacity: .7; }
+  .dot.approve { background: var(--approve); border-color: var(--approve); opacity: 1; }
+  .dot.update { background: var(--update); border-color: var(--update); opacity: 1; }
+  .dot.revert { background: var(--revert); border-color: var(--revert); opacity: 1; }
+  .foot { margin-top: auto; padding: 12px 16px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; display: grid; gap: 6px; }
+  .foot label { display: flex; gap: 8px; align-items: center; }
+  .foot input { flex: 1; min-width: 0; border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; background: var(--panel); }
+  .legend div { display: flex; align-items: center; gap: 8px; }
+  main { overflow-y: auto; padding: 20px 24px 48px; min-width: 0; }
+  .top { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; margin-bottom: 8px; }
+  .top h2 { margin: 0; font-size: 20px; }
+  .route { color: var(--muted); font-family: ui-monospace, monospace; font-size: 12px; overflow-wrap: anywhere; }
+  .note { color: var(--muted); margin: 0 0 14px; white-space: pre-wrap; }
+  .spacer { flex: 1; }
+  .seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); padding: 2px; gap: 2px; }
+  .seg button { border: 0; background: none; padding: 5px 12px; border-radius: 6px; }
+  .seg button:hover:not(:disabled):not([aria-pressed="true"]) { background: var(--bg); }
+  .seg button:disabled { opacity: .4; cursor: default; }
+  .seg button[aria-pressed="true"] { background: var(--ink); color: var(--panel); }
+  .verdicts button[data-v="approve"][aria-pressed="true"] { background: var(--approve); color: #fff; }
+  .verdicts button[data-v="update"][aria-pressed="true"] { background: var(--update); color: #fff; }
+  .verdicts button[data-v="revert"][aria-pressed="true"] { background: var(--revert); color: #fff; }
+  .shots { display: grid; grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr)); gap: 16px; align-items: start; margin-top: 12px; }
+  .shots.phone { grid-template-columns: repeat(var(--cols, 1), minmax(0, 390px)); }
+  figure { margin: 0; min-width: 0; }
+  figcaption { font-weight: 600; margin-bottom: 6px; display: flex; gap: 8px; align-items: baseline; }
+  figcaption small { font-weight: 400; color: var(--muted); }
+  .frame { position: relative; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--panel); cursor: crosshair; }
+  .frame img { display: block; width: 100%; height: auto; user-select: none; -webkit-user-drag: none; }
+  .missing { padding: 48px 16px; text-align: center; color: var(--muted); cursor: default; }
+  .pin { position: absolute; transform: translate(-50%, -50%); min-width: 22px; height: 22px; padding: 0 5px; border-radius: 11px; background: var(--pin); color: #fff; font-size: 12px; font-weight: 700; display: grid; place-items: center; border: 2px solid #fff; box-shadow: 0 1px 4px rgb(0 0 0 / .35); cursor: pointer; }
+  .pin.resolved { background: #8a9592; }
+  .pin.draft { background: var(--accent); animation: pulse 1.2s infinite; }
+  .pin.hl { outline: 3px solid var(--pin); outline-offset: 2px; }
+  @keyframes pulse { 50% { transform: translate(-50%, -50%) scale(1.15); } }
+  .hint { color: var(--muted); font-size: 13px; margin: 8px 0 20px; }
+  .discussion { max-width: 860px; }
+  .composer { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px; margin-bottom: 16px; }
+  .composer .target { font-size: 13px; color: var(--muted); margin-bottom: 6px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .composer .target strong { color: var(--accent); }
+  textarea { width: 100%; min-height: 70px; resize: vertical; border: 1px solid var(--line); border-radius: 6px; padding: 8px; background: var(--panel); }
+  textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .actions { display: flex; justify-content: flex-end; gap: 8px; align-items: center; margin-top: 8px; }
+  .primary { background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 6px; padding: 6px 14px; font-weight: 600; }
+  .primary:disabled { opacity: .5; cursor: default; }
+  .link { border: 0; background: none; color: var(--accent); padding: 0; text-decoration: underline; font-size: 13px; }
+  .threads { display: grid; gap: 10px; list-style: none; padding: 0; margin: 0; }
+  .thread { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; display: grid; grid-template-columns: auto 1fr; gap: 6px 10px; }
+  .thread.resolved { opacity: .62; }
+  .thread.hl { border-color: var(--pin); }
+  .num { width: 22px; height: 22px; border-radius: 11px; background: var(--line); font-size: 12px; font-weight: 700; display: grid; place-items: center; }
+  .num.pinned { background: var(--pin); color: #fff; }
+  .msgs { display: grid; gap: 8px; min-width: 0; }
+  .msg .meta { font-size: 12px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; }
+  .msg .meta b { color: var(--ink); }
+  .msg .text { white-space: pre-wrap; overflow-wrap: anywhere; }
+  .msg.agent { background: var(--accent-soft); border: 1px solid var(--agent-line); border-radius: 6px; padding: 6px 10px; }
+  .badge { font-size: 11px; border-radius: 9px; padding: 0 6px; background: var(--accent); color: var(--accent-ink); }
+  .waiting { color: var(--pin); font-weight: 600; }
+  .tools { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+  .reply textarea { min-height: 52px; }
+  .empty { color: var(--muted); list-style: none; }
+  details.earlier { margin-top: 22px; }
+  details.earlier summary { cursor: pointer; color: var(--muted); margin-bottom: 10px; }
+  .toast { position: fixed; bottom: 16px; right: 16px; background: var(--ink); color: var(--panel); padding: 8px 14px; border-radius: 6px; opacity: 0; transition: opacity .2s; pointer-events: none; }
+  .toast.show { opacity: 1; }
+  kbd { font: 11px ui-monospace, monospace; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 4px; background: var(--panel); }
+  @media (max-width: 900px) {
+    body { grid-template-columns: 1fr; grid-template-rows: auto 1fr; height: auto; min-height: 100%; }
+    aside { max-height: 42vh; border-right: 0; border-bottom: 1px solid var(--line); }
+    .legend, .hint { display: none; }
+    main { padding: 16px; overflow: visible; }
+    .shots, .shots.phone { grid-template-columns: minmax(0, 1fr) !important; }
+  }
+</style>
+</head>
+<body>
+<aside>
+  <header>
+    <div class="crumbs"><a href="/">All reviews</a><span id="prLink"></span></div>
+    <h1 id="reviewTitle">Review</h1>
+    <select id="round" aria-label="Round"></select>
+    <div class="progress" id="progress"></div>
+    <div class="bar"><span id="bar"></span></div>
+  </header>
+  <nav id="nav"></nav>
+  <div class="foot">
+    <label>Your name <input id="me" maxlength="60" placeholder="You"></label>
+    <div class="legend">
+      <div><span class="dot approve"></span>Approve: keep it as it is now</div>
+      <div><span class="dot update"></span>Needs update: keep, change per the comments</div>
+      <div><span class="dot revert"></span>Revert: put it back as before</div>
+      <div><span class="count">2</span>threads waiting for the agent</div>
+    </div>
+    <a href="#" id="logLink">Review log (Markdown)</a>
+  </div>
+</aside>
+<main>
+  <div class="top">
+    <div>
+      <h2 id="title"></h2>
+      <div class="route" id="route"></div>
+    </div>
+    <div class="spacer"></div>
+    <div class="seg verdicts" id="verdicts" role="group" aria-label="Verdict">
+      <button data-v="approve" title="Keep this page as it is now">Approve</button>
+      <button data-v="update" title="Keep the change, but adjust it per the comments">Needs update</button>
+      <button data-v="revert" title="Put this page back the way it was">Revert</button>
+    </div>
+    <div class="seg" id="views" role="group" aria-label="View">
+      <button data-view="both" title="Before and after side by side (S)">Side by side</button>
+      <button data-view="before" title="Before only (B)">Before</button>
+      <button data-view="after" title="After only (A)">After</button>
+      <button data-view="last" title="Previous round next to this one (L)">Last round</button>
+      <button data-view="phone" title="Phone screenshots (P)">Phone</button>
+    </div>
+  </div>
+  <p class="note" id="note" hidden></p>
+  <div class="shots" id="shots"></div>
+  <p class="hint">Click a spot on a screenshot to pin a comment there. <kbd>J</kbd>/<kbd>K</kbd> next or previous page, <kbd>S</kbd> <kbd>B</kbd> <kbd>A</kbd> <kbd>L</kbd> <kbd>P</kbd> switch views, <kbd>Ctrl</kbd>+<kbd>Enter</kbd> posts.</p>
+
+  <section class="discussion">
+    <div class="composer">
+      <div class="target" id="target"></div>
+      <textarea id="text" placeholder="What should change, stay, or go back?"></textarea>
+      <div class="actions"><button class="primary" id="post" disabled>Add comment</button></div>
+    </div>
+    <ul class="threads" id="threads"></ul>
+    <details class="earlier" id="earlierBox" hidden>
+      <summary id="earlierSummary"></summary>
+      <ul class="threads" id="earlier"></ul>
+    </details>
+  </section>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const slug = decodeURIComponent(location.pathname.split('/').filter(Boolean)[1] || '');
+const api = async (method, path, body) => {
+  const res = await fetch(`/api/r/${encodeURIComponent(slug)}${path}`, { method, headers: body ? { 'content-type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || res.statusText);
+  return res.status === 204 ? null : res.json();
+};
+const store = {
+  get(k, d) { try { return localStorage.getItem(`reviewtool.${k}`) ?? d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(`reviewtool.${k}`, v); } catch {} },
+};
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const when = (iso) => new Date(iso).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+
+let data = null;
+let roundN = null;       // the round being viewed
+let current = null;      // page id
+let draftPin = null;
+let replying = null;     // thread id with an open reply box
+let view = store.get('view', 'both');
+$('me').value = store.get('me', '');
+$('me').addEventListener('change', () => store.set('me', $('me').value.trim()));
+const me = () => $('me').value.trim() || 'You';
+
+function toast(msg) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toast.timer);
+  toast.timer = setTimeout(() => t.classList.remove('show'), 1600);
+}
+
+const round = () => data.rounds.find((r) => r.n === roundN);
+const prevRound = () => data.rounds.find((r) => r.n === roundN - 1);
+const page = () => round()?.pages.find((p) => p.id === current);
+const verdictOf = (n, id) => data.feedback.verdicts[`${n}/${id}`]?.verdict ?? null;
+
+function threadsOf(n, id) {
+  const all = data.feedback.comments;
+  return all.filter((c) => !c.replyTo && c.page === id && (n == null || c.round === n))
+    .map((c) => ({ ...c, replies: all.filter((r) => r.replyTo === c.id) }));
+}
+const waiting = (t) => t.status !== 'resolved' && [t, ...t.replies].at(-1).kind === 'human';
+
+async function load() {
+  const fresh = await api('GET', '');
+  const first = !data;
+  data = fresh;
+  const latest = data.rounds.at(-1)?.n ?? null;
+  if (first) {
+    const [h, r] = decodeURIComponent(location.hash.slice(1)).split('@');
+    roundN = data.rounds.some((x) => x.n === Number(r)) ? Number(r) : latest;
+    current = round()?.pages.some((p) => p.id === h) ? h : round()?.pages[0]?.id;
+  } else if (!round()) {
+    roundN = latest;
+  }
+  if (!page()) current = round()?.pages[0]?.id;
+  render();
+}
+
+function setHash() {
+  history.replaceState(null, '', `#${encodeURIComponent(current)}${roundN !== data.rounds.at(-1)?.n ? `@${roundN}` : ''}`);
+}
+
+function select(id) {
+  if (id === current) return;
+  current = id;
+  draftPin = null;
+  replying = null;
+  setHash();
+  render();
+  document.querySelector('main').scrollTo({ top: 0 });
+}
+
+function renderSidebar() {
+  const { review } = data;
+  document.title = `${review.title} · review`;
+  $('reviewTitle').textContent = review.title;
+  $('prLink').innerHTML = review.repo && review.pr ? `· <a href="https://github.com/${esc(review.repo)}/pull/${review.pr}" target="_blank" rel="noopener">${esc(review.repo)}#${review.pr}</a>` : '';
+  $('logLink').href = `/api/r/${encodeURIComponent(slug)}/log`;
+  const latest = data.rounds.at(-1)?.n;
+  $('round').innerHTML = [...data.rounds].reverse().map((r) =>
+    `<option value="${r.n}" ${r.n === roundN ? 'selected' : ''}>Round ${r.n}${r.title && r.title !== `Round ${r.n}` ? ` · ${esc(r.title)}` : ''}${r.n === latest ? ' (latest)' : ''}</option>`).join('');
+  const r = round();
+  const prev = prevRound();
+  const done = r.pages.filter((p) => verdictOf(r.n, p.id)).length;
+  $('progress').textContent = `${done} of ${r.pages.length} pages have a verdict`;
+  $('bar').style.width = `${(done / Math.max(1, r.pages.length)) * 100}%`;
+  $('nav').innerHTML = r.pages.map((p) => {
+    const open = threadsOf(null, p.id).filter(waiting).length;
+    const isNew = prev && !prev.pages.some((x) => x.id === p.id);
+    return `<button data-id="${esc(p.id)}" aria-current="${p.id === current}"><span class="dot ${verdictOf(r.n, p.id) ?? ''}"></span><span class="name">${esc(p.title)}</span>${isNew ? '<span class="tag">new</span>' : ''}${open ? `<span class="count" title="${open} waiting for the agent">${open}</span>` : ''}</button>`;
+  }).join('');
+  if (renderSidebar.shown !== `${roundN}/${current}`) {
+    renderSidebar.shown = `${roundN}/${current}`;
+    $('nav').querySelector('[aria-current="true"]')?.scrollIntoView({ block: 'nearest' });
+  }
+}
+
+function figures(p) {
+  const prev = prevRound()?.pages.find((x) => x.id === p.id);
+  const after = { key: 'after', label: 'After', sub: p.afterLabel !== 'after' ? p.afterLabel : `round ${roundN}`, file: p.after };
+  const before = { key: 'before', label: 'Before', sub: p.beforeLabel !== 'before' ? p.beforeLabel : '', file: p.before };
+  if (view === 'before') return [before];
+  if (view === 'after') return [after];
+  if (view === 'last') return [{ key: 'previous', label: 'Last round', sub: `round ${roundN - 1}`, file: prev?.after }, after];
+  if (view === 'phone') return [
+    ...(p.mobileBefore ? [{ key: 'mobileBefore', label: 'Phone before', sub: '', file: p.mobileBefore, noPin: true }] : []),
+    { key: 'mobile', label: 'Phone', sub: `round ${roundN}`, file: p.mobile },
+  ];
+  return p.before ? [before, after] : [after];
+}
+
+function effectiveView(p) {
+  if (view === 'last' && !prevRound()?.pages.some((x) => x.id === p.id)) return 'both';
+  if (view === 'phone' && !p.mobile) return 'both';
+  if (view === 'before' && !p.before) return 'after';
+  return view;
+}
+
+function renderShots(p) {
+  const saved = view;
+  view = effectiveView(p);
+  const figs = figures(p);
+  const pinNumbers = numbering(p);
+  const shots = $('shots');
+  shots.className = `shots${view === 'phone' ? ' phone' : ''}`;
+  shots.style.setProperty('--cols', String(figs.length));
+  shots.innerHTML = figs.map((f) => {
+    const pins = threadsOf(roundN, p.id).filter((t) => t.pin?.img === f.key)
+      .map((t) => `<span class="pin${t.status === 'resolved' ? ' resolved' : ''}" data-n="${pinNumbers.get(t.id)}" style="left:${t.pin.x}%;top:${t.pin.y}%" title="${esc(t.text.slice(0, 140))}">${pinNumbers.get(t.id)}</span>`);
+    if (draftPin?.img === f.key) pins.push(`<span class="pin draft" style="left:${draftPin.x}%;top:${draftPin.y}%">+</span>`);
+    const inner = f.file
+      ? `<img src="/api/r/${encodeURIComponent(slug)}/img/${encodeURIComponent(f.file)}" alt="${esc(`${f.label}: ${p.title}`)}" draggable="false"><div class="pins">${pins.join('')}</div>`
+      : `<div class="missing">No screenshot</div>`;
+    return `<figure><figcaption>${esc(f.label)} <small>${esc(f.sub)}</small></figcaption><div class="frame${f.file ? '' : ' missing'}" data-img="${f.noPin ? '' : f.key}">${inner}</div></figure>`;
+  }).join('');
+  for (const b of $('views').querySelectorAll('button')) {
+    b.setAttribute('aria-pressed', b.dataset.view === view);
+    b.disabled = b.dataset.view !== effectiveView(p) && ({ last: () => !prevRound()?.pages.some((x) => x.id === p.id), phone: () => !p.mobile, before: () => !p.before }[b.dataset.view]?.() ?? false);
+  }
+  view = saved;
+}
+
+// Threads in this round get a number per page, in order; pins and list share it.
+function numbering(p) {
+  return new Map(threadsOf(roundN, p.id).map((t, i) => [t.id, i + 1]));
+}
+
+function renderComposer() {
+  const label = { before: 'before', after: 'after', previous: 'last round', mobile: 'phone' }[draftPin?.img];
+  $('target').innerHTML = draftPin
+    ? `Pinned on the <strong>${label}</strong> screenshot <button class="link" id="unpin">remove pin</button>`
+    : 'General comment on this page, or click a screenshot to pin it to a spot';
+  $('unpin')?.addEventListener('click', () => { draftPin = null; renderShots(page()); renderComposer(); });
+  $('post').disabled = !$('text').value.trim();
+}
+
+function threadHtml(t, n) {
+  const where = t.pin ? `on the ${{ before: 'before', after: 'after', previous: 'last round', mobile: 'phone' }[t.pin.img]} screenshot` : 'general';
+  const msgs = [t, ...t.replies].map((m, i) => `<div class="msg ${m.kind}">
+      <div class="meta"><b>${esc(m.author)}</b>${m.kind === 'agent' ? '<span class="badge">agent</span>' : ''}${i === 0 ? `<span>${where}</span>` : ''}<span>${when(m.at)}</span></div>
+      <div class="text">${esc(m.text)}</div>
+    </div>`).join('');
+  const replyBox = replying === t.id
+    ? `<div class="reply"><textarea data-reply="${t.id}" placeholder="Reply"></textarea><div class="actions"><button class="link" data-act="cancel">Cancel</button><button class="primary" data-act="send" data-id="${t.id}">Reply</button></div></div>`
+    : '';
+  return `<li class="thread${t.status === 'resolved' ? ' resolved' : ''}" data-n="${n ?? ''}">
+    <span class="num${t.pin && n ? ' pinned' : ''}">${n ?? '·'}</span>
+    <div class="msgs">${msgs}${replyBox}
+      <div class="tools">
+        ${waiting(t) ? '<span class="waiting">Waiting for the agent</span>' : t.status === 'resolved' ? '<span>Resolved</span>' : ''}
+        <button class="link" data-act="reply" data-id="${t.id}">Reply</button>
+        <button class="link" data-act="status" data-id="${t.id}">${t.status === 'resolved' ? 'Reopen' : 'Resolve'}</button>
+        ${t.kind === 'human' && !t.replies.length ? `<button class="link" data-act="delete" data-id="${t.id}">Delete</button>` : ''}
+      </div>
+    </div>
+  </li>`;
+}
+
+function renderThreads(p) {
+  const nums = numbering(p);
+  const list = threadsOf(roundN, p.id);
+  $('threads').innerHTML = list.length ? list.map((t) => threadHtml(t, nums.get(t.id))).join('') : '<li class="empty">No comments on this page in this round.</li>';
+  const earlier = threadsOf(null, p.id).filter((t) => t.round !== roundN);
+  $('earlierBox').hidden = !earlier.length;
+  $('earlierSummary').textContent = `${earlier.length} comment${earlier.length === 1 ? '' : 's'} on this page in other rounds${earlier.some(waiting) ? ` (${earlier.filter(waiting).length} waiting)` : ''}`;
+  $('earlier').innerHTML = earlier.map((t) => threadHtml(t, null).replace('<div class="msgs">', `<div class="msgs"><div class="meta" style="font-size:12px;color:var(--muted)">Round ${t.round}</div>`)).join('');
+  if (replying) document.querySelector(`textarea[data-reply="${replying}"]`)?.focus({ preventScroll: true });
+}
+
+function render() {
+  if (!data.rounds.length) {
+    renderEmpty();
+    return;
+  }
+  const p = page();
+  renderSidebar();
+  $('title').textContent = p.title;
+  $('route').textContent = p.route;
+  $('note').hidden = !p.note;
+  $('note').textContent = p.note;
+  const v = verdictOf(roundN, p.id);
+  for (const b of $('verdicts').querySelectorAll('button')) b.setAttribute('aria-pressed', b.dataset.v === v);
+  renderShots(p);
+  renderComposer();
+  renderThreads(p);
+}
+
+function renderEmpty() {
+  $('reviewTitle').textContent = data.review.title;
+  document.querySelector('main').innerHTML = `<h2>No rounds yet</h2><p class="note">An agent adds one with <code>reviewtool round ${esc(slug)} manifest.json</code>. This page updates by itself.</p>`;
+}
+
+$('round').addEventListener('change', () => {
+  roundN = Number($('round').value);
+  if (!page()) current = round().pages[0]?.id;
+  draftPin = null;
+  replying = null;
+  setHash();
+  render();
+});
+
+$('nav').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-id]');
+  if (b) select(b.dataset.id);
+});
+
+$('verdicts').addEventListener('click', async (e) => {
+  const b = e.target.closest('button[data-v]');
+  if (!b) return;
+  const verdict = verdictOf(roundN, current) === b.dataset.v ? null : b.dataset.v;
+  try {
+    const res = await api('PUT', '/verdict', { round: roundN, page: current, verdict, by: me() });
+    if (res.verdict) data.feedback.verdicts[`${roundN}/${current}`] = res.verdict;
+    else delete data.feedback.verdicts[`${roundN}/${current}`];
+    render();
+    toast(verdict ? `Saved: ${b.textContent}` : 'Verdict cleared');
+  } catch (err) { toast(`Could not save: ${err.message}`); }
+});
+
+function setView(v) {
+  view = v;
+  store.set('view', v);
+  renderShots(page());
+}
+$('views').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-view]');
+  if (b && !b.disabled) setView(b.dataset.view);
+});
+
+$('shots').addEventListener('click', (e) => {
+  const pin = e.target.closest('.pin[data-n]');
+  if (pin) return highlight(pin.dataset.n, true);
+  const frame = e.target.closest('.frame[data-img]');
+  if (!frame || !frame.dataset.img || frame.classList.contains('missing')) return;
+  const box = frame.getBoundingClientRect();
+  const clamp = (n) => Math.round(Math.min(100, Math.max(0, n)) * 10) / 10;
+  draftPin = { img: frame.dataset.img, x: clamp(((e.clientX - box.left) / box.width) * 100), y: clamp(((e.clientY - box.top) / box.height) * 100) };
+  renderShots(page());
+  renderComposer();
+  $('text').focus({ preventScroll: true });
+});
+
+function highlight(n, scroll) {
+  document.querySelectorAll('.hl').forEach((el) => el.classList.remove('hl'));
+  if (!n) return;
+  document.querySelectorAll(`.pin[data-n="${n}"], #threads .thread[data-n="${n}"]`).forEach((el) => el.classList.add('hl'));
+  if (scroll) document.querySelector(`#threads .thread[data-n="${n}"]`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
+$('threads').addEventListener('mouseover', (e) => { const li = e.target.closest('.thread'); if (li) highlight(li.dataset.n, false); });
+
+$('text').addEventListener('input', renderComposer);
+$('text').addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) post(); if (e.key === 'Escape') e.target.blur(); });
+$('post').addEventListener('click', post);
+
+async function post() {
+  const text = $('text').value.trim();
+  if (!text) return;
+  $('post').disabled = true;
+  try {
+    const c = await api('POST', '/comments', { round: roundN, page: current, text, pin: draftPin, author: me() });
+    data.feedback.comments.push(c);
+    $('text').value = '';
+    draftPin = null;
+    render();
+    toast('Comment saved');
+  } catch (err) { toast(`Could not save: ${err.message}`); renderComposer(); }
+}
+
+async function sendReply(id) {
+  const box = document.querySelector(`textarea[data-reply="${id}"]`);
+  const text = box?.value.trim();
+  if (!text) return;
+  try {
+    const c = await api('POST', '/comments', { replyTo: id, text, author: me() });
+    data.feedback.comments.push(c);
+    const root = data.feedback.comments.find((x) => x.id === id);
+    if (root?.status === 'resolved') root.status = 'open';
+    replying = null;
+    render();
+    toast('Reply saved');
+  } catch (err) { toast(`Could not save: ${err.message}`); }
+}
+
+document.querySelector('.discussion').addEventListener('click', async (e) => {
+  const b = e.target.closest('button[data-act]');
+  if (!b) return;
+  const act = b.dataset.act;
+  const id = b.dataset.id;
+  if (act === 'reply') { replying = replying === id ? null : id; return render(); }
+  if (act === 'cancel') { replying = null; return render(); }
+  if (act === 'send') return sendReply(id);
+  const c = data.feedback.comments.find((x) => x.id === id);
+  try {
+    if (act === 'delete') {
+      if (!confirm('Delete this comment?')) return;
+      await api('DELETE', `/comments/${id}`);
+      data.feedback.comments = data.feedback.comments.filter((x) => x.id !== id && x.replyTo !== id);
+    } else if (act === 'status') {
+      Object.assign(c, await api('PATCH', `/comments/${id}`, { status: c.status === 'resolved' ? 'open' : 'resolved' }));
+    }
+    render();
+  } catch (err) { toast(`Could not save: ${err.message}`); }
+});
+document.querySelector('.discussion').addEventListener('keydown', (e) => {
+  const box = e.target.closest('textarea[data-reply]');
+  if (box && e.key === 'Enter' && (e.ctrlKey || e.metaKey)) sendReply(box.dataset.reply);
+  if (box && e.key === 'Escape') { replying = null; render(); }
+});
+
+document.addEventListener('keydown', (e) => {
+  if (!data?.rounds.length || e.target.closest('textarea, input, select') || e.ctrlKey || e.metaKey || e.altKey) return;
+  const pages = round().pages;
+  const i = pages.findIndex((p) => p.id === current);
+  const step = { j: 1, ArrowDown: 1, k: -1, ArrowUp: -1 }[e.key];
+  const v = { s: 'both', b: 'before', a: 'after', l: 'last', p: 'phone' }[e.key];
+  if (step) {
+    e.preventDefault();
+    const next = pages[i + step];
+    if (next) select(next.id);
+  } else if (v) {
+    const b = $('views').querySelector(`[data-view="${v}"]`);
+    if (!b.disabled) setView(v);
+  }
+});
+
+// Pick up agent replies and new rounds without a reload, but never while you are typing.
+setInterval(() => {
+  const typing = document.activeElement?.matches('textarea, input') && document.activeElement.value;
+  if (document.hidden || typing || replying) return;
+  load().catch(() => {});
+}, 5000);
+
+// Links to another page or round (#page@round) work without a reload.
+window.addEventListener('hashchange', () => {
+  if (!data) return;
+  const [h, r] = decodeURIComponent(location.hash.slice(1)).split('@');
+  const n = r ? Number(r) : data.rounds.at(-1)?.n;
+  if (!data.rounds.some((x) => x.n === n)) return;
+  roundN = n;
+  current = round().pages.some((p) => p.id === h) ? h : round().pages[0]?.id;
+  draftPin = null;
+  replying = null;
+  render();
+});
+
+load().catch((err) => { document.querySelector('main').textContent = `Could not load: ${err.message}`; });
+</script>
+</body>
+</html>

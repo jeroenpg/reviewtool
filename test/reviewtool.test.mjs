@@ -1,0 +1,119 @@
+import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
+import { mkdtempSync, readdirSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { test } from 'node:test';
+import { MARKER, renderLog } from '../src/log.mjs';
+import { createApp } from '../src/server.mjs';
+import { Store, needsReply, threads } from '../src/store.mjs';
+
+// 1x1 PNGs with different pixels, so content hashes differ.
+const png = (byte) => Buffer.concat([Buffer.from('89504e470d0a1a0a', 'hex'), Buffer.from([byte])]);
+
+function fixture() {
+  const dir = mkdtempSync(join(tmpdir(), 'reviewtool-'));
+  for (const [name, byte] of [['before.png', 1], ['after1.png', 2], ['after2.png', 3], ['phone.png', 4]]) writeFileSync(join(dir, name), png(byte));
+  return { dir, store: new Store(join(dir, 'store')) };
+}
+
+test('rounds copy images, reuse the previous before, and keep page ids', () => {
+  const { dir, store } = fixture();
+  store.create({ slug: 'demo', title: 'Demo', repo: 'o/r', pr: 7 });
+  const r1 = store.addRound('demo', { pages: [{ id: 'inbox', title: 'Inbox', before: 'before.png', beforeLabel: 'main', after: 'after1.png' }] }, dir);
+  const r2 = store.addRound('demo', { title: 'Fixes', pages: [{ id: 'inbox', title: 'Inbox', after: 'after2.png', mobile: 'phone.png' }] }, dir);
+  assert.equal(r1.n, 1);
+  assert.equal(r2.n, 2);
+  assert.equal(r2.title, 'Fixes');
+  assert.equal(r2.pages[0].before, r1.pages[0].before, 'before carried over');
+  assert.equal(r2.pages[0].beforeLabel, 'main');
+  assert.notEqual(r2.pages[0].after, r1.pages[0].after);
+  assert.equal(readdirSync(join(dir, 'store/reviews/demo/images')).length, 4);
+  assert.throws(() => store.addRound('demo', { pages: [{ id: 'x', after: 'missing.png' }] }, dir), /image not found/);
+  assert.throws(() => store.addRound('demo', { pages: [{ id: 'a', after: 'after1.png' }, { id: 'a', after: 'after1.png' }] }, dir), /twice/);
+});
+
+test('threads wait for the agent until it replies, and again after the human answers', () => {
+  const { dir, store } = fixture();
+  store.create({ slug: 'demo' });
+  store.addRound('demo', { pages: [{ id: 'inbox', after: 'after1.png' }] }, dir);
+  const c = store.addComment('demo', { round: 'latest', page: 'inbox', text: 'Snooze is mid-row', pin: { img: 'after', x: 52.04, y: 31 }, author: 'Jeroen' });
+  assert.deepEqual(c.pin, { img: 'after', x: 52, y: 31 });
+  assert.equal(needsReply(store.get('demo').feedback.comments).length, 1);
+
+  store.addComment('demo', { replyTo: c.id, text: 'Moved it to the end', author: 'Claude', kind: 'agent' });
+  assert.equal(needsReply(store.get('demo').feedback.comments).length, 0);
+
+  store.setStatus('demo', c.id, 'resolved');
+  store.addComment('demo', { replyTo: c.id, text: 'Still odd on phones', author: 'Jeroen' });
+  const [t] = threads(store.get('demo').feedback.comments);
+  assert.equal(t.status, 'open', 'a human reply reopens the thread');
+  assert.equal(t.replies.length, 2);
+  assert.equal(needsReply(store.get('demo').feedback.comments).length, 1);
+
+  assert.throws(() => store.addComment('demo', { round: 1, page: 'nope', text: 'x' }), /no page/);
+  assert.throws(() => store.setVerdict('demo', { round: 1, page: 'inbox', verdict: 'maybe' }), /verdict/);
+});
+
+test('the log lists rounds, verdicts and threads with replies', () => {
+  const { dir, store } = fixture();
+  store.create({ slug: 'demo', title: 'Inbox redesign' });
+  store.addRound('demo', { pages: [{ id: 'inbox', title: 'Inbox', route: '/inbox', after: 'after1.png' }] }, dir);
+  store.addRound('demo', { notes: 'Moved snooze', pages: [{ id: 'inbox', title: 'Inbox', after: 'after2.png' }] }, dir);
+  const c = store.addComment('demo', { round: 1, page: 'inbox', text: 'Snooze is mid-row\nsecond line', author: 'Jeroen' });
+  store.addComment('demo', { replyTo: c.id, text: 'Moved it', author: 'Claude', kind: 'agent' });
+  store.setVerdict('demo', { round: 2, page: 'inbox', verdict: 'approve' });
+  const md = renderLog(store.get('demo'));
+  assert.ok(md.startsWith(MARKER));
+  assert.match(md, /2 rounds · 1 comment thread \(0 resolved\)/);
+  assert.match(md, /latest round: 1 approved/);
+  assert.match(md, /<details open><summary><b>Round 2<\/b>/);
+  assert.match(md, /\| Inbox \| Approved \|/);
+  assert.match(md, /- \*\*Jeroen\*\* \(general\): Snooze is mid-row\n {2}second line/);
+  assert.match(md, / {2}- \*\*Claude\*\*: Moved it/);
+});
+
+test('the server serves the review and accepts comments from people only', async () => {
+  const { dir, store } = fixture();
+  store.create({ slug: 'demo' });
+  const round = store.addRound('demo', { pages: [{ id: 'inbox', after: 'after1.png' }] }, dir);
+  const server = createApp(store).listen(0, '127.0.0.1');
+  await new Promise((r) => server.once('listening', r));
+  const base = `http://127.0.0.1:${server.address().port}`;
+  try {
+    assert.equal((await fetch(`${base}/r/demo`)).status, 200);
+    assert.equal((await fetch(`${base}/r/nope`)).status, 404);
+    const img = await fetch(`${base}/api/r/demo/img/${round.pages[0].after}`);
+    assert.equal(img.headers.get('content-type'), 'image/png');
+    assert.equal((await fetch(`${base}/api/r/demo/img/..%2Freview.json`)).status, 404);
+    const res = await fetch(`${base}/api/r/demo/comments`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ round: 1, page: 'inbox', text: 'hi', kind: 'agent', author: 'Mallory' }) });
+    assert.equal(res.status, 201);
+    assert.equal((await res.json()).kind, 'human');
+    const v = await fetch(`${base}/api/r/demo/verdict`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ round: 1, page: 'inbox', verdict: 'update' }) });
+    assert.equal((await v.json()).verdict.verdict, 'update');
+    const list = await (await fetch(`${base}/api/reviews`)).json();
+    assert.equal(list[0].open, 1);
+    assert.match(await (await fetch(`${base}/api/r/demo/log`)).text(), /Needs update/);
+  } finally {
+    server.close();
+  }
+});
+
+test('the CLI runs the agent loop end to end', () => {
+  const { dir } = fixture();
+  const env = { ...process.env, REVIEWTOOL_HOME: join(dir, 'cli-store'), REVIEWTOOL_URL: 'http://review.test' };
+  const cli = (...args) => execFileSync(process.execPath, [join(import.meta.dirname, '..', 'bin', 'reviewtool.mjs'), ...args], { env, encoding: 'utf8' });
+  writeFileSync(join(dir, 'round.json'), JSON.stringify({ pages: [{ id: 'inbox', title: 'Inbox', before: 'before.png', after: 'after1.png' }] }));
+  assert.match(cli('init', 'demo', '--title', 'Demo'), /http:\/\/review\.test\/r\/demo/);
+  assert.match(cli('round', 'demo', join(dir, 'round.json'), '--as', 'Claude'), /added round 1 with 1 pages/);
+  const store = new Store(join(dir, 'cli-store'));
+  const c = store.addComment('demo', { round: 1, page: 'inbox', text: 'Make the title bigger', pin: { img: 'after', x: 10, y: 5 }, author: 'Jeroen' });
+  const fb = cli('feedback', 'demo');
+  assert.match(fb, new RegExp(`\\[${c.id}\\] Inbox \\(inbox\\) · round 1 · pinned on the after screenshot at 10% across, 5% down`));
+  assert.match(fb, /image: .*\.png/);
+  cli('reply', 'demo', c.id, 'Bumped it to 20px', '--as', 'Claude');
+  assert.match(cli('feedback', 'demo'), /^0 threads waiting/);
+  assert.equal(JSON.parse(cli('feedback', 'demo', '--all', '--json')).threads[0].replies[0].author, 'Claude');
+  assert.match(cli('log', 'demo'), /\*\*Claude\*\*: Bumped it to 20px/);
+  assert.match(cli('url', 'demo', 'inbox'), /review\.test\/r\/demo#inbox/);
+});
