@@ -17,7 +17,7 @@ Review UI changes in rounds, the way you would with a designer, while an AI agen
 It is built so that Claude Code, Codex and other coding agents can drive it. The included
 [skill](skills/reviewtool/SKILL.md) teaches them the loop.
 
-The tool needs no dependencies, only Node.js 20 or newer. The web app's styling, [Pico CSS](https://picocss.com) (MIT), is included.
+The tool needs no dependencies, only Node.js 20 or newer. The web app's styling, [Pico CSS](https://picocss.com) (MIT, its neutral zinc theme), is included.
 
 ## Install
 

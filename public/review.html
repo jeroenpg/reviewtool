@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Review</title>
 <link rel="icon" href="/favicon.svg">
-<link rel="stylesheet" href="/vendor/pico.jade.min.css">
+<link rel="stylesheet" href="/vendor/pico.zinc.min.css">
 <link rel="stylesheet" href="/app.css">
 <style>
   body { display: grid; grid-template-rows: var(--bar-h) minmax(0, 1fr); }
@@ -33,7 +33,6 @@
   .app { display: grid; grid-template-columns: 250px minmax(0, 1fr); min-height: 0; }
   .rail { display: flex; flex-direction: column; min-height: 0; background: var(--pico-background-color); border-right: 1px solid var(--pico-muted-border-color); }
   .rail-head { padding: .75rem; display: grid; gap: .55rem; border-bottom: 1px solid var(--pico-muted-border-color); }
-  .notes { font-size: .9em; color: var(--pico-muted-color); max-height: 7.5em; overflow-y: auto; white-space: pre-wrap; }
   .changes { font-size: .9em; }
   .rail-head [role="group"] button { font-size: .85em; padding: .25rem .4rem; }
   #pageSelect { display: none; }
@@ -74,7 +73,8 @@
   figcaption small { font-weight: 400; color: var(--pico-muted-color); }
   .frame { position: relative; border: 1px solid var(--pico-muted-border-color); border-radius: var(--pico-border-radius); overflow: auto; max-height: calc(100vh - 210px); cursor: crosshair; background: var(--pico-card-background-color); scrollbar-width: thin; }
   .frame.nopin { cursor: default; }
-  .frame.missing { padding: 3rem 1rem; text-align: center; color: var(--pico-muted-color); border-style: dashed; cursor: default; }
+  .frame.missing { aspect-ratio: 16 / 10; display: grid; place-items: center; padding: 1rem; text-align: center; color: var(--pico-muted-color); border-style: dashed; background: transparent; cursor: default; }
+  .frame.missing.phone { aspect-ratio: 9 / 19.5; }
   .stage { position: relative; width: 100%; }
   .stage > img { display: block; width: 100%; height: auto; user-select: none; -webkit-user-drag: none; }
   .canvas[data-zoom="full"] .stage { width: max-content; min-width: 100%; }
@@ -139,7 +139,6 @@
     .topbar { flex-wrap: wrap; padding: .5rem .75rem; gap: .5rem; min-height: var(--bar-h); }
     .topbar .progress, .topbar .agentstate { order: 5; }
     #helpBtn { display: none; }
-    .notes { max-height: 4.4em; }
     .app { display: block; }
     .rail { border-right: 0; border-bottom: 1px solid var(--pico-muted-border-color); }
     .pages, .rail-foot, #search, #filters { display: none !important; }
@@ -167,7 +166,6 @@
 <div class="app">
   <aside class="rail">
     <div class="rail-head">
-      <div class="notes" id="roundNotes" hidden></div>
       <div class="changes" id="roundChanges" hidden></div>
       <button class="secondary outline small" id="carryBtn" hidden></button>
       <select id="pageSelect" aria-label="Page"></select>
@@ -413,6 +411,7 @@ function renderBar() {
   const latest = data.rounds.at(-1)?.n;
   $('round').hidden = !data.rounds.length;
   $('round').innerHTML = [...data.rounds].reverse().map((r) => `<option value="${r.n}" ${r.n === roundN ? 'selected' : ''}>Round ${r.n}${r.title && r.title !== `Round ${r.n}` ? ` · ${esc(r.title)}` : ''}${r.n === latest ? ' (latest)' : ''}</option>`).join('');
+  $('round').title = round()?.notes || '';
   const ps = pages();
   const done = ps.filter((p) => verdictOf(roundN, p.id)).length;
   $('progress').hidden = !ps.length;
@@ -447,9 +446,7 @@ function renderRail() {
   const r = round();
   const ps = r.pages;
   const prev = prevRound();
-  // What the agent said about this round, and what changed since the last one.
-  $('roundNotes').hidden = !r.notes;
-  $('roundNotes').textContent = r.notes || '';
+  // What changed since the last round.
   const changed = ps.filter((p) => changedKind(p) === 'changed').length;
   const added = ps.filter((p) => changedKind(p) === 'new').length;
   const same = ps.filter((p) => changedKind(p) === 'same').length;
@@ -532,10 +529,10 @@ function renderPage(p) {
     b.setAttribute('aria-pressed', b.dataset.pair === pair);
     b.disabled = b.dataset.pair === 'last' ? !prevPage(p.id) : !(phone ? p.mobileBefore : p.before);
   }
-  const layout = cmp ? ui.layout : 'single';
+  const layout = effectiveLayout(p);
   for (const b of $('layouts').querySelectorAll('button')) {
     b.setAttribute('aria-pressed', b.dataset.layout === layout);
-    b.disabled = !cmp && b.dataset.layout !== 'single';
+    b.disabled = !cmp && b.dataset.layout === 'swipe';
   }
   $('phoneBtn').setAttribute('aria-pressed', phone);
   $('phoneBtn').disabled = !p.mobile;
@@ -544,14 +541,18 @@ function renderPage(p) {
   canvas.dataset.layout = layout;
   canvas.dataset.zoom = ui.zoom;
   canvas.dataset.phone = phone;
-  canvas.innerHTML = layout === 'swipe' ? swipeHtml(p, base, cmp) : (layout === 'side' ? [cmp, base] : [base]).map((f) => figureHtml(p, f)).join('');
+  const empty = { label: phone ? 'Phone before' : effectivePair(p) === 'last' ? 'Last round' : 'Before', sub: '', file: null, empty: true };
+  canvas.innerHTML = layout === 'swipe' ? swipeHtml(p, base, cmp) : (layout === 'side' ? [cmp ?? empty, base] : [base]).map((f) => figureHtml(p, f)).join('');
   bindCanvas();
 }
+
+// Swipe needs two screenshots; without a comparison it falls back to side by side, which shows an empty column.
+const effectiveLayout = (p) => (ui.layout === 'swipe' && !shots(p).cmp ? 'side' : ui.layout);
 
 // The screenshots that show pins in the current view.
 function visibleKeys(p) {
   const { base, cmp } = shots(p);
-  const layout = cmp ? ui.layout : 'single';
+  const layout = effectiveLayout(p);
   return new Set((layout === 'side' ? [cmp, base] : [base]).filter((f) => f && !f.noPin).map((f) => f.key));
 }
 
@@ -592,7 +593,7 @@ function pinsHtml(p, key) {
 }
 
 function figureHtml(p, f) {
-  if (!f.file) return `<figure><figcaption>${esc(f.label)} <small>${esc(f.sub)}</small></figcaption><div class="frame missing">No screenshot</div></figure>`;
+  if (!f.file) return `<figure><figcaption>${esc(f.label)} <small>${esc(f.sub)}</small></figcaption><div class="frame missing${ui.phone && p.mobile ? ' phone' : ''}">${f.empty ? (p.change?.status === 'new' ? 'New page, nothing to compare with' : 'No screenshot to compare with') : 'No screenshot'}</div></figure>`;
   return `<figure><figcaption>${esc(f.label)} <small>${esc(f.sub)}</small></figcaption>
     <div class="frame${f.noPin ? ' nopin' : ''}" data-img="${f.noPin ? '' : f.key}"${f.noPin ? '' : ' title="Click to comment on this spot"'}><div class="stage"><img src="${imgUrl(f.file)}" alt="${esc(`${f.label}: ${p.title}`)}" draggable="false">${outlinesHtml(p, f.key)}${pinsHtml(p, f.key)}</div></div></figure>`;
 }
