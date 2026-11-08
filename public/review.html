@@ -37,26 +37,14 @@ else try { const t = localStorage.getItem('reviewtool.theme'); if (t) document.d
   #sendBtn .n { margin-left: .4rem; padding: 0 .45rem; border-radius: 9px; background: rgb(255 255 255 / .25); font-size: .85em; }
 
   /* Two columns, always both: the pages and the page. Comments live on the screenshots. */
-  .app { display: grid; grid-template-columns: 250px minmax(0, 1fr); min-height: 0; }
-  .rail { display: flex; flex-direction: column; min-height: 0; background: var(--pico-background-color); border-right: 1px solid var(--pico-muted-border-color); }
-  .rail-head { padding: .75rem; display: grid; gap: .55rem; border-bottom: 1px solid var(--pico-muted-border-color); }
+  /* One column: no page list on the side; a strip under the top bar picks the page. */
+  .app { display: flex; flex-direction: column; min-height: 0; }
+  .rail { flex: none; background: var(--pico-background-color); border-bottom: 1px solid var(--pico-muted-border-color); }
+  .rail-head { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; padding: .55rem 1.25rem; }
   .changes { font-size: .9em; }
-  .rail-head [role="group"] button { font-size: .85em; padding: .25rem .4rem; }
-  .pagenav { display: none; }
-  .pages { overflow-y: auto; padding: .4rem; flex: 1; }
-  .pages .section { font-size: .76em; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--pico-muted-color); padding: .8rem .6rem .15rem; }
-  .pages .done .label { color: var(--pico-muted-color); }
-  .pages .group { font-size: .8em; font-weight: 600; color: var(--pico-muted-color); padding: .8rem .6rem .25rem calc(.6rem + var(--depth, 0) * .85rem); }
-  .pages button { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: .5rem; width: 100%; padding: .38rem .6rem .38rem calc(.6rem + var(--depth, 0) * .85rem); border-radius: var(--pico-border-radius); cursor: pointer; }
-  .crumb { font-size: .85em; color: var(--pico-muted-color); margin-bottom: .1rem; }
-  .pages button:hover { background: color-mix(in srgb, var(--pico-muted-border-color) 45%, transparent); }
-  .pages button[aria-current="true"] { background: color-mix(in srgb, var(--pico-primary) 16%, transparent); font-weight: 600; }
-  .pages button:focus-visible { outline: 2px solid var(--pico-primary); }
-  .pages .label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .pages .settled .label { color: var(--pico-muted-color); }
-  .rail-foot { padding: .6rem .75rem; border-top: 1px solid var(--pico-muted-border-color); font-size: .9em; display: flex; gap: .75rem; }
-
-  .work { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+  .pagenav { display: flex; flex: 1 1 18rem; max-width: 40rem; }
+  .pagenav select { flex: 1; min-width: 0; }
+  .work { flex: 1; display: flex; flex-direction: column; min-height: 0; min-width: 0; }
   main { flex: 1; overflow-y: auto; min-width: 0; padding: 1rem 1.25rem 2rem; }
 
   /* The comment box: always there. Clicking a screenshot puts a numbered marker in it, where the cursor is. */
@@ -164,11 +152,8 @@ else try { const t = localStorage.getItem('reviewtool.theme'); if (t) document.d
     .topbar { flex-wrap: wrap; padding: .5rem .75rem; gap: .5rem; min-height: var(--bar-h); }
     .topbar .progress, .topbar .agentstate { order: 5; }
     .app { display: block; }
-    .rail { border-right: 0; border-bottom: 1px solid var(--pico-muted-border-color); }
-    .pages, .rail-foot { display: none !important; }
-    .pagenav { display: flex; gap: .4rem; }
-    .pagenav select { flex: 1; min-width: 0; }
-    .pagenav button { flex: none; width: 2.6rem; padding: 0; font-size: 1.25em; line-height: 1; }
+    .rail-head { padding-inline: .75rem; }
+    .pagenav { max-width: none; flex-basis: 100%; }
     .work { display: block; }
     main { overflow: visible; padding: .9rem .75rem 1.5rem; }
     .composer { position: sticky; bottom: 0; z-index: 10; padding-inline: .75rem; }
@@ -213,8 +198,6 @@ else try { const t = localStorage.getItem('reviewtool.theme'); if (t) document.d
       <div class="changes" id="roundChanges" hidden></div>
       <div class="pagenav"><select id="pageSelect" aria-label="Page"></select></div>
     </div>
-    <div class="pages" id="pages" role="navigation" aria-label="Pages"></div>
-    <div class="rail-foot"><a id="logLink" href="#" target="_blank">Review log</a><span class="spacer"></span><a href="/">All reviews</a></div>
   </aside>
 
   <div class="work">
@@ -479,7 +462,6 @@ function renderBar() {
   $('progressBar').max = Math.max(1, ps.length);
   $('progressBar').value = done;
   $('progressText').textContent = `${done}/${ps.length} ${CHAT ? 'done' : 'judged'}`;
-  $('logLink').href = withKey(`/api/r/${encodeURIComponent(slug)}/log`);
 
   const sub = lastSubmission();
   const newest = data.rounds.at(-1);
@@ -505,7 +487,6 @@ function renderBar() {
 function renderRail() {
   const r = round();
   const ps = r.pages;
-  const prev = prevRound();
   // What changed since the last round.
   const changed = ps.filter((p) => changedKind(p) === 'changed').length;
   const added = ps.filter((p) => changedKind(p) === 'new').length;
@@ -513,45 +494,11 @@ function renderRail() {
   const compared = ps.some((p) => p.change);
   $('roundChanges').hidden = !compared;
   $('roundChanges').innerHTML = compared ? `Since round ${r.n - 1}: <b>${changed} changed</b>${added ? `, ${added} new` : ''}, ${same} unchanged` : '';
-  // A gallery: what still needs you, then what you are done with.
+  // The picker, a gallery: the pages that still need you, then the ones you are done with.
   const todo = ps.filter(needsMe);
   const done = ps.filter((p) => !needsMe(p));
-  // One signal per row, the most urgent: new replies, then answered threads, then whether the page changed.
-  const signal = (p) => {
-    if (CHAT) return markersOn(p).length ? `<span class="tag new">${markersOn(p).map((m) => `[${m.n}]`).join(' ')}</span>` : '';
-    if (hasDraft(roundN, p.id)) return '<span class="tag" title="A comment you have not posted yet">draft</span>';
-    const ts = threadsOf(null, p.id);
-    const nNew = ts.filter(hasNew).length;
-    if (nNew) return `<span class="count new" title="${plural(nNew, 'new reply')}">${nNew}</span>`;
-    const nAns = ts.filter(answered).length;
-    if (nAns) return `<span class="count" title="${plural(nAns, 'answered thread')} to check">${nAns}</span>`;
-    if (prev && !prevPage(p.id)) return '<span class="tag new">new</span>';
-    if (changedKind(p) === 'changed') return `<span class="tag changed">${tiny(p) ? 'tiny change' : 'changed'}</span>`;
-    return '';
-  };
-  const item = (p, path) => {
-    const label = shortTitle(p, path);
-    return `<button data-id="${esc(p.id)}" aria-current="${p.id === current}" class="${settled(p) ? 'settled' : ''}" style="--depth:${path.length}" title="${esc(p.title)}${settled(p) ? ' · unchanged, approved last round' : ''}"><span class="dot ${verdictOf(r.n, p.id) ?? ''}"></span><span class="label">${esc(label)}</span>${signal(p)}</button>`;
-  };
-  // A folder tree: a heading for each folder level that differs from the folder before it.
-  const tree = (list) => {
-    let before = [];
-    return folders(list).map((g) => {
-      let same = 0;
-      while (same < g.path.length && g.path[same] === before[same]) same++;
-      before = g.path;
-      return g.path.slice(same).map((name, i) => `<div class="group" style="--depth:${same + i}">${esc(name)}</div>`).join('') + g.items.map((p) => item(p, g.path)).join('');
-    }).join('');
-  };
-  $('pages').innerHTML = `<div class="section">To do · ${todo.length}</div>${tree(todo) || '<div class="empty">Nothing left. Send your feedback when you are ready.</div>'}`
-    + (done.length ? `<div class="section">Done · ${done.length}</div><div class="done">${tree(done)}</div>` : '');
-  if (renderRail.shown !== `${roundN}/${current}`) {
-    renderRail.shown = `${roundN}/${current}`;
-    $('pages').querySelector('[aria-current="true"]')?.scrollIntoView({ block: 'nearest' });
-  }
-  // Narrow screens pick a page here instead of the list.
-  // A gallery: the pages that still need you, then the ones you are done with.
-  const option = (p) => `<option value="${esc(p.id)}" ${p.id === current ? 'selected' : ''}>${esc([...(p.group ? p.group.split('/') : []), shortTitle(p)].join(' › '))}${changedKind(p) === 'changed' ? ' (changed)' : changedKind(p) === 'new' ? ' (new)' : ''}</option>`;
+  const extra = (p) => [changedKind(p) === 'changed' ? '(changed)' : changedKind(p) === 'new' ? '(new)' : '', CHAT ? markersOn(p).map((m) => `[${m.n}]`).join(' ') : ''].filter(Boolean).join(' ');
+  const option = (p) => `<option value="${esc(p.id)}" ${p.id === current ? 'selected' : ''}>${esc([...(p.group ? p.group.split('/') : []), shortTitle(p)].join(' › '))}${extra(p) ? ` ${esc(extra(p))}` : ''}</option>`;
   $('pageSelect').innerHTML = [[`To do (${todo.length})`, todo], [`Done (${done.length})`, done]].filter(([, list]) => list.length).map(([name, list]) => `<optgroup label="${name}">${list.map(option).join('')}</optgroup>`).join('');
 }
 
@@ -1064,11 +1011,9 @@ function renderNoRounds() {
   $('pageView').hidden = true;
   $('noRound').hidden = false;
   $('noRound').innerHTML = `<h2>No rounds yet</h2><p class="muted">An agent publishes the first one with <code>reviewtool round ${esc(slug)} manifest.json</code>. This page updates by itself.</p>`;
-  $('pages').innerHTML = '';
 }
 
 /* ---------- events ---------- */
-$('pages').addEventListener('click', (e) => { const b = e.target.closest('button[data-id]'); if (b) go(b.dataset.id); });
 $('pageSelect').addEventListener('change', () => go($('pageSelect').value));
 $('rounds').addEventListener('click', (e) => { const b = e.target.closest('[data-round]'); if (b) setRound(Number(b.dataset.round)); });
 $('approveBtn').addEventListener('click', () => setVerdict('approve'));

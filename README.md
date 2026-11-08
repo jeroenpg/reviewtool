@@ -128,13 +128,13 @@ Rules for manifests:
 ## In the browser
 
 The page has no buttons beyond what a review needs: **Approve**, the comment box, **Send**, and the rounds (#1, #2,
-…) in the top bar. The pages of the round are listed on the left, *To do* above *Done*; on a phone or tablet (or in an
-agent chat) the list becomes a picker. It is built on [Pico CSS](https://picocss.com), which ships inside the package,
+…) in the top bar. There is no page list on the side: a picker under the top bar holds the pages of the round, *To
+do* above *Done*. It is built on [Pico CSS](https://picocss.com), which ships inside the package,
 and follows your light or dark setting.
 
 - **A gallery of what needs you.** A review opens on the first page that needs you: not approved yet, an answer from
   the agent to check, or a new reply. *Approve* finishes the page, and so does posting a comment (which marks the page
-  as needing an update); the next page that needs you opens and the finished one moves to *Done*. Pages that did not
+  as needing an update); the next page that needs you opens and the finished one moves to *Done* in the picker. Pages that did not
   change since you approved them last round are done already. <kbd>N</kbd> jumps ahead.
 - **Before and after, nothing to set.** They sit side by side; where that would be too small to read (a tablet, an
   agent chat), they are on top of each other with a handle to swipe between them. A page with phone screenshots shows
@@ -154,8 +154,7 @@ and follows your light or dark setting.
 - **Send when you are done.** *Send to agent* (or *Send to T3 thread*) counts what you have added since you last
   sent, and takes an optional note. The top bar shows when an agent is waiting for you and when your feedback was
   delivered.
-- **Know what's new.** Each page in the list shows its most urgent signal: new replies (purple), threads the agent
-  answered that you have not resolved yet (orange), or that the page changed.
+- **Know what's new.** The picker marks pages that *changed* or are *new* since the last round.
 - **Keyboard.** <kbd>J</kbd>/<kbd>K</kbd> next or previous page, <kbd>N</kbd> next page that needs you,
   <kbd>1</kbd> approve, <kbd>Enter</kbd> write, <kbd>Shift</kbd>+<kbd>S</kbd> send, <kbd>?</kbd> for the list.
 
