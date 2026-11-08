@@ -103,7 +103,7 @@ test('the server serves the review and accepts comments from people only', async
 
 test('the CLI runs the agent loop end to end', () => {
   const { dir } = fixture();
-  const env = { ...process.env, REVIEWTOOL_HOME: join(dir, 'cli-store'), REVIEWTOOL_URL: 'http://review.test' };
+  const env = { ...process.env, REVIEWTOOL_TARGET: 'none', REVIEWTOOL_HOME: join(dir, 'cli-store'), REVIEWTOOL_URL: 'http://review.test' };
   const cli = (...args) => execFileSync(process.execPath, [join(import.meta.dirname, '..', 'bin', 'reviewtool.mjs'), ...args], { env, encoding: 'utf8' });
   writeFileSync(join(dir, 'round.json'), JSON.stringify({ pages: [{ id: 'inbox', title: 'Inbox', before: 'before.png', after: 'after1.png' }] }));
   assert.match(cli('init', 'demo', '--title', 'Demo'), /http:\/\/review\.test\/r\/demo/);
@@ -178,7 +178,7 @@ test('wait blocks until the reviewer sends feedback, then marks it picked up', a
   store.create({ slug: 'demo' });
   store.addRound('demo', { pages: [{ id: 'inbox', title: 'Inbox', after: 'after1.png' }] }, dir);
   const bin = join(import.meta.dirname, '..', 'bin', 'reviewtool.mjs');
-  const env = { ...process.env, REVIEWTOOL_HOME: home };
+  const env = { ...process.env, REVIEWTOOL_TARGET: 'none', REVIEWTOOL_HOME: home };
 
   // Times out with exit 2 when nothing is sent.
   const quick = spawn(process.execPath, [bin, 'wait', 'demo', '--timeout', '1'], { env });
@@ -205,4 +205,59 @@ test('wait blocks until the reviewer sends feedback, then marks it picked up', a
   assert.equal(feedback.submissions[0].pickedUpBy, 'Claude');
   assert.equal(store.waiting('demo'), null);
   assert.equal(store.pickUp('demo', 'Claude'), null, 'each submission is picked up once');
+});
+
+test('inside T3 Code, sending posts the feedback into the agent thread', async () => {
+  const { chmodSync, mkdirSync, readFileSync } = await import('node:fs');
+  const { detectTarget } = await import('../src/targets.mjs');
+  const { dir, store } = fixture();
+  // A stand-in for T3's command line: records its arguments and the message it gets on stdin.
+  const binDir = join(dir, 'fake-t3');
+  mkdirSync(binDir);
+  const t3 = join(binDir, 't3');
+  writeFileSync(t3, `#!/bin/sh\nif [ "$FAIL_T3" = 1 ]; then echo "server not running" >&2; exit 1; fi\necho "$@" > "${join(dir, 't3-args')}"\ncat > "${join(dir, 't3-message')}"\n`);
+  chmodSync(t3, 0o755);
+
+  assert.equal(detectTarget({ T3CODE_THREAD_ID: 'abc', T3CODE_CLI_PATH: '/usr/bin/sh' }, { lookup: false }), null, 'only a t3 binary');
+  assert.equal(detectTarget({ T3CODE_THREAD_ID: 'abc', T3CODE_CLI_PATH: t3, REVIEWTOOL_TARGET: 'none' }, { lookup: false }), null);
+  const target = detectTarget({ T3CODE_THREAD_ID: 'thread-1', T3CODE_CLI_PATH: t3, T3CODE_HOME: '/t3home' }, { agent: 'Claude', lookup: false });
+  assert.equal(target.thread, 'thread-1');
+
+  store.create({ slug: 'demo', title: 'Inbox redesign' });
+  store.addRound('demo', { pages: [{ id: 'inbox', title: 'Inbox', after: 'after1.png' }] }, dir);
+  store.setTarget('demo', { ...target, title: 'Inbox work' });
+  store.addComment('demo', { round: 1, page: 'inbox', text: 'Make it calmer', author: 'Jeroen' });
+
+  const server = createApp(store).listen(0, '127.0.0.1');
+  await new Promise((r) => server.once('listening', r));
+  const submit = async (note) => (await fetch(`http://127.0.0.1:${server.address().port}/api/r/demo/submit`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ by: 'Jeroen', note }) })).json();
+  try {
+    const sent = await submit('Only the inbox');
+    assert.equal(sent.delivery.to, 'T3 thread "Inbox work"');
+    assert.equal(sent.delivery.error, null);
+    assert.equal(sent.pickedUpBy, 'Claude');
+    assert.equal(readFileSync(join(dir, 't3-args'), 'utf8').trim(), 'thread send --base-dir /t3home thread-1 -');
+    const message = readFileSync(join(dir, 't3-message'), 'utf8');
+    assert.match(message, /^Review feedback for "Inbox redesign" \(reviewtool review "demo", round 1\)/);
+    assert.match(message, /Note from the reviewer:\n {2}Only the inbox/);
+    assert.match(message, /Make it calmer/);
+    assert.match(message, /reviewtool reply demo <id>/);
+
+    // T3 unreachable: the feedback stays pending for the next `reviewtool wait`.
+    process.env.FAIL_T3 = '1';
+    const failed = await submit('again');
+    assert.match(failed.delivery.error, /server not running/);
+    assert.equal(failed.pickedUpAt, null);
+    assert.equal(store.pickUp('demo', 'Claude').id, failed.id);
+    delete process.env.FAIL_T3;
+
+    // An agent blocked in `wait` gets it instead of the thread, so it never arrives twice.
+    store.setWaiting('demo', { by: 'Claude', since: new Date().toISOString() });
+    const waited = await submit('third');
+    assert.equal(waited.delivery, undefined);
+    assert.equal(waited.pickedUpAt, null);
+  } finally {
+    delete process.env.FAIL_T3;
+    server.close();
+  }
 });

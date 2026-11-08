@@ -49,8 +49,8 @@
   <div class="how">
     <b>How a round goes</b>
     <span>1. An agent publishes screenshots with <code>reviewtool round &lt;name&gt; manifest.json</code>; each page shows whether it changed since the last round.</span>
-    <span>2. You compare, pin comments on the spots that matter, give each page a verdict, and press <b>Send to agent</b>.</span>
-    <span>3. The agent, waiting with <code>reviewtool wait</code>, picks it up, fixes it, replies, and publishes the next round.</span>
+    <span>2. You compare, pin comments on the spots that matter, give each page a verdict, and press <b>Send</b>.</span>
+    <span>3. The feedback arrives in the agent's T3 Code thread, or an agent waiting with <code>reviewtool wait</code> picks it up. It fixes, replies, and publishes the next round.</span>
     <span>4. <code>reviewtool log --post</code> keeps the whole history on the pull request.</span>
   </div>
 </main>
@@ -72,7 +72,7 @@ async function load() {
     return `<li><a class="card" href="/r/${encodeURIComponent(r.slug)}">
       <span class="ring" title="${judged} of ${r.pages} pages judged in the latest round"><svg viewBox="0 0 44 44"><circle class="track" cx="22" cy="22" r="18"></circle><circle class="fill" cx="22" cy="22" r="18" stroke-dasharray="113" stroke-dashoffset="${113 * (1 - pct)}"></circle></svg><span>${Math.round(pct * 100)}%</span></span>
       <span class="title">${esc(r.title)}</span>
-      <span class="side">${r.waiting ? `<span class="pill agent">● ${esc(r.waiting.by)} is waiting for your feedback</span>` : r.pendingSubmission ? '<span class="pill quiet">sent, not picked up yet</span>' : r.open ? `<span class="pill open">${r.open} waiting for the agent</span>` : '<span class="pill quiet">nothing waiting</span>'}<span class="verdicts" title="approved · needs update · revert">${bar(v.approve, 'a')}${bar(v.update, 'u')}${bar(v.revert, 'r')}</span></span>
+      <span class="side">${r.waiting ? `<span class="pill agent">● ${esc(r.waiting.by)} is waiting for your feedback</span>` : r.pendingSubmission ? '<span class="pill quiet">sent, not picked up yet</span>' : r.target?.kind === 't3' && !r.open ? `<span class="pill quiet" title="Feedback goes to this T3 Code thread">→ T3: ${esc(r.target.title || 'thread')}</span>` : r.open ? `<span class="pill open">${r.open} waiting for the agent</span>` : '<span class="pill quiet">nothing waiting</span>'}<span class="verdicts" title="approved · needs update · revert">${bar(v.approve, 'a')}${bar(v.update, 'u')}${bar(v.revert, 'r')}</span></span>
       <span class="meta"><span>${r.rounds} round${r.rounds === 1 ? '' : 's'}</span><span>${r.pages} pages</span><span>${r.threads} threads</span>${r.repo && r.pr ? `<span>${esc(r.repo)}#${r.pr}</span>` : ''}${r.updatedAt ? `<span>updated ${ago(r.updatedAt)}</span>` : ''}</span>
     </a></li>`;
   }).join('') : '<li class="empty">No reviews yet. Start one with <code>reviewtool init &lt;name&gt;</code>.</li>';

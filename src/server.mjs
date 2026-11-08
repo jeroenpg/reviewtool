@@ -4,7 +4,9 @@ import { readFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { feedbackMessage } from './feedback.mjs';
 import { renderLog } from './log.mjs';
+import { deliver, targetLabel } from './targets.mjs';
 import { ReviewError } from './store.mjs';
 
 const publicDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'public');
@@ -76,7 +78,20 @@ export function createApp(store) {
     }
     if (method === 'POST' && rest[0] === 'submit' && rest.length === 1) {
       const { round, by, note } = await body(req);
-      return send(res, 201, store.submit(slug, { round, by, note }));
+      let submission = store.submit(slug, { round, by, note });
+      // An agent blocked in `reviewtool wait` picks it up itself. Otherwise, when the review is linked to a chat
+      // thread, post the feedback there; if that fails it stays pending for the next `wait`.
+      const target = store.get(slug).review.target;
+      if (target && !store.waiting(slug)) {
+        const to = targetLabel(target);
+        try {
+          await deliver(target, feedbackMessage(store, slug, submission));
+          submission = store.recordDelivery(slug, submission.id, { to, by: target.agent });
+        } catch (error) {
+          submission = store.recordDelivery(slug, submission.id, { to, error: error.message });
+        }
+      }
+      return send(res, 201, submission);
     }
     if (rest[0] === 'comments' && rest.length === 2) {
       if (method === 'PATCH') {

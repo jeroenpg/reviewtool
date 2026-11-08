@@ -271,7 +271,7 @@
   <span class="ring" id="ring" title="Pages with a verdict in this round"><svg viewBox="0 0 24 24"><circle class="track" cx="12" cy="12" r="9"></circle><circle class="fill" cx="12" cy="12" r="9" stroke-dasharray="56.5" stroke-dashoffset="56.5"></circle></svg><span id="ringText"></span></span>
   <label class="me muted">as <input id="me" maxlength="60" placeholder="your name" aria-label="Your name"></label>
   <span class="agentstate" id="agentState" hidden><span class="pulse"></span><span id="agentText"></span></span>
-  <button class="sendbtn" id="sendBtn" title="Tell the agent you are done for now">Send to agent<span class="n" id="sendCount" hidden></span></button>
+  <button class="sendbtn" id="sendBtn" title="Tell the agent you are done for now"><span id="sendLabel">Send to agent</span><span class="n" id="sendCount" hidden></span></button>
   <button class="iconbtn" id="panelToggle" title="Comments (])" aria-label="Toggle comments">💬</button>
   <button class="iconbtn" id="helpBtn" title="Shortcuts (?)" aria-label="Shortcuts">?</button>
 </header>
@@ -330,7 +330,7 @@
 
 <div class="popover" id="popover" hidden></div>
 <dialog id="sendDlg" class="send">
-  <h2>Send your feedback to the agent</h2>
+  <h2 id="sendTitle">Send your feedback to the agent</h2>
   <p class="muted who" id="sendWho"></p>
   <ul id="sendSummary"></ul>
   <textarea id="sendNote" placeholder="Anything else for the agent? (optional)"></textarea>
@@ -409,7 +409,7 @@ function toast(msg) {
   t.textContent = msg;
   t.classList.add('show');
   clearTimeout(toast.timer);
-  toast.timer = setTimeout(() => t.classList.remove('show'), 1600);
+  toast.timer = setTimeout(() => t.classList.remove('show'), msg.length > 60 ? 5000 : 1600);
 }
 
 /* ---------- derived state ---------- */
@@ -437,9 +437,15 @@ const changedKind = (p) => (p.change ? (unchanged(p) ? 'same' : p.change.status 
 const settled = (p) => unchanged(p) && verdictOf(roundN - 1, p.id) === 'approve';
 const needsMe = (p) => (!verdictOf(roundN, p.id) && !settled(p)) || threadsOf(null, p.id).some(answered) || threadsOf(null, p.id).some(hasNew);
 const lastSubmission = () => data.feedback.submissions?.at(-1) ?? null;
+// Feedback goes into the agent's T3 Code thread, unless an agent is blocked in `reviewtool wait` right now.
+const threadTarget = () => (data.review.target?.kind === 't3' && !data.waiting ? data.review.target : null);
+const threadName = (t) => (t.title ? `T3 thread “${t.title}”` : 'the T3 thread');
 function unsentChanges() {
   const since = lastSubmission()?.at ?? '';
-  const comments = data.feedback.comments.filter((c) => c.kind === 'human' && c.at > since);
+  const all = data.feedback.comments;
+  const answeredLater = (c) => all.some((m) => m.kind === 'agent' && (m.replyTo ?? m.id) === (c.replyTo ?? c.id) && m.at > c.at);
+  const resolvedThread = (c) => all.find((m) => m.id === (c.replyTo ?? c.id))?.status === 'resolved';
+  const comments = all.filter((c) => c.kind === 'human' && c.at > since && !answeredLater(c) && !resolvedThread(c));
   const verdicts = Object.entries(data.feedback.verdicts).filter(([, v]) => v.at > since);
   return { comments, verdicts };
 }
@@ -555,7 +561,9 @@ function renderAgentState() {
   let cls = '';
   let text = '';
   if (data.waiting) { cls = 'waiting'; text = `${data.waiting.by} is waiting for your feedback`; }
+  else if (sub?.delivery?.error && !sub.pickedUpAt) { cls = 'sent'; text = `Could not reach ${sub.delivery.to} · saved for the next agent`; }
   else if (sub && !sub.pickedUpAt) { cls = 'sent'; text = 'Sent · no agent has picked it up yet'; }
+  else if (sub?.delivery && newest.createdAt < sub.pickedUpAt) { cls = 'working'; text = `Sent to ${sub.delivery.to}`; }
   else if (sub && sub.pickedUpAt && newest.createdAt < sub.pickedUpAt) { cls = 'working'; text = `${sub.pickedUpBy} is working on your feedback`; }
   el.hidden = !text;
   el.className = `agentstate ${cls}`;
@@ -567,6 +575,9 @@ function renderAgentState() {
   $('sendCount').textContent = n;
   // Loud when there is something to send or an agent is waiting; quiet otherwise.
   $('sendBtn').classList.toggle('quiet', !n && !data.waiting);
+  const t = threadTarget();
+  $('sendLabel').textContent = t ? 'Send to T3 thread' : 'Send to agent';
+  $('sendBtn').title = t ? `Post your feedback in ${threadName(t)}` : 'Tell the agent you are done for now';
 }
 
 function openSend() {
@@ -582,7 +593,12 @@ function openSend() {
     count('update') ? `${count('update')} need an update` : null,
     count('revert') ? `${count('revert')} to revert` : null,
   ].filter(Boolean);
-  $('sendWho').textContent = data.waiting ? `${data.waiting.by} is waiting and starts as soon as you send.` : 'No agent is waiting right now; the next one that runs "reviewtool wait" picks this up.';
+  const t = threadTarget();
+  $('sendTitle').textContent = t ? 'Send your feedback to the T3 thread' : 'Send your feedback to the agent';
+  $('sendConfirm').textContent = t ? 'Send to T3 thread' : 'Send to agent';
+  $('sendWho').innerHTML = data.waiting ? `${esc(data.waiting.by)} is waiting and starts as soon as you send.`
+    : t ? `It arrives in ${t.link ? `<a href="${esc(t.link)}" target="_blank" rel="noopener">${esc(threadName(t))}</a>` : esc(threadName(t))} as a new message. If the agent is busy, it reads it as its next turn.`
+    : 'No agent is waiting right now; the next one that runs "reviewtool wait" picks this up.';
   $('sendSummary').innerHTML = (items.length ? items : ['Nothing new since you last sent; send anyway to let the agent continue']).map((x) => `<li>${esc(x)}</li>`).join('') +
     (open ? `<li class="muted">${plural(open, 'page')} in round ${latest.n} still without a verdict</li>` : '');
   $('sendDlg').showModal();
@@ -591,12 +607,15 @@ function openSend() {
 
 async function confirmSend() {
   try {
-    await api('POST', '/submit', { round: data.rounds.at(-1).n, by: me(), note: $('sendNote').value });
+    $('sendConfirm').disabled = true;
+    const sub = await api('POST', '/submit', { round: data.rounds.at(-1).n, by: me(), note: $('sendNote').value });
     $('sendNote').value = '';
     $('sendDlg').close();
     await load();
-    toast('Sent to the agent');
+    if (sub.delivery?.error) toast(`Saved, but ${sub.delivery.to} could not be reached: ${sub.delivery.error}`);
+    else toast(sub.delivery ? `Sent to ${sub.delivery.to}` : 'Sent to the agent');
   } catch (err) { toast(`Could not send: ${err.message}`); }
+  finally { $('sendConfirm').disabled = false; }
 }
 
 function renderRail() {

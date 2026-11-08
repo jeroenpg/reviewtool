@@ -7,8 +7,10 @@ Review UI changes in rounds, the way you would with a designer, while an AI agen
    pages changed and where.
 2. **You review them in the browser.** You compare before with after, or this round with the last one. You click a
    spot to pin a comment there, and you give each page a verdict: approve, needs update, or revert.
-3. **You press Send to agent.** The agent has been waiting with `reviewtool wait`. It picks up your comments and
-   verdicts, fixes the issues, replies to each comment, and publishes the next round.
+3. **You press Send.** Your comments, verdicts and an optional note go to the agent. In
+   [T3 Code](https://t3.codes) they arrive in the agent's thread as a new message (*Send to T3 thread*). Anywhere
+   else, an agent waiting with `reviewtool wait` picks them up. The agent fixes the issues, replies to each comment,
+   and publishes the next round.
 4. **The pull request gets a log of the whole review.** It is one comment, kept up to date, with every round, every
    verdict and every thread.
 
@@ -52,6 +54,11 @@ What each command does:
   when it has picked up your feedback. Use `--timeout` for agents that cannot run long commands; exit code 2 means
   nothing was sent yet.
 - `feedback` prints the same without waiting.
+- **In T3 Code** you don't need `wait`. `init`, `round` and `wait` link the review to the agent's thread (from the
+  `T3CODE_THREAD_ID` that T3 gives its agents). Sending then posts the feedback into that thread with
+  `t3 thread send`, and a busy thread reads it as its next turn. `reviewtool target <name> --here | --none` changes
+  the link. If T3 can't be reached, the feedback stays saved for the next `wait`. `REVIEWTOOL_TARGET=none` turns the
+  linking off.
 - `reply` answers one thread. Only you resolve threads, after you have checked the fix.
 - The second `round` publishes the fixed screenshots as round 2.
 - `log --post` creates the review log comment on the PR, or updates it if it was posted before.
@@ -97,7 +104,7 @@ Rules for manifests:
   areas are outlined on the screenshot (<kbd>H</kbd> hides them). The overview lists the changed pages, and one
   click approves every unchanged page you already approved last round. *Unchanged* means pixel for pixel identical,
   so nothing that moved is skipped.
-- **Send when you are done.** *Send to agent* in the top bar counts what you have added since you last sent; add an
+- **Send when you are done.** *Send to agent* (or *Send to T3 thread*) in the top bar counts what you have added since you last sent; add an
   optional note for the agent. The top bar shows when an agent is waiting for you, and when it is working on your
   feedback.
 - **Know what's new.** Agent replies since your last visit are marked *new*; threads the agent answered say
@@ -133,6 +140,7 @@ reviewtool comment <name> <page-id> <text> [--round N] [--as Claude]
 reviewtool resolve <name> <comment-id> [--reopen]
 reviewtool log <name> [--post] [--repo owner/name] [--pr N] [--out file]
 reviewtool url <name> [<page-id>]
+reviewtool target <name> [--here | --none]
 reviewtool install-skill [--dir ~/.claude/skills]
 ```
 

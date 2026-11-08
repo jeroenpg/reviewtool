@@ -79,8 +79,16 @@ reviewtool url <name>
 
 ## 3. Wait for the user to send feedback
 
-The user reviews in the browser and presses **Send to agent** when they are done. Wait for that; do not poll
-`feedback` in a loop, and do not start fixing half-finished feedback.
+The user reviews in the browser and presses **Send** when they are done. Wait for that; do not poll `feedback` in a
+loop, and do not start fixing half-finished feedback.
+
+**In T3 Code** (the environment has `T3CODE_THREAD_ID`), `init`, `round` and `wait` link the review to your thread.
+The button then reads **Send to T3 thread**, and the user's feedback arrives in your thread as a new message, with
+the threads, verdicts and their note. So after publishing a round: tell the user it is ready, and **end your turn**.
+Do not run `wait`. When the message arrives, continue with step 4; it already contains what `feedback` prints.
+`reviewtool target <name>` shows where feedback goes. `--here` links the current thread, and `--none` unlinks it.
+
+**Anywhere else**, wait for the user to send:
 
 ```sh
 reviewtool wait <name> --as Claude
@@ -96,6 +104,8 @@ feedback"), prints it like `feedback` does, plus the user's note, and exits 0. W
   `reviewtool wait <name> --timeout 540`. Exit code 2 means nothing was sent yet; run it again.
 - Sent feedback stays pending until an agent picks it up, so nothing is lost if no one was waiting at that moment.
 - If the user tells you in the chat that they are done instead, skip the wait and read `reviewtool feedback <name>`.
+- An agent blocked in `wait` always gets the feedback itself, even when the review is linked to a T3 thread, so it
+  never arrives twice.
 
 ## 4. Read the feedback
 

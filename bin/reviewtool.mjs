@@ -7,7 +7,9 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { postLog, renderLog } from '../src/log.mjs';
 import { createApp } from '../src/server.mjs';
-import { ReviewError, Store, needsReply, threads } from '../src/store.mjs';
+import { collectFeedback, feedbackText } from '../src/feedback.mjs';
+import { ReviewError, Store } from '../src/store.mjs';
+import { detectTarget, targetLabel } from '../src/targets.mjs';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -36,6 +38,9 @@ Usage:
   reviewtool log <name> [--post] [--repo owner/name] [--pr N] [--out file]
                                                         the review log as Markdown; --post puts it on the PR
   reviewtool url <name> [<page-id>]                     link to the review (REVIEWTOOL_URL sets the host)
+  reviewtool target <name> [--here | --none]            where "send" delivers feedback: this T3 Code thread
+                                                        (--here; automatic for init, round and wait inside T3),
+                                                        or nowhere, for agents that use wait (--none)
   reviewtool install-skill [--dir ~/.claude/skills]     install the agent skill
 
 Data lives in ${store.root} (REVIEWTOOL_HOME overrides).
@@ -60,6 +65,8 @@ const OPTIONS = {
   resolve: { type: 'boolean' },
   reopen: { type: 'boolean' },
   timeout: { type: 'string' },
+  here: { type: 'boolean' },
+  none: { type: 'boolean' },
   help: { type: 'boolean', short: 'h' },
 };
 
@@ -97,24 +104,21 @@ function changeSummary(round) {
 }
 
 function printFeedback(slug, { all = false, round = null, json = false, submission = null } = {}) {
-  const { rounds, feedback } = store.get(slug);
-  let list = all ? threads(feedback.comments).filter((t) => t.status !== 'resolved') : needsReply(feedback.comments);
-  if (round) list = list.filter((t) => t.round === (round === 'latest' ? rounds.at(-1)?.n : Number(round)));
-  const latest = rounds.at(-1);
-  const verdicts = latest ? latest.pages.map((p) => ({ page: p.id, verdict: feedback.verdicts[`${latest.n}/${p.id}`]?.verdict ?? null })) : [];
-  if (json) return console.log(JSON.stringify({ round: latest?.n ?? null, submission, threads: list, verdicts }, null, 2));
-  if (submission) {
-    console.log(`Feedback sent${submission.by ? ` by ${submission.by}` : ''} at ${fmtDate(submission.at)} for round ${submission.round}: ${submission.comments} new comment${submission.comments === 1 ? '' : 's'}, ${submission.verdicts} verdict${submission.verdicts === 1 ? '' : 's'}.`);
-    if (submission.note) console.log(`Note from the reviewer:\n  ${submission.note.split('\n').join('\n  ')}`);
-    console.log('');
+  if (json) {
+    const { latest, threads: list, verdicts } = collectFeedback(store, slug, { all, round });
+    return console.log(JSON.stringify({ round: latest?.n ?? null, submission, threads: list, verdicts }, null, 2));
   }
-  console.log(`${list.length} thread${list.length === 1 ? '' : 's'} ${all ? 'open' : 'waiting for a reply'} in "${slug}"\n`);
-  for (const t of list) printThread(t, rounds, slug);
-  if (latest) {
-    const by = (v) => verdicts.filter((x) => x.verdict === v).map((x) => x.page);
-    const named = (v) => (by(v).length ? ` (${by(v).join(', ')})` : '');
-    console.log(`Verdicts in round ${latest.n}: approved ${by('approve').length}, needs update ${by('update').length}${named('update')}, revert ${by('revert').length}${named('revert')}, none ${by(null).length}`);
-  }
+  console.log(feedbackText(store, slug, { all, round, submission }));
+}
+
+/** Inside T3 Code, link the review to the calling agent's thread so the app sends feedback there. */
+function linkThread(slug, agent) {
+  const target = detectTarget(process.env, { agent });
+  if (!target) return null;
+  const current = store.get(slug).review.target;
+  if (current?.kind === 't3' && current.thread === target.thread && current.title === target.title && current.agent === (agent ?? current.agent)) return current;
+  store.setTarget(slug, { ...target, agent: agent ?? current?.agent ?? null });
+  return target;
 }
 
 async function main() {
@@ -132,7 +136,8 @@ async function main() {
     case 'init': {
       const slug = need(args[0], 'review name');
       const review = store.create({ slug, title: o.title, repo: o.repo, pr: o.pr, branch: o.branch });
-      console.log(`created review "${review.slug}": ${baseUrl()}/r/${slug}`);
+      const target = linkThread(slug, o.as ?? null);
+      console.log(`created review "${review.slug}": ${baseUrl()}/r/${slug}${target ? `\nfeedback will be sent to ${targetLabel(target)}` : ''}`);
       return;
     }
     case 'set': {
@@ -155,8 +160,10 @@ async function main() {
       if (o.notes) manifest.notes = o.notes;
       if (o.as) manifest.by = o.as;
       const round = store.addRound(slug, manifest, dirname(file));
+      const target = linkThread(slug, o.as ?? null);
       const summary = changeSummary(round);
       console.log(`added round ${round.n} with ${round.pages.length} pages${summary ? ` (${summary} since round ${round.n - 1})` : ''}: ${baseUrl()}/r/${slug}`);
+      if (target) console.log(`When the reviewer presses send, their feedback arrives in ${targetLabel(target)} as a new message. End your turn; there is no need to run "reviewtool wait".`);
       return;
     }
     case 'rounds': {
@@ -183,6 +190,7 @@ async function main() {
       };
       process.on('SIGINT', () => stop(130));
       process.on('SIGTERM', () => stop(143));
+      linkThread(slug, by);
       if (!o.json) console.error(`waiting for feedback on "${slug}": ${baseUrl()}/r/${slug}`);
       for (;;) {
         const submission = store.pickUp(slug, by);
@@ -238,6 +246,18 @@ async function main() {
       const slug = need(args[0], 'review name');
       store.mustDir(slug);
       console.log(`${baseUrl()}/r/${slug}${args[1] ? `#${encodeURIComponent(args[1])}` : ''}`);
+      return;
+    }
+    case 'target': {
+      const slug = need(args[0], 'review name');
+      if (o.none) store.setTarget(slug, null);
+      else if (o.here) {
+        const target = detectTarget(process.env, { agent: o.as ?? null });
+        if (!target) throw new ReviewError('not running inside a T3 Code thread (T3CODE_THREAD_ID and T3CODE_CLI_PATH are not set)');
+        store.setTarget(slug, target);
+      }
+      const target = store.get(slug).review.target;
+      console.log(target ? `feedback goes to ${targetLabel(target)}${target.link ? ` (${target.link})` : ''}` : 'feedback waits for an agent running "reviewtool wait"');
       return;
     }
     case 'install-skill': {

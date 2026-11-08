@@ -139,6 +139,31 @@ export class Store {
     });
   }
 
+  /** Where feedback goes on send (see targets.mjs); null means agents pick it up with `reviewtool wait`. */
+  setTarget(slug, target) {
+    const dir = this.mustDir(slug);
+    return withLock(dir, () => {
+      const review = readJson(join(dir, 'review.json'));
+      review.target = target ?? null;
+      writeJson(join(dir, 'review.json'), review);
+      return review;
+    });
+  }
+
+  /** Records how a submission was handed over: delivered into a chat thread, or that delivery failed (stays pending). */
+  recordDelivery(slug, id, { to, by = null, error = null }) {
+    return this.mutateFeedback(slug, (feedback) => {
+      const s = (feedback.submissions ?? []).find((x) => x.id === id);
+      if (!s) throw new ReviewError(`no submission ${id}`, 404);
+      s.delivery = { to, at: now(), error };
+      if (!error && !s.pickedUpAt) {
+        s.pickedUpAt = now();
+        s.pickedUpBy = by || to;
+      }
+      return s;
+    });
+  }
+
   mustDir(slug) {
     const dir = this.dir(slug);
     if (!existsSync(join(dir, 'review.json'))) throw new ReviewError(`no review "${slug}"; create it with: reviewtool init ${slug}`, 404);
@@ -376,11 +401,13 @@ export class Store {
 
 const WAIT_FRESH_MS = 15_000;
 
-/** Human comments, replies and verdicts made after the last submission. */
+/** Human comments and replies made after the last submission that no agent has answered yet, and newer verdicts. */
 export function unsent(feedback) {
   const since = (feedback.submissions ?? []).at(-1)?.at ?? '';
+  const resolved = (c) => feedback.comments.find((m) => m.id === (c.replyTo ?? c.id))?.status === 'resolved';
+  const answered = (c) => feedback.comments.some((m) => m.kind === 'agent' && (m.replyTo ?? m.id) === (c.replyTo ?? c.id) && m.at > c.at);
   return {
-    comments: feedback.comments.filter((c) => c.kind === 'human' && c.at > since),
+    comments: feedback.comments.filter((c) => c.kind === 'human' && c.at > since && !answered(c) && !resolved(c)),
     verdicts: Object.entries(feedback.verdicts).filter(([, v]) => v.at > since).map(([key, v]) => ({ key, ...v })),
   };
 }
