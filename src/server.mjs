@@ -1,5 +1,6 @@
 // HTTP server for the review app: the list of reviews at /, one review at /r/<name>, and a small JSON API.
 import { createServer } from 'node:http';
+import { timingSafeEqual } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
@@ -31,11 +32,27 @@ function send(res, status, payload, type = 'application/json; charset=utf-8', ex
   res.end(type.startsWith('application/json') ? JSON.stringify(payload) : payload);
 }
 
-export function createApp(store) {
+// Served to anyone, also without the key: they hold nothing about a review.
+const OPEN = new Set(['/favicon.svg', '/vendor/pico.zinc.min.css', '/app.css']);
+
+function sameKey(given, key) {
+  const a = Buffer.from(String(given ?? ''));
+  const b = Buffer.from(key);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
+/**
+ * The review app. With `key`, every request must carry it (?key= or the x-review-key header): that is the app as the
+ * public internet reaches it, through a relay. Without, it trusts whoever can reach it (localhost, the tailnet).
+ */
+export function createApp(store, { key = null } = {}) {
   const page = (name) => readFileSync(join(publicDir, name));
 
   async function handle(req, res) {
     const url = new URL(req.url, 'http://localhost');
+    if (key && !OPEN.has(url.pathname) && !sameKey(url.searchParams.get('key') ?? req.headers['x-review-key'], key)) {
+      return send(res, 403, 'This link needs its key. Ask the agent for the full link.', 'text/plain; charset=utf-8');
+    }
     const parts = url.pathname.split('/').filter(Boolean).map(decodeURIComponent);
     const method = req.method;
 

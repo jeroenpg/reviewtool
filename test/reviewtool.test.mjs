@@ -102,6 +102,29 @@ test('the server serves the review and accepts comments from people only', async
   }
 });
 
+test('the public side answers only requests that carry the key', async () => {
+  const { dir, store } = fixture();
+  store.create({ slug: 'demo' });
+  const round = store.addRound('demo', { pages: [{ id: 'inbox', after: 'after1.png' }] }, dir);
+  const server = createApp(store, { key: 'k3y' }).listen(0, '127.0.0.1');
+  await new Promise((r) => server.once('listening', r));
+  const base = `http://127.0.0.1:${server.address().port}`;
+  try {
+    for (const path of ['/', '/r/demo', '/api/reviews', '/api/r/demo', `/api/r/demo/img/${round.pages[0].after}`, '/api/r/demo/log']) {
+      assert.equal((await fetch(base + path)).status, 403, `${path} without the key`);
+      assert.equal((await fetch(`${base}${path}?key=wrong`)).status, 403, `${path} with a wrong key`);
+      assert.equal((await fetch(`${base}${path}?key=k3y`)).status, 200, `${path} with the key`);
+    }
+    assert.equal((await fetch(`${base}/api/r/demo`, { headers: { 'x-review-key': 'k3y' } })).status, 200);
+    const post = await fetch(`${base}/api/r/demo/comments`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ round: 1, page: 'inbox', text: 'hi' }) });
+    assert.equal(post.status, 403);
+    assert.equal(store.get('demo').feedback.comments.length, 0);
+    assert.equal((await fetch(`${base}/app.css`)).status, 200, 'styles need no key');
+  } finally {
+    server.close();
+  }
+});
+
 test('the CLI runs the agent loop end to end', () => {
   const { dir } = fixture();
   const env = { ...process.env, REVIEWTOOL_TARGET: 'none', REVIEWTOOL_HOME: join(dir, 'cli-store'), REVIEWTOOL_URL: 'http://review.test' };

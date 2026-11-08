@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // reviewtool: rounds of before/after screenshots that people comment on and agents answer.
 import { execFileSync } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
 import { cpSync, existsSync, lstatSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -28,6 +29,11 @@ function readConfig() {
 function writeConfig(patch) {
   mkdirSync(dirname(configFile), { recursive: true });
   writeFileSync(configFile, JSON.stringify({ ...readConfig(), ...patch }, null, 2) + '\n');
+}
+function publicLink(slug, page) {
+  const { publicUrl, publicKey } = readConfig();
+  if (!publicUrl || !publicKey) throw new ReviewError('no public link: set one up with "reviewtool relay" (see reviewtool --help)');
+  return `${publicUrl}/r/${encodeURIComponent(slug)}?key=${publicKey}${page ? `#${encodeURIComponent(page)}` : ''}`;
 }
 const baseUrl = () => (process.env.REVIEWTOOL_URL || readConfig().url || 'http://localhost:4477').replace(/\/$/, '');
 
@@ -57,7 +63,9 @@ Usage:
   reviewtool resolve <name> <comment-id> [--reopen]
   reviewtool log <name> [--post] [--repo owner/name] [--pr N] [--out file]
                                                         the review log as Markdown; --post puts it on the PR
-  reviewtool url <name> [<page-id>]                     link to the review (REVIEWTOOL_URL sets the host)
+  reviewtool url <name> [<page-id>] [--public]          link to the review (REVIEWTOOL_URL sets the host);
+                                                        --public: the link that works from anywhere, with its key
+  reviewtool embed <name> [<page-id>] [--height 900]    HTML that shows the review inside an agent chat (T3 Code)
   reviewtool target <name> [--here | --none]            where "send" delivers feedback: this T3 Code thread
                                                         (--here; automatic for init, round and wait inside T3),
                                                         or nowhere, for agents that use wait (--none)
@@ -68,6 +76,9 @@ Usage:
   reviewtool tailscale [--port 4477] [--https-port 14477]
                                                         open the app to your tailnet with tailscale serve and use that
                                                         address in the links agents print
+  reviewtool relay --via user@host --url https://name [--remote-port 4478] [--remove]
+                                                        reach the app from the internet through a server you can
+                                                        ssh into; every request there needs a secret key
 
 Data lives in ${store.root} (REVIEWTOOL_HOME overrides).
 Manifest: { "title"?, "notes"?, "pages": [{ "id", "title", "group"?, "device"?, "route"?, "before"?, "beforeLabel"?,
@@ -99,6 +110,11 @@ const OPTIONS = {
   here: { type: 'boolean' },
   to: { type: 'string' },
   none: { type: 'boolean' },
+  public: { type: 'boolean' },
+  via: { type: 'string' },
+  url: { type: 'string' },
+  height: { type: 'string' },
+  'remote-port': { type: 'string' },
   help: { type: 'boolean', short: 'h' },
 };
 
@@ -162,6 +178,9 @@ async function main() {
       const port = Number(o.port ?? process.env.PORT ?? 4477);
       const host = o.host ?? '127.0.0.1';
       createApp(store).listen(port, host, () => console.log(`reviewtool on http://${host}:${port} (data: ${store.root})`));
+      // The port a relay forwards from the internet: always local, and every request needs the key.
+      const { publicKey, publicPort = port + 1 } = readConfig();
+      if (publicKey) createApp(store, { key: publicKey }).listen(publicPort, '127.0.0.1', () => console.log(`public side (key required) on http://127.0.0.1:${publicPort}`));
       return;
     }
     case 'init': {
@@ -285,7 +304,70 @@ async function main() {
     case 'url': {
       const slug = need(args[0], 'review name');
       store.mustDir(slug);
-      console.log(`${baseUrl()}/r/${slug}${args[1] ? `#${encodeURIComponent(args[1])}` : ''}`);
+      console.log(o.public ? publicLink(slug, args[1]) : `${baseUrl()}/r/${slug}${args[1] ? `#${encodeURIComponent(args[1])}` : ''}`);
+      return;
+    }
+    case 'embed': {
+      // A page for an agent's chat to show inline (T3 Code's html_render): the review in a frame, over the public link.
+      const slug = need(args[0], 'review name');
+      store.mustDir(slug);
+      const height = Math.min(2000, Math.max(400, Number(o.height ?? 900)));
+      const src = publicLink(slug, args[1]).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+      console.log(`<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0}iframe{display:block;width:100%;height:${height}px;border:1px solid var(--border,#8884);border-radius:var(--radius,8px)}</style></head><body><iframe src="${src}" title="Review" allow="clipboard-write"></iframe></body></html>`);
+      return;
+    }
+    case 'relay': {
+      // Make the app reachable from the public internet through a server you can ssh into, without opening this
+      // machine: ssh keeps a reverse tunnel to it, and that server's web server sends a public https name into it.
+      const unitDir = join(process.env.XDG_CONFIG_HOME || join(homedir(), '.config'), 'systemd', 'user');
+      const unit = join(unitDir, 'reviewtool-relay.service');
+      const systemctl = (...a) => execFileSync('systemctl', ['--user', ...a], { stdio: 'inherit' });
+      if (o.remove) {
+        try { systemctl('disable', '--now', 'reviewtool-relay.service'); } catch {}
+        rmSync(unit, { force: true });
+        systemctl('daemon-reload');
+        writeConfig({ publicKey: undefined, publicUrl: undefined, publicPort: undefined });
+        console.log('removed the relay; the app is no longer on the public internet');
+        return;
+      }
+      const via = need(o.via, '--via user@host');
+      const publicUrl = need(o.url, '--url https://name.example');
+      const port = Number(o.port ?? 4477);
+      const publicPort = port + 1;
+      const remotePort = Number(o['remote-port'] ?? publicPort);
+      const config = readConfig();
+      const publicKey = config.publicKey ?? randomBytes(24).toString('base64url');
+      writeConfig({ publicKey, publicUrl: publicUrl.replace(/\/$/, ''), publicPort });
+      const ssh = execFileSync('sh', ['-c', 'command -v ssh'], { encoding: 'utf8' }).trim();
+      mkdirSync(unitDir, { recursive: true });
+      writeFileSync(unit, [
+        '[Unit]',
+        `Description=reviewtool: reverse tunnel to ${via} for ${publicUrl}`,
+        'After=network-online.target reviewtool.service',
+        '',
+        '[Service]',
+        `ExecStart=${ssh} -N -o BatchMode=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o ExitOnForwardFailure=yes -R 127.0.0.1:${remotePort}:127.0.0.1:${publicPort} ${via}`,
+        'Restart=always',
+        'RestartSec=10',
+        '',
+        '[Install]',
+        'WantedBy=default.target',
+        '',
+      ].join('\n'));
+      systemctl('daemon-reload');
+      try { systemctl('restart', 'reviewtool.service'); } catch { console.log('(start the app with "reviewtool service" so it opens the public side)'); }
+      systemctl('enable', 'reviewtool-relay.service');
+      systemctl('restart', 'reviewtool-relay.service');
+      console.log([
+        `the tunnel runs as reviewtool-relay.service: ${via} port ${remotePort} (its localhost only) reaches this app's key-only side.`,
+        `On ${via.split('@').pop()}, point ${publicUrl} at it, for example with Caddy:`,
+        '',
+        `  ${new URL(publicUrl).host} {`,
+        `    reverse_proxy 127.0.0.1:${remotePort}`,
+        '  }',
+        '',
+        `Links that work from anywhere: reviewtool url <name> --public. In T3 Code: reviewtool embed <name>.`,
+      ].join('\n'));
       return;
     }
     case 'target': {

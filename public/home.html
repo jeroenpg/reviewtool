@@ -31,6 +31,9 @@
   <div class="list" id="list"></div>
 </main>
 <script>
+// A public link carries ?key=; every request this page makes passes it on.
+const KEY = new URLSearchParams(location.search).get('key');
+const withKey = (u) => (KEY ? `${u}${u.includes('?') ? '&' : '?'}key=${encodeURIComponent(KEY)}` : u);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const ago = (iso) => {
   const m = Math.round((Date.now() - new Date(iso)) / 60000);
@@ -39,7 +42,7 @@ const ago = (iso) => {
   return new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
 };
 async function load() {
-  const reviews = await (await fetch('/api/reviews')).json();
+  const reviews = await (await fetch(withKey('/api/reviews'))).json();
   document.getElementById('list').innerHTML = reviews.length ? reviews.map((r) => {
     const v = r.verdicts || { approve: 0, update: 0, revert: 0 };
     const judged = v.approve + v.update + v.revert;
@@ -47,7 +50,7 @@ async function load() {
       : r.open ? `<span class="status open">${r.open} waiting for the agent</span>`
       : r.target?.kind === 't3' ? `<span class="status">Sends to T3: ${esc(r.target.title || 'thread')}</span>`
       : '<span class="status"></span>';
-    return `<a class="review" href="/r/${encodeURIComponent(r.slug)}">
+    return `<a class="review" href="${withKey(`/r/${encodeURIComponent(r.slug)}`)}">
       <strong>${esc(r.title)}</strong>${status}
       <span class="meta">Round ${r.rounds} · ${judged}/${r.pages} judged${r.repo && r.pr ? ` · ${esc(r.repo)}#${r.pr}` : ''}${r.updatedAt ? ` · ${ago(r.updatedAt)}` : ''}</span>
       <progress value="${judged}" max="${Math.max(1, r.pages)}"></progress>

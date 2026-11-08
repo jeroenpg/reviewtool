@@ -37,6 +37,25 @@ reviewtool tailscale       # open it to your tailnet: https://<machine>.<tailnet
   permission, run `sudo tailscale set --operator=$USER` once. Without Tailscale, the app listens on localhost only;
   set `REVIEWTOOL_URL` to whatever address you put in front of it.
 
+### Reviewing inside an agent chat (T3 Code)
+
+T3 Code can show a page inside the chat, but that page may only reach the public internet, not your tailnet or
+localhost. To review there, give the app a public address through a server you can ssh into:
+
+```sh
+reviewtool relay --via user@server --url https://review.example.com
+```
+
+- **Nothing on your machine opens up.** A systemd user service keeps an ssh tunnel to the server open, and on the
+  server a web server you run (the command prints a Caddy example) sends the public address into the tunnel. Without
+  a domain, a name like `review.<ip-with-dashes>.sslip.io` resolves to the server and gets a certificate.
+- **The public side needs a secret key**, which `relay` creates and keeps in `~/.config/reviewtool/config.json`.
+  The app answers the tunnel on a separate local port where every request must carry it, so it holds even for
+  other users on the server. Your tailnet link keeps working without it.
+- **Agents show the review in the chat** with `reviewtool embed <name>` (HTML for T3's `html_render`), and
+  `reviewtool url <name> --public` prints the link with its key. Anyone who has that link can open the review.
+- `reviewtool relay --remove` stops the tunnel and forgets the key.
+
 ## How a review goes
 
 ```sh

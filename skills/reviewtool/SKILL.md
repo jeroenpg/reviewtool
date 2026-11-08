@@ -103,9 +103,17 @@ loop, and do not start fixing half-finished feedback.
 
 **In T3 Code** (the environment has `T3CODE_THREAD_ID`), `init`, `round` and `wait` link the review to your thread.
 The button then reads **Send to T3 thread**, and the user's feedback arrives in your thread as a new message, with
-the threads, verdicts and their note. So after publishing a round: tell the user it is ready, and **end your turn**.
+the threads, verdicts and their note. So after publishing a round: show the review in the chat (below), tell the
+user it is ready, and **end your turn**.
 Do not run `wait`. When the message arrives, continue with step 4; it already contains what `feedback` prints.
 `reviewtool target <name>` shows where feedback goes. `--here` links the current thread, and `--none` unlinks it.
+
+**Show the review inside the T3 chat** when a public link is set up (`reviewtool url <name> --public` prints one
+instead of an error): pass the output of `reviewtool embed <name> [<page-id>]` as the `html` of T3's `html_render`
+tool, with height 900 and a title like "Review: round 3". The user reviews right there. T3's chat cannot reach
+private or tailnet addresses, so without a public link, give the tailnet link instead. The embed holds the link's
+secret key: show it only in the user's own thread, and never paste the key or the public link into a pull request,
+issue, log or commit.
 
 **Anywhere else**, wait for the user to send:
 

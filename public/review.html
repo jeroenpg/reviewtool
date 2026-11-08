@@ -280,12 +280,16 @@
 
 <script>
 const $ = (id) => document.getElementById(id);
+// A public link carries ?key=; every request this page makes passes it on.
+const KEY = new URLSearchParams(location.search).get('key');
+const withKey = (u) => (KEY ? `${u}${u.includes('?') ? '&' : '?'}key=${encodeURIComponent(KEY)}` : u);
+for (const a of document.querySelectorAll('a[href="/"]')) a.href = withKey('/');
 const slug = decodeURIComponent(location.pathname.split('/').filter(Boolean)[1] || '');
 const PIN_LABEL = { before: 'before', after: 'after', previous: 'last round', mobile: 'phone' };
 const VERDICT_TEXT = { approve: 'Approved', update: 'Needs update', revert: 'Revert' };
 
 const api = async (method, path, body) => {
-  const res = await fetch(`/api/r/${encodeURIComponent(slug)}${path}`, { method, headers: body ? { 'content-type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
+  const res = await fetch(withKey(`/api/r/${encodeURIComponent(slug)}${path}`), { method, headers: body ? { 'content-type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
   if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || res.statusText);
   return res.status === 204 ? null : res.json();
 };
@@ -296,7 +300,7 @@ const pref = {
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const when = (iso) => new Date(iso).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
-const imgUrl = (file) => `/api/r/${encodeURIComponent(slug)}/img/${encodeURIComponent(file)}`;
+const imgUrl = (file) => withKey(`/api/r/${encodeURIComponent(slug)}/img/${encodeURIComponent(file)}`);
 
 let data = null;
 let roundN = null;
@@ -511,7 +515,7 @@ function renderBar() {
   $('progressBar').value = done;
   $('progressText').textContent = `${done}/${ps.length} judged`;
   $('meBtn').textContent = pref.get('me', '') || 'Set your name';
-  $('logLink').href = `/api/r/${encodeURIComponent(slug)}/log`;
+  $('logLink').href = withKey(`/api/r/${encodeURIComponent(slug)}/log`);
 
   const sub = lastSubmission();
   const newest = data.rounds.at(-1);
