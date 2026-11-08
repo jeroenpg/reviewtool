@@ -93,8 +93,8 @@ Rules for manifests:
 
 ## In the browser
 
-The app has three columns that stay put: the pages of the round on the left, the screenshots in the middle, and the
-comments on the right. On a phone they stack, and the page list becomes a picker. It is built on
+The app has two columns that stay put: the pages of the round on the left, and the page you are reviewing. On a
+phone they stack, and the page list becomes a picker. It is built on
 [Pico CSS](https://picocss.com), which ships inside the package, and follows your light or dark setting.
 
 - **Opens where you are needed.** A review opens on the first page that needs you: no verdict yet, an answer from
@@ -103,7 +103,8 @@ comments on the right. On a phone they stack, and the page list becomes a picker
   side*, *Swipe* with a draggable handle, or *After only*). *Phone* switches to the phone screenshots. *100%* zooms
   in, and the two screenshots then scroll together.
 - **Comment at the spot.** Click a screenshot and a comment box opens right there. Click a numbered pin to open its
-  thread. The comments column lists every thread on the page, with the ones from earlier rounds folded.
+  thread. *Comment* (<kbd>G</kbd>) is for the page as a whole. Comments that are not a pin in the current view
+  (general ones, earlier rounds, the other screenshot) are listed under the screenshots, with resolved ones folded.
 - **See what changed since the last round.** Pages are marked *changed*, *tiny change* or *new*, and changed areas
   are outlined on the screenshot (<kbd>H</kbd> turns the outlines off). The top of the page list says how many pages
   changed, and offers to approve, in one click, every unchanged page you already approved last round. *Unchanged*
@@ -116,7 +117,8 @@ comments on the right. On a phone they stack, and the page list becomes a picker
   that need you, or the changed ones.
 - **Keyboard.** <kbd>J</kbd>/<kbd>K</kbd> next or previous page, <kbd>N</kbd> next page that needs you,
   <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> for the verdicts, <kbd>S</kbd> <kbd>W</kbd> <kbd>A</kbd> for the layouts,
-  <kbd>C</kbd> to switch the comparison, <kbd>P</kbd> phone, <kbd>Z</kbd> zoom, <kbd>?</kbd> for the full list.
+  <kbd>C</kbd> to switch the comparison, <kbd>P</kbd> phone, <kbd>Z</kbd> zoom, <kbd>G</kbd> page comment,
+  <kbd>?</kbd> for the full list.
 
 ## Where the data lives
 

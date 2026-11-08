@@ -19,21 +19,19 @@
   .topbar select { width: auto; max-width: 300px; padding-block: .3rem; }
   .topbar .progress { display: inline-flex; align-items: center; gap: .5rem; font-size: .9em; white-space: nowrap; }
   .topbar progress { width: 80px; margin: 0; height: .4rem; }
-  .agent { display: inline-flex; align-items: center; gap: .45rem; font-size: .9em; white-space: nowrap; color: var(--pico-muted-color); }
-  .agent .pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--pico-muted-border-color); }
-  .agent.waiting { color: var(--approve); font-weight: 600; }
-  .agent.waiting .pulse { background: var(--approve); animation: beat 1.6s infinite; }
-  .agent.working .pulse { background: var(--update); animation: beat 1.6s infinite; }
-  .agent.sent .pulse { background: var(--pico-primary); }
+  .agentstate { display: inline-flex; align-items: center; gap: .45rem; font-size: .9em; white-space: nowrap; color: var(--pico-muted-color); }
+  .agentstate .pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--pico-muted-border-color); }
+  .agentstate.waiting { color: var(--approve); font-weight: 600; }
+  .agentstate.waiting .pulse { background: var(--approve); animation: beat 1.6s infinite; }
+  .agentstate.working .pulse { background: var(--update); animation: beat 1.6s infinite; }
+  .agentstate.sent .pulse { background: var(--pico-primary); }
   @keyframes beat { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 55%, transparent); } 70%, 100% { box-shadow: 0 0 0 7px transparent; } }
   #sendBtn { white-space: nowrap; padding-block: .3rem; }
   #sendBtn .n { margin-left: .4rem; padding: 0 .45rem; border-radius: 9px; background: rgb(255 255 255 / .25); font-size: .85em; }
 
-  /* Three columns, always all three */
-  .app { display: grid; grid-template-columns: 250px minmax(0, 1fr) 330px; min-height: 0; }
-  .rail, .panel { display: flex; flex-direction: column; min-height: 0; background: var(--pico-background-color); }
-  .rail { border-right: 1px solid var(--pico-muted-border-color); }
-  .panel { border-left: 1px solid var(--pico-muted-border-color); }
+  /* Two columns, always both: the pages and the page. Comments live on the screenshots. */
+  .app { display: grid; grid-template-columns: 250px minmax(0, 1fr); min-height: 0; }
+  .rail { display: flex; flex-direction: column; min-height: 0; background: var(--pico-background-color); border-right: 1px solid var(--pico-muted-border-color); }
   .rail-head { padding: .75rem; display: grid; gap: .55rem; border-bottom: 1px solid var(--pico-muted-border-color); }
   .notes { font-size: .9em; color: var(--pico-muted-color); max-height: 7.5em; overflow-y: auto; white-space: pre-wrap; }
   .changes { font-size: .9em; }
@@ -95,9 +93,10 @@
   .swipe .corner { position: absolute; top: 8px; font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 5px; background: rgb(0 0 0 / .62); color: #fff; pointer-events: none; }
   .swipe .corner.l { left: 8px; } .swipe .corner.r { right: 8px; }
 
-  /* Comments */
-  .panel-head { display: flex; align-items: center; gap: .5rem; padding: .7rem .75rem; border-bottom: 1px solid var(--pico-muted-border-color); font-weight: 600; }
-  .panel-body { overflow-y: auto; padding: .75rem; display: grid; gap: .6rem; align-content: start; }
+  /* Comments that are not a pin in the current view: general ones, other rounds, the other screenshot */
+  .offcanvas { margin-top: 1.25rem; max-width: 760px; display: grid; gap: .6rem; }
+  .offcanvas h2 { font-size: 1rem; display: flex; align-items: center; gap: .6rem; }
+  .offcanvas h2 button { margin-left: auto; }
   .thread { margin: 0; padding: .7rem .8rem; display: grid; gap: .5rem; cursor: pointer; border: 1px solid var(--pico-muted-border-color); box-shadow: none; }
   .thread:hover, .thread.hl { border-color: var(--pin); }
   .thread.resolved { opacity: .6; }
@@ -117,8 +116,8 @@
   .tools .state.waiting { color: var(--update); }
   .tools .state.answered { color: var(--new); }
   .empty { color: var(--pico-muted-color); text-align: center; padding: 1.5rem .5rem; font-size: .95em; }
-  details.earlier summary { font-size: .9em; color: var(--pico-muted-color); }
-  details.earlier .thread { margin-top: .5rem; }
+  details.resolved summary { font-size: .9em; color: var(--pico-muted-color); }
+  details.resolved .thread { margin-top: .5rem; }
 
   .popover { position: fixed; z-index: 20; width: 360px; max-height: min(70vh, 560px); overflow-y: auto; margin: 0; padding: .85rem; display: grid; gap: .55rem; box-shadow: 0 10px 30px rgb(0 0 0 / .18); border: 1px solid var(--pico-muted-border-color); }
   .popover .ph { display: flex; align-items: center; gap: .5rem; font-size: .9em; color: var(--pico-muted-color); }
@@ -138,7 +137,7 @@
   @media (max-width: 1000px) {
     body { display: block; height: auto; }
     .topbar { flex-wrap: wrap; padding: .5rem .75rem; gap: .5rem; min-height: var(--bar-h); }
-    .topbar .progress, .agent { order: 5; }
+    .topbar .progress, .topbar .agentstate { order: 5; }
     #helpBtn { display: none; }
     .notes { max-height: 4.4em; }
     .app { display: block; }
@@ -148,7 +147,6 @@
     main { overflow: visible; padding: .9rem .75rem 1.5rem; }
     .canvas[data-layout="side"], .canvas[data-phone="true"] { grid-template-columns: minmax(0, 1fr); }
     .frame { max-height: none; }
-    .panel { border-left: 0; border-top: 1px solid var(--pico-muted-border-color); }
     .popover { left: .75rem !important; right: .75rem; width: auto; }
   }
 </style>
@@ -160,7 +158,7 @@
   <select id="round" aria-label="Round"></select>
   <span class="spacer"></span>
   <span class="progress" id="progress"><progress id="progressBar" value="0" max="1"></progress><span id="progressText"></span></span>
-  <span class="agent" id="agentState" hidden><span class="pulse"></span><span id="agentText"></span></span>
+  <span class="agentstate" id="agentState" hidden><span class="pulse"></span><span id="agentText"></span></span>
   <button class="secondary outline small" id="meBtn">Set your name</button>
   <button class="secondary outline small" id="helpBtn" aria-label="Keyboard shortcuts">?</button>
   <button id="sendBtn"><span id="sendLabel">Send to agent</span><span class="n" id="sendCount" hidden></span></button>
@@ -205,16 +203,15 @@
         </div>
         <button class="secondary outline" id="phoneBtn" aria-pressed="false" title="Phone screenshots (P)">Phone</button>
         <button class="secondary outline" id="zoomBtn" title="Fit or 100% (Z)">100%</button>
+        <span class="spacer"></span>
+        <button class="secondary outline" id="generalBtn" title="A comment about the page as a whole (G)">Comment</button>
       </div>
       <div class="canvas" id="canvas"></div>
+      <section class="offcanvas" id="offCanvas" hidden></section>
     </div>
     <div class="noround" id="noRound" hidden></div>
   </main>
 
-  <aside class="panel">
-    <div class="panel-head"><span id="panelTitle">Comments</span><span class="spacer"></span><button class="secondary outline small" id="generalBtn">General comment</button></div>
-    <div class="panel-body" id="panelBody"></div>
-  </aside>
 </div>
 
 <article class="popover" id="popover" hidden></article>
@@ -246,6 +243,7 @@
       <tr><td><kbd>C</kbd></td><td>Compare with before or with the last round</td></tr>
       <tr><td><kbd>S</kbd> <kbd>W</kbd> <kbd>A</kbd></td><td>Side by side, swipe, after only</td></tr>
       <tr><td><kbd>P</kbd> <kbd>Z</kbd> <kbd>H</kbd></td><td>Phone, zoom, outline changes</td></tr>
+      <tr><td><kbd>G</kbd></td><td>Comment on the page as a whole</td></tr>
       <tr><td><kbd>Shift</kbd> <kbd>S</kbd></td><td>Send your feedback</td></tr>
       <tr><td><kbd>Ctrl</kbd> <kbd>Enter</kbd></td><td>Post what you are writing</td></tr>
     </table>
@@ -278,8 +276,7 @@ let data = null;
 let roundN = null;
 let current = null;
 let draftPin = null;
-let openThread = null;
-let composing = false;
+let openThread = null; // a thread id, 'draft' (new pinned comment) or 'general' (new page comment)
 const ui = {
   layout: pref.get('layout', 'side'),
   pair: pref.get('pair', 'before'),
@@ -381,7 +378,6 @@ function go(id) {
   current = id;
   draftPin = null;
   openThread = null;
-  composing = false;
   setHash();
   render();
   $('main').scrollTo({ top: 0 });
@@ -402,7 +398,7 @@ function render() {
   if (!data.rounds.length) return renderNoRounds();
   renderRail();
   renderPage(page());
-  renderPanel(page());
+  renderOffCanvas(page());
   renderPopover();
   preloadNeighbours();
 }
@@ -435,7 +431,7 @@ function renderBar() {
   else if (sub && !sub.pickedUpAt) { cls = 'sent'; text = 'Sent, not picked up yet'; }
   else if (newest && sub?.pickedUpAt && newest.createdAt < sub.pickedUpAt) { cls = 'working'; text = sub.delivery ? `Sent to ${sub.delivery.to}` : `${sub.pickedUpBy} is working on your feedback`; }
   $('agentState').hidden = !text;
-  $('agentState').className = `agent ${cls}`;
+  $('agentState').className = `agentstate ${cls}`;
   $('agentText').textContent = text;
   const { comments, verdicts } = unsentChanges();
   const n = comments.length + verdicts.length;
@@ -552,6 +548,13 @@ function renderPage(p) {
   bindCanvas();
 }
 
+// The screenshots that show pins in the current view.
+function visibleKeys(p) {
+  const { base, cmp } = shots(p);
+  const layout = cmp ? ui.layout : 'single';
+  return new Set((layout === 'side' ? [cmp, base] : [base]).filter((f) => f && !f.noPin).map((f) => f.key));
+}
+
 function renderChangeBar(p) {
   const bar = $('changeBar');
   const c = ui.phone && p.mobile ? p.mobileChange : p.change;
@@ -591,7 +594,7 @@ function pinsHtml(p, key) {
 function figureHtml(p, f) {
   if (!f.file) return `<figure><figcaption>${esc(f.label)} <small>${esc(f.sub)}</small></figcaption><div class="frame missing">No screenshot</div></figure>`;
   return `<figure><figcaption>${esc(f.label)} <small>${esc(f.sub)}</small></figcaption>
-    <div class="frame${f.noPin ? ' nopin' : ''}" data-img="${f.noPin ? '' : f.key}"><div class="stage"><img src="${imgUrl(f.file)}" alt="${esc(`${f.label}: ${p.title}`)}" draggable="false">${outlinesHtml(p, f.key)}${pinsHtml(p, f.key)}</div></div></figure>`;
+    <div class="frame${f.noPin ? ' nopin' : ''}" data-img="${f.noPin ? '' : f.key}"${f.noPin ? '' : ' title="Click to comment on this spot"'}><div class="stage"><img src="${imgUrl(f.file)}" alt="${esc(`${f.label}: ${p.title}`)}" draggable="false">${outlinesHtml(p, f.key)}${pinsHtml(p, f.key)}</div></div></figure>`;
 }
 
 function swipeHtml(p, base, cmp) {
@@ -654,30 +657,43 @@ function threadBody(t) {
     </div>`;
 }
 
-function threadCard(t, n, showRound) {
+function threadCard(t, n, showRound, where = '') {
   return `<article class="thread${t.status === 'resolved' ? ' resolved' : ''}${openThread === t.id ? ' hl' : ''}" data-id="${t.id}">
-    <header><span class="num${t.pin && n ? ' pinned' : ''}">${n ?? '·'}</span>${showRound ? `<span>Round ${t.round}</span>` : ''}</header>
+    <header><span class="num${t.pin && n ? ' pinned' : ''}">${n ?? '·'}</span>${showRound ? `<span>Round ${t.round}</span>` : ''}${where ? `<span>${esc(where)}</span>` : ''}</header>
     ${threadBody(t)}
   </article>`;
 }
 
-function renderPanel(p) {
+function renderOffCanvas(p) {
   const nums = numbering(p);
-  const here = threadsOf(roundN, p.id);
-  const earlier = threadsOf(null, p.id).filter((t) => t.round !== roundN).sort((a, b) => b.round - a.round);
-  const checkable = here.filter(answered);
-  $('panelTitle').textContent = here.length ? `Comments (${here.length})` : 'Comments';
-  $('panelBody').innerHTML = `
-    ${composing ? `<article class="thread" style="cursor:default"><textarea id="generalText" placeholder="About this page as a whole"></textarea><div class="tools"><span class="spacer"></span><a data-act="cancelGeneral">Cancel</a><button class="small" data-act="sendGeneral">Comment</button></div></article>` : ''}
-    ${checkable.length > 1 ? `<button class="secondary outline small" data-act="resolveAnswered">Resolve all ${checkable.length} answered threads</button>` : ''}
-    ${here.length ? here.map((t) => threadCard(t, nums.get(t.id))).join('') : composing ? '' : '<div class="empty">Click a screenshot to comment on that spot.</div>'}
-    ${earlier.length ? `<details class="earlier"${earlier.some((t) => hasNew(t) || answered(t)) ? ' open' : ''}><summary>${plural(earlier.length, 'thread')} from earlier rounds</summary>${earlier.map((t) => threadCard(t, null, true)).join('')}</details>` : ''}`;
-  if (composing) $('generalText')?.focus();
+  const shown = visibleKeys(p);
+  const others = threadsOf(null, p.id)
+    .filter((t) => !(t.round === roundN && t.pin && shown.has(t.pin.img)))
+    .sort((a, b) => b.round - a.round);
+  const open = others.filter((t) => t.status !== 'resolved');
+  const closed = others.filter((t) => t.status === 'resolved');
+  const checkable = threadsOf(roundN, p.id).filter(answered);
+  const box = $('offCanvas');
+  box.hidden = !others.length;
+  if (!others.length) { box.innerHTML = ''; return; }
+  const card = (t) => threadCard(t, t.round === roundN ? nums.get(t.id) : null, t.round !== roundN, t.pin && t.round === roundN ? `on the ${PIN_LABEL[t.pin.img]} screenshot` : '');
+  box.innerHTML = `<h2>Other comments on this page${checkable.length > 1 ? `<button class="secondary outline small" data-act="resolveAnswered">Resolve all ${checkable.length} answered</button>` : ''}</h2>
+    ${open.map(card).join('')}
+    ${closed.length ? `<details class="resolved"><summary>${plural(closed.length, 'resolved thread')}</summary>${closed.map(card).join('')}</details>` : ''}`;
 }
 
 function renderPopover() {
   const pop = $('popover');
   if (!openThread) { pop.hidden = true; return; }
+  if (openThread === 'general') {
+    pop.innerHTML = `<div class="ph"><b>Comment on this page</b><span class="spacer"></span><a href="#" data-act="closePop" aria-label="Close">✕</a></div>
+      <textarea id="generalText" placeholder="About the page as a whole"></textarea>
+      <div class="tools"><span class="muted">Ctrl+Enter</span><span class="spacer"></span><button class="small" data-act="sendGeneral">Comment</button></div>`;
+    pop.hidden = false;
+    placePopover();
+    $('generalText').focus({ preventScroll: true });
+    return;
+  }
   if (openThread === 'draft') {
     if (!draftPin) { openThread = null; pop.hidden = true; return; }
     pop.innerHTML = `<div class="ph"><b>New comment</b><span>on the ${PIN_LABEL[draftPin.img] ?? draftPin.img}</span><span class="spacer"></span><a href="#" data-act="closePop" aria-label="Close">✕</a></div>
@@ -698,14 +714,14 @@ function renderPopover() {
 function placePopover() {
   const pop = $('popover');
   if (pop.hidden) return;
-  const anchor = $('canvas').querySelector(`.pin[data-thread="${openThread}"]`);
+  const anchor = openThread === 'general' ? $('generalBtn') : $('canvas').querySelector(`.pin[data-thread="${openThread}"]`);
   if (!anchor) return;
   const r = anchor.getBoundingClientRect();
   const w = Math.min(360, window.innerWidth - 24);
-  let left = r.right + 10;
+  let left = openThread === 'general' ? r.right - w : r.right + 10;
   if (left + w > window.innerWidth - 12) left = r.left - 10 - w;
   if (left < 12) left = 12;
-  let top = r.top - 10;
+  let top = openThread === 'general' ? r.bottom + 8 : r.top - 10;
   const h = pop.offsetHeight;
   if (top + h > window.innerHeight - 12) top = Math.max(12, window.innerHeight - 12 - h);
   pop.style.left = `${left}px`;
@@ -719,9 +735,14 @@ function focusThread(id) {
   draftPin = null;
   render();
   const pin = $('canvas').querySelector(`.pin[data-thread="${id}"]`);
-  pin?.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' });
-  if (!pin && threadById(id)?.pin) toast(`Pinned on the ${PIN_LABEL[threadById(id).pin.img]} screenshot, not shown in this view`);
-  setTimeout(placePopover, 350);
+  if (pin) {
+    pin.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' });
+    setTimeout(placePopover, 350);
+  } else {
+    openThread = null;
+    renderPopover();
+    $('offCanvas').querySelector(`.thread[data-id="${id}"]`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
 }
 
 /* ---------- actions ---------- */
@@ -740,7 +761,6 @@ async function sendComment(text, pin) {
   const c = await api('POST', '/comments', { round: roundN, page: current, text, pin, author: me() });
   data.feedback.comments.push(c);
   draftPin = null;
-  composing = false;
   openThread = pin ? c.id : null;
   render();
   toast('Comment saved');
@@ -770,7 +790,6 @@ async function onAction(el, scope) {
     if (act === 'closePop') { openThread = null; draftPin = null; render(); }
     else if (act === 'sendDraft') { const text = $('draftText').value.trim(); if (!text) return $('draftText').focus(); await sendComment(text, draftPin); }
     else if (act === 'sendGeneral') { const text = $('generalText').value.trim(); if (!text) return $('generalText').focus(); await sendComment(text, null); }
-    else if (act === 'cancelGeneral') { composing = false; render(); }
     else if (act === 'send') await sendReply(id, scope.querySelector(`textarea[data-reply="${id}"]`));
     else if (act === 'status') { const t = threadById(id); await setStatus(id, t.status === 'resolved' ? 'open' : 'resolved'); render(); toast(t.status === 'resolved' ? 'Reopened' : 'Resolved'); }
     else if (act === 'delete') { if (!confirm('Delete this comment?')) return; await api('DELETE', `/comments/${id}`); data.feedback.comments = data.feedback.comments.filter((x) => x.id !== id && x.replyTo !== id); if (openThread === id) openThread = null; render(); }
@@ -822,7 +841,6 @@ function renderNoRounds() {
   $('pageView').hidden = true;
   $('noRound').hidden = false;
   $('noRound').innerHTML = `<h2>No rounds yet</h2><p class="muted">An agent publishes the first one with <code>reviewtool round ${esc(slug)} manifest.json</code>. This page updates by itself.</p>`;
-  $('panelBody').innerHTML = '';
   $('pages').innerHTML = '';
 }
 
@@ -837,7 +855,7 @@ $('pairs').addEventListener('click', (e) => { const b = e.target.closest('button
 $('layouts').addEventListener('click', (e) => { const b = e.target.closest('button[data-layout]'); if (b && !b.disabled) { ui.layout = b.dataset.layout; pref.set('layout', ui.layout); render(); } });
 $('phoneBtn').addEventListener('click', () => { ui.phone = !ui.phone; render(); });
 $('zoomBtn').addEventListener('click', () => { ui.zoom = ui.zoom === 'fit' ? 'full' : 'fit'; render(); });
-$('generalBtn').addEventListener('click', () => { composing = true; render(); });
+$('generalBtn').addEventListener('click', () => { draftPin = null; openThread = openThread === 'general' ? null : 'general'; renderPopover(); });
 $('helpBtn').addEventListener('click', () => $('help').showModal());
 $('helpClose').addEventListener('click', () => $('help').close());
 $('meBtn').addEventListener('click', () => { $('meInput').value = pref.get('me', ''); $('meDlg').showModal(); $('meInput').focus(); });
@@ -860,9 +878,9 @@ $('canvas').addEventListener('click', (e) => {
   openThread = 'draft';
   render();
 });
-$('panelBody').addEventListener('click', (e) => {
+$('offCanvas').addEventListener('click', (e) => {
   const act = e.target.closest('[data-act]');
-  if (act) { e.preventDefault(); return onAction(act, e.target.closest('.thread') ?? $('panelBody')); }
+  if (act) { e.preventDefault(); return onAction(act, e.target.closest('.thread') ?? $('offCanvas')); }
   const card = e.target.closest('.thread[data-id]');
   if (card && !e.target.closest('textarea, a, button, summary')) focusThread(card.dataset.id);
 });
@@ -896,13 +914,14 @@ document.addEventListener('keydown', (e) => {
   else if (k === 'z') view({ zoom: ui.zoom === 'fit' ? 'full' : 'fit' });
   else if (k === 'h') { ui.changes = !ui.changes; pref.set('changes', ui.changes ? '1' : '0'); renderPage(page()); }
   else if (k === 'S') openSend();
+  else if (k === 'g') { e.preventDefault(); $('generalBtn').click(); }
   else if (k === '?') $('help').showModal();
 });
 
 // Pick up agent replies and new rounds without a reload, but never while you are writing.
 setInterval(() => {
   const el = document.activeElement;
-  if (document.hidden || (el?.matches('textarea, input') && el.value) || openThread === 'draft' || composing || document.querySelector('dialog[open]')) return;
+  if (document.hidden || (el?.matches('textarea, input') && el.value) || openThread === 'draft' || openThread === 'general' || document.querySelector('dialog[open]')) return;
   load().catch(() => {});
 }, 5000);
 
