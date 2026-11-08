@@ -71,7 +71,7 @@ else try { const t = localStorage.getItem('reviewtool.theme'); if (t) document.d
 
   .canvas { display: grid; gap: 1.1rem; margin-top: .9rem; }
   /* One screenshot at a time, before or after, swapped in place so differences jump out. */
-  /* A bar under the screenshot picks the round it shows: the previous one, round 1, or this one. */
+  /* A bar under the screenshot picks the round it shows: round 1, the previous one, or this one. */
   .shot, .pins, .outlines { display: none !important; }
   .shot.on { display: block !important; }
   .pins.on, .outlines.on { display: block !important; }
@@ -398,7 +398,7 @@ const firstForRound = () => (pages().find(needsMe) ?? pages()[0])?.id;
 
 // What a page shows: one screenshot at a time, from this round, the previous round or round 1, picked in a bar under it.
 // Phone screenshots are always a page of their own.
-const VIEWS = ['previous', 'first', 'after'];
+const VIEWS = ['first', 'previous', 'after']; // left to right in the bar: round 1, the previous round, this one
 let showing = 'after'; // on screen: 'after' (this round), 'previous' or 'first'; each page opens on this round
 let lastOther = 'previous'; // what Space swaps to from this round
 function rows(p) {

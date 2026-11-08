@@ -140,8 +140,8 @@ and follows your light or dark setting.
   next page (<kbd>K</kbd> and <kbd>J</kbd> do the same).
 - **A heading that says what this is.** The top bar reads "*T3 thread* · *what this round changes*": the agent sums
   up each round in about five words (the round's title).
-- **This round against earlier ones, in one place.** One screenshot at a time, with a bar under it: *Previous* (the
-  last round), *#1* (the first round) and *Current*. A click switches in place, so what changed jumps out;
+- **This round against earlier ones, in one place.** One screenshot at a time, with a bar under it: *#1* (the first
+  round), *Previous* (the last round) and *Current*. A click switches in place, so what changed jumps out;
   <kbd>Space</kbd> or <kbd>B</kbd> jumps between current and the last other round you looked at. Areas that changed
   since the last round are outlined on the current one. The `before` screenshots in a manifest are not shown.
 - **Comment while you look, and point at what you mean.** The comment box is always under the page. Press
