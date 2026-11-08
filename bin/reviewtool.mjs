@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { postLog, renderLog } from '../src/log.mjs';
 import { createApp } from '../src/server.mjs';
-import { collectFeedback, feedbackText } from '../src/feedback.mjs';
+import { collectFeedback, collectMarkers, feedbackText, markersText } from '../src/feedback.mjs';
 import { ReviewError, Store } from '../src/store.mjs';
 import { detectTarget, targetLabel } from '../src/targets.mjs';
 
@@ -30,10 +30,10 @@ function writeConfig(patch) {
   mkdirSync(dirname(configFile), { recursive: true });
   writeFileSync(configFile, JSON.stringify({ ...readConfig(), ...patch }, null, 2) + '\n');
 }
-function publicLink(slug, page) {
+function publicLink(slug, page, { chat = false } = {}) {
   const { publicUrl, publicKey } = readConfig();
   if (!publicUrl || !publicKey) throw new ReviewError('no public link: set one up with "reviewtool relay" (see reviewtool --help)');
-  return `${publicUrl}/r/${encodeURIComponent(slug)}?key=${publicKey}${page ? `#${encodeURIComponent(page)}` : ''}`;
+  return `${publicUrl}/r/${encodeURIComponent(slug)}?key=${publicKey}${chat ? '&chat=1' : ''}${page ? `#${encodeURIComponent(page)}` : ''}`;
 }
 const baseUrl = () => (process.env.REVIEWTOOL_URL || readConfig().url || 'http://localhost:4477').replace(/\/$/, '');
 
@@ -63,6 +63,8 @@ Usage:
   reviewtool resolve <name> <comment-id> [--reopen]
   reviewtool log <name> [--post] [--repo owner/name] [--pr N] [--out file]
                                                         the review log as Markdown; --post puts it on the PR
+  reviewtool markers <name> [--round N] [--json]          the spots the reviewer marked in the chat view, [1], [2], …,
+                                                        with their page and image, and which pages they approved
   reviewtool url <name> [<page-id>] [--public]          link to the review (REVIEWTOOL_URL sets the host);
                                                         --public: the link that works from anywhere, with its key
   reviewtool embed <name> [<page-id>] [--height 900]    HTML that shows the review inside an agent chat (T3 Code)
@@ -239,6 +241,11 @@ async function main() {
       printFeedback(need(args[0], 'review name'), { all: o.all, round: o.round, json: o.json });
       return;
     }
+    case 'markers': {
+      const slug = need(args[0], 'review name');
+      console.log(o.json ? JSON.stringify(collectMarkers(store, slug, { round: o.round }), null, 2) : markersText(store, slug, { round: o.round }));
+      return;
+    }
     case 'wait': {
       const slug = need(args[0], 'review name');
       const by = o.as || 'Claude';
@@ -313,7 +320,8 @@ async function main() {
       const slug = need(args[0], 'review name');
       store.mustDir(slug);
       const height = Math.min(2000, Math.max(400, Number(o.height ?? 900)));
-      const src = publicLink(slug, args[1]).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+      // chat=1: the reviewer talks in the chat, so the page only approves and marks spots.
+      const src = publicLink(slug, args[1], { chat: true }).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
       console.log(`<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0}iframe{display:block;width:100%;height:${height}px;border:1px solid var(--border,#8884);border-radius:var(--radius,8px)}</style></head><body><iframe src="${src}" title="Review" allow="clipboard-write"></iframe></body></html>`);
       return;
     }

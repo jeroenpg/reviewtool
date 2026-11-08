@@ -100,19 +100,35 @@ reviewtool url <name>
 The user reviews in the browser and presses **Send** when they are done. Wait for that; do not poll `feedback` in a
 loop, and do not start fixing half-finished feedback.
 
-**In T3 Code** (the environment has `T3CODE_THREAD_ID`), `init`, `round` and `wait` link the review to your thread.
-The button then reads **Send to T3 thread**, and the user's feedback arrives in your thread as a new message, with
-the threads, verdicts and their note. So after publishing a round: show the review in the chat (below), tell the
-user it is ready, and **end your turn**.
-Do not run `wait`. When the message arrives, continue with step 4; it already contains what `feedback` prints.
-`reviewtool target <name>` shows where feedback goes. `--here` links the current thread, and `--none` unlinks it.
+**In T3 Code** (the environment has `T3CODE_THREAD_ID`) **with a public link** (`reviewtool url <name> --public`
+prints one instead of an error), the review lives at the end of the conversation and the feedback in the chat:
 
-**Show the review inside the T3 chat** when a public link is set up (`reviewtool url <name> --public` prints one
-instead of an error): pass the output of `reviewtool embed <name> [<page-id>]` as the `html` of T3's `html_render`
-tool, with height 900 and a title like "Review: round 3". The user reviews right there. T3's chat cannot reach
-private or tailnet addresses, so without a public link, give the tailnet link instead. The embed holds the link's
-secret key: show it only in the user's own thread, and never paste the key or the public link into a pull request,
-issue, log or commit.
+1. **End your reply with the review.** Pass the output of `reviewtool embed <name>` as the `html` of T3's
+   `html_render` tool, with height 900 and a title like "Review: round 3". Keep the reply text short.
+2. **End your turn.** Do not run `wait`. In the review, the user approves pages, and clicks screenshots to put
+   numbered markers on them: [1], [2], … They write their feedback in the chat and name the markers: "[1] is too tall,
+   and [2] should line up with it". Dictation often drops the brackets ("the header 1 is too tall"); read a number
+   that fits as that marker.
+3. **When their message arrives, look the markers up:**
+
+   ```sh
+   reviewtool markers <name>          # each [n]: page, screenshot, spot (% across and down), image path
+   reviewtool markers <name> --json   # the same, plus the approved and not approved pages
+   ```
+
+   Open the image to see the exact spot. Approved pages stay as they are; the chat says what to change on the rest.
+   Marker numbers are never reused within a round, so [n] always means the spot listed under it.
+4. **Answer in the chat**, not with `reply`. Then fix, publish the next round, and end your reply with the review
+   again.
+
+The embed holds the link's secret key: show it only in the user's own thread, and never paste the key or the public
+link into a pull request, issue, log or commit.
+
+**In T3 Code without a public link**, T3's chat cannot show the review (it cannot reach private or tailnet addresses).
+Give the tailnet link instead. `init`, `round` and `wait` link the review to your thread, so the app's button reads
+**Send to T3 thread** and the user's comments and verdicts arrive in your thread as a new message. After publishing,
+tell the user it is ready and end your turn; do not run `wait`. When the message arrives, continue with step 4.
+`reviewtool target <name>` shows where feedback goes. `--here` links the current thread, and `--none` unlinks it.
 
 **Anywhere else**, wait for the user to send:
 

@@ -96,6 +96,12 @@
   .pin:hover, .pin.active { transform: translate(-50%, -50%) scale(1.15); z-index: 2; }
   .pin.resolved { background: #8a9592; }
   .pin.draft { background: var(--pico-primary); }
+  .pin.marker { background: var(--new); }
+  .pin.marker:hover { background: var(--revert); }
+  /* In an agent chat the reviewer talks in the chat itself: the page only approves and places numbered markers. */
+  .chat #composer, .chat #sendBtn, .chat #agentState, .chat #offCanvas { display: none !important; }
+  .chathint { display: none; margin-top: .6rem; font-size: .9em; color: var(--pico-muted-color); }
+  .chat .chathint { display: block; }
   .pin.draft:hover { background: var(--revert); }
   .mark { display: inline-grid; place-items: center; min-width: 1.35em; height: 1.35em; padding: 0 .3em; border-radius: .7em .7em .7em .2em; background: var(--pin); color: #fff; font-size: .78em; font-weight: 700; vertical-align: .08em; cursor: pointer; }
   .resolved .mark { background: #8a9592; }
@@ -216,6 +222,7 @@
       <div class="changebar" id="changeBar" hidden></div>
       <p class="pagenote" id="note" hidden></p>
       <div class="canvas" id="canvas"></div>
+      <p class="chathint" id="chatHint"></p>
       <section class="offcanvas" id="offCanvas" hidden></section>
     </div>
     <div class="noround" id="noRound" hidden></div>
@@ -266,6 +273,9 @@ const KEY = new URLSearchParams(location.search).get('key');
 const withKey = (u) => (KEY ? `${u}${u.includes('?') ? '&' : '?'}key=${encodeURIComponent(KEY)}` : u);
 for (const a of document.querySelectorAll('a[href="/"]')) a.href = withKey('/');
 const slug = decodeURIComponent(location.pathname.split('/').filter(Boolean)[1] || '');
+// Shown inside an agent chat (reviewtool embed): comments go in the chat, so the page approves and marks spots.
+const CHAT = new URLSearchParams(location.search).get('chat') === '1';
+if (CHAT) document.documentElement.classList.add('chat');
 const PIN_LABEL = { before: 'before', after: 'after', previous: 'last round', mobile: 'phone' };
 const VERDICT_TEXT = { approve: 'Approved', update: 'Needs update', revert: 'Revert' };
 
@@ -342,7 +352,11 @@ const unchanged = (p) => p.change?.status === 'same';
 const changedKind = (p) => (p.change ? (unchanged(p) ? 'same' : p.change.status === 'new' ? 'new' : 'changed') : null);
 const tiny = (p) => p.change?.status === 'minor';
 const settled = (p) => unchanged(p) && verdictOf(roundN - 1, p.id) === 'approve';
-const needsMe = (p) => (!verdictOf(roundN, p.id) && !settled(p)) || threadsOf(null, p.id).some(answered) || threadsOf(null, p.id).some(hasNew);
+const markersOn = (p) => (data.feedback.markers ?? []).filter((m) => m.round === roundN && m.page === p.id);
+// In a chat, a page you marked is one you talk about there: it is done here.
+const needsMe = (p) => (CHAT
+  ? !verdictOf(roundN, p.id) && !settled(p) && !markersOn(p).length
+  : (!verdictOf(roundN, p.id) && !settled(p)) || threadsOf(null, p.id).some(answered) || threadsOf(null, p.id).some(hasNew));
 const numbering = (p) => new Map(threadsOf(roundN, p.id).map((t, i) => [t.id, i + 1]));
 const lastSubmission = () => data.feedback.submissions?.at(-1) ?? null;
 const threadTarget = () => (data.review.target?.kind === 't3' && !data.waiting ? data.review.target : null);
@@ -448,11 +462,11 @@ function renderBar() {
     return `<button class="secondary outline" data-round="${r.n}" aria-pressed="${r.n === roundN}" title="${esc(about)}">#${r.n}</button>`;
   }).join('') : '';
   const ps = pages();
-  const done = ps.filter((p) => verdictOf(roundN, p.id)).length;
+  const done = ps.filter((p) => (CHAT ? !needsMe(p) : verdictOf(roundN, p.id))).length;
   $('progress').hidden = !ps.length;
   $('progressBar').max = Math.max(1, ps.length);
   $('progressBar').value = done;
-  $('progressText').textContent = `${done}/${ps.length} judged`;
+  $('progressText').textContent = `${done}/${ps.length} ${CHAT ? 'done' : 'judged'}`;
   $('logLink').href = withKey(`/api/r/${encodeURIComponent(slug)}/log`);
 
   const sub = lastSubmission();
@@ -492,6 +506,7 @@ function renderRail() {
   const done = ps.filter((p) => !needsMe(p));
   // One signal per row, the most urgent: new replies, then answered threads, then whether the page changed.
   const signal = (p) => {
+    if (CHAT) return markersOn(p).length ? `<span class="tag new">${markersOn(p).map((m) => `[${m.n}]`).join(' ')}</span>` : '';
     if (hasDraft(roundN, p.id)) return '<span class="tag" title="A comment you have not posted yet">draft</span>';
     const ts = threadsOf(null, p.id);
     const nNew = ts.filter(hasNew).length;
@@ -588,11 +603,28 @@ function renderPage(p) {
     return `${r.title ? `<h3 class="rowtitle">${r.title}</h3>` : ''}<div class="pair" data-layout="${r.layout}" data-phone="${r.narrow}">${inner}</div>`;
   }).join('');
   bindCanvas();
+  const marks = markersOn(p);
+  $('chatHint').textContent = marks.length
+    ? `Say what you think of ${marks.map((m) => `[${m.n}]`).join(', ')} in the chat. Click a marker to remove it.`
+    : 'Click a screenshot to put a numbered marker there, then mention it in the chat: “[1] is too tall”.';
 }
 
 // The screenshots that show pins in the current view.
 function visibleKeys(p) {
-  return new Set(rows(p).flatMap((r) => (r.layout === 'swipe' ? [r.base] : [r.cmp, r.base])).filter((f) => f && !f.noPin).map((f) => f.key));
+  return new Set(rows(p).flatMap((r) => [r.cmp, r.base]).filter((f) => f && !f.noPin).map((f) => f.key));
+}
+
+// Where a click on a screenshot lands: which screenshot, and how far across and down it, in percent. In the swipe view
+// the before shows left of the handle and the after right of it, so the side of the click decides.
+function spotAt(frame, e) {
+  const stage = frame.querySelector('.stage');
+  const box = stage.getBoundingClientRect();
+  const clamp = (v) => Math.round(Math.min(100, Math.max(0, v)) * 10) / 10;
+  const x = clamp(((e.clientX - box.left) / box.width) * 100);
+  const y = clamp(((e.clientY - box.top) / box.height) * 100);
+  const split = parseFloat(stage.style.getPropertyValue('--split'));
+  const img = frame.dataset.left && stage.classList.contains('swipe') && x < split ? frame.dataset.left : frame.dataset.img;
+  return { img, x, y };
 }
 
 function renderChangeBar(p) {
@@ -623,6 +655,9 @@ function pinsHtml(p, key) {
 }
 
 function pinsInner(p, key) {
+  if (CHAT) {
+    return markersOn(p).filter((m) => m.img === key).map((m) => `<button class="pin marker" data-marker="${m.n}" style="left:${m.x}%;top:${m.y}%" title="[${m.n}]: mention it in the chat. Click to remove it." aria-label="Marker ${m.n}">${m.n}</button>`).join('');
+  }
   const nums = numbering(p);
   const pins = threadsOf(roundN, p.id).flatMap((t) => pinsOf(t).map((pin, i) => ({ t, pin, k: i + 1 }))).filter((x) => x.pin.img === key).map(({ t, pin, k }) => {
     const label = markLabel(t, nums.get(t.id), k);
@@ -648,12 +683,12 @@ function figureHtml(p, f, narrow) {
 
 function swipeHtml(p, base, cmp) {
   return `<figure><figcaption>${esc(cmp.label)} ↔ ${esc(base.label)} <small>drag the handle</small></figcaption>
-    <div class="frame" data-img="${base.key}"><div class="stage swipe" style="--split:${pref.get('split', '50')}%">
+    <div class="frame" data-img="${base.key}" data-left="${cmp.noPin ? '' : cmp.key}"><div class="stage swipe" style="--split:${pref.get('split', '50')}%">
       <img src="${imgUrl(base.file)}" alt="${esc(`${base.label}: ${p.title}`)}" draggable="false">
       <div class="over"><img src="${imgUrl(cmp.file)}" alt="${esc(`${cmp.label}: ${p.title}`)}" draggable="false"></div>
       <span class="corner l">${esc(cmp.label)}</span><span class="corner r">${esc(base.label)}</span>
       <div class="handle" aria-label="Drag to compare"></div>
-      ${outlinesHtml(p, base.key)}${pinsHtml(p, base.key)}
+      ${outlinesHtml(p, base.key)}${pinsHtml(p, base.key)}${cmp.noPin ? '' : pinsHtml(p, cmp.key)}
     </div></div></figure>`;
 }
 
@@ -1030,7 +1065,32 @@ $('sendConfirm').addEventListener('click', confirmSend);
 
 // Clicking a screenshot would take the focus from the comment box; keep it there while you write.
 $('canvas').addEventListener('mousedown', (e) => { if (document.activeElement === $('composeText') && e.target.closest('.frame[data-img]')) e.preventDefault(); });
+// In a chat: a click places a numbered marker (saved at once), a click on a marker removes it.
+async function chatClick(e) {
+  try {
+    const marker = e.target.closest('.pin[data-marker]');
+    if (marker) {
+      const n = Number(marker.dataset.marker);
+      await api('DELETE', `/markers/${roundN}/${n}`);
+      data.feedback.markers = data.feedback.markers.filter((m) => !(m.round === roundN && m.n === n));
+      toast(`Removed [${n}]`);
+    } else {
+      if (e.target.closest('.handle, .corner')) return;
+      const frame = e.target.closest('.frame[data-img]');
+      if (!frame || !frame.dataset.img) return;
+      const m = await api('POST', '/markers', { round: roundN, page: current, ...spotAt(frame, e), by: me() });
+      (data.feedback.markers ??= []).push(m);
+      toast(`[${m.n}] placed. Mention it in the chat`);
+    }
+    updatePins();
+    renderRail();
+    renderBar();
+    renderPage(page());
+  } catch (err) { toast(`Could not save: ${err.message}`); }
+}
+
 $('canvas').addEventListener('click', (e) => {
+  if (CHAT) return chatClick(e);
   const draft = e.target.closest('.pin[data-draft]');
   if (draft) return removeMarker(Number(draft.dataset.draft));
   const pin = e.target.closest('.pin[data-thread]');
@@ -1038,9 +1098,7 @@ $('canvas').addEventListener('click', (e) => {
   if (e.target.closest('.handle, .corner')) return;
   const frame = e.target.closest('.frame[data-img]');
   if (!frame || !frame.dataset.img) return;
-  const box = frame.querySelector('.stage').getBoundingClientRect();
-  const clamp = (n) => Math.round(Math.min(100, Math.max(0, n)) * 10) / 10;
-  addMarker({ img: frame.dataset.img, x: clamp(((e.clientX - box.left) / box.width) * 100), y: clamp(((e.clientY - box.top) / box.height) * 100) });
+  addMarker(spotAt(frame, e));
 });
 // A marker in a comment's text lights up its spot, and a click scrolls to it.
 const markPin = (m) => $('canvas').querySelector(`.pin[data-thread="${m.dataset.thread}"][data-k="${m.dataset.k}"]`);

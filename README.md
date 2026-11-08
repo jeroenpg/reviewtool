@@ -52,8 +52,12 @@ reviewtool relay --via user@server --url https://review.example.com
 - **The public side needs a secret key**, which `relay` creates and keeps in `~/.config/reviewtool/config.json`.
   The app answers the tunnel on a separate local port where every request must carry it, so it holds even for
   other users on the server. Your tailnet link keeps working without it.
-- **Agents show the review in the chat** with `reviewtool embed <name>` (HTML for T3's `html_render`), and
-  `reviewtool url <name> --public` prints the link with its key. Anyone who has that link can open the review.
+- **Agents end their reply with the review** (`reviewtool embed <name>`, HTML for T3's `html_render`), and you
+  give your feedback in the chat itself. In the chat, the review only has *Approve* and markers: click a screenshot
+  to put a numbered marker there, [1], [2], …, and name it in your message ("[1] is too tall"); click it again to
+  remove it. The agent looks the markers up with `reviewtool markers <name>`: page, screenshot, spot and image.
+  Numbers are never reused within a round. `reviewtool url <name> --public` prints the link with its key; anyone who
+  has that link can open the review.
 - `reviewtool relay --remove` stops the tunnel and forgets the key.
 
 ## How a review goes

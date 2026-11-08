@@ -338,6 +338,29 @@ test('phone screenshots are always a page of their own', () => {
   assert.throws(() => store.addRound('demo', { pages: [{ id: 'x', after: 'after1.png', device: 'phone', mobile: 'phone.png' }] }, dir), /takes no mobile ones/);
 });
 
+test('markers number spots across a round for a chat to refer to, and never reuse a number', () => {
+  const { dir } = fixture();
+  const env = { ...process.env, REVIEWTOOL_TARGET: 'none', REVIEWTOOL_HOME: join(dir, 'cli-store') };
+  const cli = (...args) => execFileSync(process.execPath, [join(import.meta.dirname, '..', 'bin', 'reviewtool.mjs'), ...args], { env, encoding: 'utf8' });
+  const store = new Store(join(dir, 'cli-store'));
+  store.create({ slug: 'demo' });
+  store.addRound('demo', { pages: [{ id: 'inbox', title: 'Inbox', group: 'Start', before: 'before.png', after: 'after1.png' }, { id: 'team', title: 'Team', after: 'after2.png' }] }, dir);
+  assert.equal(store.addMarker('demo', { round: 'latest', page: 'inbox', img: 'after', x: 10, y: 20 }).n, 1);
+  assert.equal(store.addMarker('demo', { round: 1, page: 'team', img: 'after', x: 5, y: 5 }).n, 2);
+  store.deleteMarker('demo', 1, 2);
+  assert.equal(store.addMarker('demo', { round: 1, page: 'inbox', img: 'before', x: 50, y: 50 }).n, 3, 'a removed number is not reused');
+  assert.throws(() => store.addMarker('demo', { round: 1, page: 'nope', img: 'after', x: 1, y: 1 }), /no page/);
+  assert.throws(() => store.addMarker('demo', { round: 1, page: 'inbox', img: 'side', x: 1, y: 1 }), /needs img/);
+  store.setVerdict('demo', { round: 1, page: 'team', verdict: 'approve' });
+  const text = cli('markers', 'demo');
+  assert.match(text, /^2 markers in "demo", round 1/);
+  assert.match(text, /\[1\] Start › Inbox \(inbox\) · the after screenshot at 10% across, 20% down\n    image: .*\.png/);
+  assert.match(text, /\[3\] Start › Inbox \(inbox\) · the before screenshot at 50% across, 50% down/);
+  assert.doesNotMatch(text, /^\[2\]/m, "the removed marker is gone");
+  assert.match(text, /Approved: 1 of 2 pages \(team\)/);
+  assert.deepEqual(JSON.parse(cli('markers', 'demo', '--json')).markers.map((m) => m.n), [1, 3]);
+});
+
 test('reviews stored with phone variants on a page get them split into their own pages', () => {
   const { dir, store } = fixture();
   store.create({ slug: 'old' });

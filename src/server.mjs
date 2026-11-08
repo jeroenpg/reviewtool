@@ -122,6 +122,14 @@ export function createApp(store, { key = null } = {}) {
       }
       return send(res, 201, submission);
     }
+    if (method === 'POST' && rest[0] === 'markers' && rest.length === 1) {
+      const { round, page: pageId, img, x, y, by } = await body(req);
+      return send(res, 201, store.addMarker(slug, { round, page: pageId, img, x, y, by }));
+    }
+    if (method === 'DELETE' && rest[0] === 'markers' && rest.length === 3) {
+      store.deleteMarker(slug, rest[1], rest[2]);
+      return send(res, 204, null);
+    }
     if (rest[0] === 'comments' && rest.length === 2) {
       if (method === 'PATCH') {
         const { status } = await body(req);

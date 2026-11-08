@@ -66,3 +66,34 @@ export function feedbackMessage(store, slug, submission) {
     `Next: fix what the threads and verdicts ask, reply to every thread with \`reviewtool reply ${slug} <id> "..." --as <your name>\`, then capture new screenshots and publish the next round with \`reviewtool round ${slug} <manifest.json>\`. The reviewtool skill has the details.`,
   ].join('\n');
 }
+
+/**
+ * The markers of a round, for an agent whose reviewer talks in a chat: "[3] is too tall" means the spot listed as [3]
+ * here. Also which pages the reviewer approved.
+ */
+export function collectMarkers(store, slug, { round = null } = {}) {
+  const { rounds, feedback } = store.get(slug);
+  const r = round == null || round === 'latest' ? rounds.at(-1) : rounds.find((x) => x.n === Number(round));
+  if (!r) return { round: null, markers: [], approved: [], notApproved: [] };
+  const prev = rounds.find((x) => x.n === r.n - 1);
+  const markers = feedback.markers.filter((m) => m.round === r.n).sort((a, b) => a.n - b.n).map((m) => {
+    const page = r.pages.find((p) => p.id === m.page);
+    const file = m.img === 'previous' ? prev?.pages.find((p) => p.id === m.page)?.after : page?.[m.img];
+    return { ...m, title: page ? [...(page.group ? page.group.split('/') : []), page.title].join(' › ') : m.page, device: page?.device ?? 'desktop', image: file ? store.imagePath(slug, file) : null };
+  });
+  const approved = r.pages.filter((p) => feedback.verdicts[`${r.n}/${p.id}`]?.verdict === 'approve').map((p) => p.id);
+  return { round: r.n, markers, approved, notApproved: r.pages.map((p) => p.id).filter((id) => !approved.includes(id)) };
+}
+
+export function markersText(store, slug, options = {}) {
+  const { round, markers, approved, notApproved } = collectMarkers(store, slug, options);
+  if (round == null) return `"${slug}" has no rounds yet`;
+  const out = [`${plural(markers.length, 'marker')} in "${slug}", round ${round}. The reviewer names them [1], [2], … in the chat.`, ''];
+  for (const m of markers) {
+    out.push(`[${m.n}] ${m.title} (${m.page}) · the ${m.device === 'phone' ? 'phone ' : ''}${SHOT[m.img] ?? m.img} screenshot at ${m.x}% across, ${m.y}% down`);
+    if (m.image) out.push(`    image: ${m.image}`);
+  }
+  if (markers.length) out.push('');
+  out.push(`Approved: ${approved.length} of ${approved.length + notApproved.length} pages${approved.length ? ` (${approved.join(', ')})` : ''}.`);
+  return out.join('\n');
+}

@@ -193,6 +193,7 @@ export class Store {
     const dir = this.mustDir(slug);
     const feedback = readJson(join(dir, 'feedback.json'), { verdicts: {}, comments: [] });
     feedback.submissions ??= [];
+    feedback.markers ??= [];
     return {
       review: readJson(join(dir, 'review.json')),
       rounds: readJson(join(dir, 'rounds.json'), []),
@@ -377,6 +378,35 @@ export class Store {
       root.status = status;
       root.statusAt = now();
       return root;
+    });
+  }
+
+  /**
+   * A numbered spot on a screenshot that the reviewer talks about elsewhere, in an agent chat: "[3] is too tall".
+   * Numbers run across the whole round and are never reused, so what was said about [3] keeps pointing at it.
+   */
+  addMarker(slug, { round, page, img, x, y, by = null }) {
+    const spot = cleanPin({ img, x, y });
+    if (!spot) throw new ReviewError(`a marker needs img (${PIN_TARGETS.join(', ')}) and x, y from 0 to 100`);
+    return this.mutateFeedback(slug, (feedback, rounds) => {
+      if (round == null || round === 'latest') round = rounds.at(-1)?.n;
+      findPage(rounds, Number(round), page);
+      feedback.markers ??= [];
+      feedback.markerSeq ??= {};
+      const n = (feedback.markerSeq[round] ?? Math.max(0, ...feedback.markers.filter((m) => m.round === Number(round)).map((m) => m.n))) + 1;
+      feedback.markerSeq[round] = n;
+      const marker = { n, round: Number(round), page, ...spot, by, at: now() };
+      feedback.markers.push(marker);
+      return marker;
+    });
+  }
+
+  deleteMarker(slug, round, n) {
+    return this.mutateFeedback(slug, (feedback) => {
+      const before = (feedback.markers ??= []).length;
+      feedback.markers = feedback.markers.filter((m) => !(m.round === Number(round) && m.n === Number(n)));
+      if (feedback.markers.length === before) throw new ReviewError(`no marker [${n}] in round ${round}`, 404);
+      return true;
     });
   }
 
