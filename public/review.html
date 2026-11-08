@@ -232,7 +232,7 @@
   <div class="composer" id="composer" hidden>
     <textarea id="composeText" rows="1" aria-label="Comment"></textarea>
     <button id="composeSend">Comment</button>
-    <div class="hint"><span id="composeMarks" class="marks" hidden></span><span>Click a screenshot to mark a spot in your comment</span><span class="keys" id="composeKeys"></span></div>
+    <div class="hint"><span id="composeMarks" class="marks" hidden></span><span title="Dictating? Click the spots while you talk and say their number (“this card two”): each marker moves to where you said it.">Click a screenshot to mark a spot · dictating? say its number</span><span class="keys" id="composeKeys"></span></div>
   </div>
   </div>
 
@@ -268,6 +268,7 @@
       <tr><td><kbd>S</kbd> <kbd>W</kbd> <kbd>A</kbd></td><td>Side by side, swipe, after only</td></tr>
       <tr><td><kbd>P</kbd> <kbd>Z</kbd> <kbd>H</kbd></td><td>Desktop or phone, zoom, outline changes</td></tr>
       <tr><td><kbd>Enter</kbd> or <kbd>G</kbd></td><td>Write a comment; click a screenshot while you write to mark a spot</td></tr>
+      <tr><td>Dictating</td><td>Click the spots while you talk and say their number (“this card two”); each marker moves to where you said it</td></tr>
       <tr><td><kbd>Ctrl</kbd> <kbd>Enter</kbd></td><td>Post the comment</td></tr>
       <tr><td><kbd>Esc</kbd></td><td>Stop writing (your text stays) so the keys work again</td></tr>
       <tr><td><kbd>Shift</kbd> <kbd>S</kbd></td><td>Send your feedback</td></tr>
@@ -321,6 +322,43 @@ const me = () => pref.get('me', '') || 'You';
 let drafts = {};
 try { drafts = JSON.parse(pref.get(`drafts.${slug}`, '{}')) || {}; } catch {}
 let caret = null; // where a marker goes in the comment box: the last cursor position there
+let spoken = []; // markers clicked while dictating, waiting for the text that says their number
+let composeBefore = ''; // the box's text just before the latest input
+
+/* Dictation (Wispr Flow, a phone keyboard) puts in a whole phrase at once, after the clicks you made while speaking.
+   A marker clicked since you last typed by hand moves to where that phrase says its number: "this card two" or
+   "this card 2" becomes "this card [2]". Dutch works too; "een" only as "nummer een" or "punt een", since it is
+   also the word "a". */
+const EN = ',one,two,three,four,five,six,seven,eight,nine,ten,eleven,twelve,thirteen,fourteen,fifteen,sixteen,seventeen,eighteen,nineteen,twenty'.split(',');
+const NL = ',één,twee,drie,vier,vijf,zes,zeven,acht,negen,tien,elf,twaalf,dertien,veertien,vijftien,zestien,zeventien,achttien,negentien,twintig'.split(',');
+const PREFIX = '(?:(?:marker|spot|point|pin|number|nummer|punt|plek)\\s+|#)';
+function spokenNumber(n) {
+  const words = [String(n), EN[n], NL[n]].filter(Boolean).join('|');
+  const een = n === 1 ? `|${PREFIX}een` : '';
+  return new RegExp(`(?<![\\p{L}\\p{N}\\[#])(?:${PREFIX}?(?:${words})${een})(?![\\p{L}\\p{N}\\]%])`, 'iu');
+}
+function placeSpoken(before, after) {
+  let p = 0;
+  while (p < before.length && p < after.length && before[p] === after[p]) p++;
+  let e = 0;
+  while (e < before.length - p && e < after.length - p && before.at(-1 - e) === after.at(-1 - e)) e++;
+  let chunk = after.slice(p, after.length - e);
+  if (chunk.length === 1) spoken = []; // typing by hand: the markers stay where you clicked them
+  if (chunk.length < 2 || !spoken.length) return null;
+  let head = after.slice(0, p);
+  let tail = after.slice(after.length - e);
+  const placed = spoken.filter((n) => spokenNumber(n).test(chunk));
+  if (!placed.length) return null;
+  for (const n of placed) {
+    chunk = chunk.replace(spokenNumber(n), `[${n}]`);
+    const old = new RegExp(`\\[${n}\\] ?`);
+    head = head.replace(old, '');
+    tail = tail.replace(old, '');
+  }
+  spoken = spoken.filter((n) => !placed.includes(n));
+  if (head && !/\s$/.test(head) && !/^\s/.test(chunk)) head += ' ';
+  return { value: head + chunk + tail, caret: (head + chunk).length };
+}
 const draftKey = (n = roundN, id = current) => `${n}/${id}`;
 const draftOf = (n, id) => drafts[draftKey(n, id)] ?? { text: '', pins: [] };
 const hasDraft = (n, id) => !!drafts[draftKey(n, id)]?.text.trim();
@@ -424,6 +462,7 @@ function go(id) {
   if (!id || id === current) return;
   current = id;
   caret = null;
+  spoken = [];
   openThread = null;
   setHash();
   render();
@@ -434,6 +473,7 @@ function setRound(n) {
   roundN = n;
   current = pages().some((p) => p.id === current) ? current : firstForRound();
   caret = null;
+  spoken = [];
   openThread = null;
   setHash();
   render();
@@ -886,6 +926,9 @@ function autosize() {
 // Keep the draft in step with the text: a marker whose [n] was deleted goes away.
 function onComposeInput() {
   const box = $('composeText');
+  const moved = placeSpoken(composeBefore, box.value);
+  if (moved) { box.value = moved.value; box.setSelectionRange(moved.caret, moved.caret); }
+  composeBefore = box.value;
   const d = draftOf(roundN, current);
   const before = d.pins.length;
   const hadText = hasDraft(roundN, current);
@@ -919,6 +962,7 @@ function addMarker(pin) {
   box.value = head + token + tail;
   caret = (head + token).length;
   d.pins.push({ n, ...pin });
+  spoken.push(n);
   d.text = box.value;
   saveDraft(d);
   startWriting();
@@ -933,6 +977,8 @@ function removeMarker(n) {
   const d = draftOf(roundN, current);
   box.value = box.value.replace(new RegExp(` ?\\[${n}\\]`, 'g'), '');
   caret = null;
+  spoken = spoken.filter((x) => x !== n);
+  composeBefore = box.value;
   onComposeInput();
   d.pins = d.pins.filter((x) => x.n !== n);
   saveDraft(d);
@@ -956,6 +1002,7 @@ async function postComment() {
     saveDraft({ text: '', pins: [] });
     box.value = '';
     caret = null;
+    spoken = [];
     autosize();
     box.blur(); // the keys work again right away; Enter starts the next comment
     render();
@@ -1054,6 +1101,7 @@ $('pairs').addEventListener('click', (e) => { const b = e.target.closest('button
 $('layouts').addEventListener('click', (e) => { const b = e.target.closest('button[data-layout]'); if (b && !b.disabled) { ui.layout = b.dataset.layout; pref.set('layout', ui.layout); render(); } });
 $('devices').addEventListener('click', (e) => { const b = e.target.closest('[data-device]'); if (b) { ui.phone = b.dataset.device === 'phone'; render(); } });
 $('zoomBtn').addEventListener('click', () => { ui.zoom = ui.zoom === 'fit' ? 'full' : 'fit'; render(); });
+$('composeText').addEventListener('beforeinput', () => { composeBefore = $('composeText').value; });
 $('composeText').addEventListener('input', onComposeInput);
 for (const ev of ['keyup', 'click', 'select']) $('composeText').addEventListener(ev, () => { caret = $('composeText').selectionStart; });
 $('composeText').addEventListener('focus', renderComposerHint);
@@ -1162,7 +1210,7 @@ window.addEventListener('hashchange', () => {
   if (!data.rounds.some((x) => x.n === n)) return;
   roundN = n;
   current = pages().some((p) => p.id === h) ? h : firstForRound();
-  caret = null; openThread = null;
+  caret = null; spoken = []; openThread = null;
   render();
 });
 

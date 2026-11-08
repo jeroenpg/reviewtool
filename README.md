@@ -121,6 +121,11 @@ phone they stack, and the page list becomes a picker. It is built on
   <kbd>Ctrl</kbd>+<kbd>Enter</kbd> posts, and <kbd>Esc</kbd> stops writing, so the keys work again; your text stays,
   also when you go to another page. A comment without markers is about the page as a whole. Click a marker to open
   its thread; comments without a marker in the current view are listed under the screenshots.
+- **Dictate and point.** With dictation (Wispr Flow, a phone keyboard) the text arrives after you stop talking, so
+  click the spots while you speak and say their number: "the header one is too tall, and this card two…". When the
+  text lands, each marker moves to where you said it: "the header [1] … this card [2]". Digits, English and Dutch
+  number words work, with or without "spot", "marker", "nummer" or "punt" before them; Dutch "een" only counts after
+  one of those, as it is also the word "a". Once you type by hand, the markers stay where you clicked them.
 - **See what changed since the last round.** Pages are marked *changed*, *tiny change* or *new*, and changed areas
   are outlined on the screenshot (<kbd>H</kbd> turns the outlines off). The top of the page list says how many pages
   changed, and offers to approve, in one click, every unchanged page you already approved last round. *Unchanged*
