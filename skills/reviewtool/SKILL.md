@@ -75,7 +75,7 @@ reviewtool url <name>
 
 - **Phone screenshots: same page or a page of their own, your choice.**
   - Same screen on both: add `"mobile"` (and `"mobileBefore"` when you have one) to the desktop page. The reviewer
-    switches between Desktop and Phone on that page and gives one verdict for both.
+    sees them under the desktop screenshots and judges the page as a whole.
   - A phone screen that deserves its own verdict, or that has no desktop equivalent (a drawer, a bottom sheet, a
     phone-only layout): make a separate page with `"device": "phone"`. Its `before` and `after` are then the phone
     screenshots, shown at phone width. A folder such as `"Phone"` or `"CRM/Phone"` keeps such pages together.
@@ -153,8 +153,10 @@ Each thread shows:
 Verdicts mean:
 
 - **Approve**: keep the page as it is.
-- **Needs update**: keep the change and apply the comments.
-- **Revert**: put the page back the way it was before.
+- **Needs update**: the user commented on the page; keep the change and do what the comments ask. Posting a comment
+  sets this.
+- **Revert**: put the page back the way it was before (only in older reviews; the app no longer offers it, so a
+  comment says so instead).
 
 ## 5. Fix, then reply to every thread
 

@@ -6,7 +6,7 @@ Review UI changes in rounds, the way you would with a designer, while an AI agen
    screenshots if it has them. reviewtool compares each screenshot with the previous round, so you can see which
    pages changed and where.
 2. **You review them in the browser.** You compare before with after, or this round with the last one. You click a
-   spot to pin a comment there, and you give each page a verdict: approve, needs update, or revert.
+   spot to pin a comment there, and you approve each page or comment on what should change.
 3. **You press Send.** Your comments, verdicts and an optional note go to the agent. In
    [T3 Code](https://t3.codes) they arrive in the agent's thread as a new message (*Send to T3 thread*). Anywhere
    else, an agent waiting with `reviewtool wait` picks them up. The agent fixes the issues, replies to each comment,
@@ -113,7 +113,7 @@ Rules for manifests:
 - **Only `id` and `after` are required.** Keep each page's `id` the same in every round. The "Last round" view and
   the "new" badge match pages by id.
 - **Phone screenshots go on the same page or a page of their own.** `mobile` (and `mobileBefore`) add a phone
-  variant to a desktop page; the reviewer switches with *Desktop / Phone* and gives one verdict. A page with
+  variant to a desktop page, shown under the desktop screenshots and judged together. A page with
   `"device": "phone"` is a phone screen in its own right: its `before` and `after` are phone screenshots, shown at
   phone width. The agent picks per page.
 - **`group` puts a page in a folder** of the page list, such as `"CRM"` or nested `"Settings/Team & access"`. A page
@@ -124,43 +124,37 @@ Rules for manifests:
 
 ## In the browser
 
-The app has two columns that stay put: the pages of the round on the left, and the page you are reviewing. On a
-phone they stack, and the page list becomes a picker. It is built on
-[Pico CSS](https://picocss.com), which ships inside the package, and follows your light or dark setting; the ◐ button in the top bar switches between following the system, light and dark.
+The page has no buttons beyond what a review needs: **Approve**, the comment box, **Send**, and the rounds (#1, #2,
+…) in the top bar. The pages of the round are listed on the left, *To do* above *Done*; on a phone or tablet (or in an
+agent chat) the list becomes a picker. It is built on [Pico CSS](https://picocss.com), which ships inside the package,
+and follows your light or dark setting.
 
-- **A gallery of what needs you.** A review opens on the first page that needs you: no verdict yet, an answer from
-  the agent to check, or a new reply. *Approve* or *Revert* finishes the page, and so does posting a comment (which
-  marks a page without a verdict as *Needs update*); the next page that needs you opens, and the finished one moves
-  from *Needs you* (or *To do* in the picker on a tablet) to the rest. <kbd>N</kbd> jumps ahead.
-- **Compare two ways.** Pick what to compare the after with (*vs Before* or *vs Last round*) and how (*Side by
-  side*, *Swipe* with a draggable handle, or *After only*). *Phone* switches to the phone screenshots. *100%* zooms
-  in, and the two screenshots then scroll together.
+- **A gallery of what needs you.** A review opens on the first page that needs you: not approved yet, an answer from
+  the agent to check, or a new reply. *Approve* finishes the page, and so does posting a comment (which marks the page
+  as needing an update); the next page that needs you opens and the finished one moves to *Done*. Pages that did not
+  change since you approved them last round are done already. <kbd>N</kbd> jumps ahead.
+- **Before and after, nothing to set.** They sit side by side; where that would be too small to read (a tablet, an
+  agent chat), they are on top of each other with a handle to swipe between them. A page with phone screenshots shows
+  them underneath. Areas that changed since the last round are outlined.
 - **Comment while you look, and point at what you mean.** The comment box is always under the page. Press
   <kbd>Enter</kbd> (or <kbd>G</kbd>) to write; while you write, each click on a screenshot puts a numbered marker on
   that spot and its number, like `[1]`, in your text where the cursor is, so one comment can point at several spots
   (also on the before and the after). Delete `[1]` from the text, or click the marker, to take it away.
   <kbd>Ctrl</kbd>+<kbd>Enter</kbd> posts, and <kbd>Esc</kbd> stops writing, so the keys work again; your text stays,
-  also when you go to another page. A comment without markers is about the page as a whole. Click a marker to open
-  its thread; comments without a marker in the current view are listed under the screenshots.
+  also when you go to another page. Click a marker to open its thread; comments without a marker on screen are listed
+  under the screenshots.
 - **Dictate and point.** With dictation (Wispr Flow, a phone keyboard) the text arrives after you stop talking, so
   click the spots while you speak and say their number: "the header one is too tall, and this card two…". When the
   text lands, each marker moves to where you said it: "the header [1] … this card [2]". Digits, English and Dutch
   number words work, with or without "spot", "marker", "nummer" or "punt" before them; Dutch "een" only counts after
   one of those, as it is also the word "a". Once you type by hand, the markers stay where you clicked them.
-- **See what changed since the last round.** Pages are marked *changed*, *tiny change* or *new*, and changed areas
-  are outlined on the screenshot (<kbd>H</kbd> turns the outlines off). The top of the page list says how many pages
-  changed, and offers to approve, in one click, every unchanged page you already approved last round. *Unchanged*
-  means pixel for pixel identical, so nothing that moved is skipped.
 - **Send when you are done.** *Send to agent* (or *Send to T3 thread*) counts what you have added since you last
   sent, and takes an optional note. The top bar shows when an agent is waiting for you and when your feedback was
   delivered.
 - **Know what's new.** Each page in the list shows its most urgent signal: new replies (purple), threads the agent
-  answered that you have not resolved yet (orange), or that the page changed. The filters show all pages, the ones
-  that need you, or the changed ones.
+  answered that you have not resolved yet (orange), or that the page changed.
 - **Keyboard.** <kbd>J</kbd>/<kbd>K</kbd> next or previous page, <kbd>N</kbd> next page that needs you,
-  <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> for the verdicts, <kbd>S</kbd> <kbd>W</kbd> <kbd>A</kbd> for the layouts,
-  <kbd>C</kbd> to switch the comparison, <kbd>P</kbd> phone, <kbd>Z</kbd> zoom, <kbd>G</kbd> page comment,
-  <kbd>?</kbd> for the full list.
+  <kbd>1</kbd> approve, <kbd>Enter</kbd> write, <kbd>Shift</kbd>+<kbd>S</kbd> send, <kbd>?</kbd> for the list.
 
 ## Where the data lives
 
