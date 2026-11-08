@@ -71,10 +71,12 @@ else try { const t = localStorage.getItem('reviewtool.theme'); if (t) document.d
 
   .canvas { display: grid; gap: 1.1rem; margin-top: .9rem; }
   /* One screenshot at a time, before or after, swapped in place so differences jump out. */
-  /* Before and after: a bar under the screenshot, before on the left half, after on the right. Hovering a half shows
-     that screenshot, so moving along the bar flips between them; a click or tap does the same. */
-  .swapbar { display: grid; grid-template-columns: 1fr 1fr; height: 40px; border: 1px solid var(--pico-muted-border-color); border-top: 0; border-radius: 0 0 var(--pico-border-radius) var(--pico-border-radius); overflow: hidden; }
-  .swapbar button { all: unset; display: flex; align-items: center; justify-content: center; gap: .4rem; font-size: .92em; color: var(--pico-muted-color); cursor: pointer; user-select: none; }
+  /* A bar under the screenshot picks the round it shows: the previous one, round 1, or this one. */
+  .shot, .pins, .outlines { display: none !important; }
+  .shot.on { display: block !important; }
+  .pins.on, .outlines.on { display: block !important; }
+  .swapbar { display: grid; grid-template-columns: repeat(3, 1fr); height: 40px; border: 1px solid var(--pico-muted-border-color); border-top: 0; border-radius: 0 0 var(--pico-border-radius) var(--pico-border-radius); overflow: hidden; }
+  .swapbar button { all: unset; padding-inline: .4rem; text-align: center; display: flex; align-items: center; justify-content: center; gap: .4rem; font-size: .92em; color: var(--pico-muted-color); cursor: pointer; user-select: none; }
   .swapbar button + button { border-left: 1px solid var(--pico-muted-border-color); }
   .swapbar button[aria-pressed="true"] { color: var(--pico-color); font-weight: 600; background: color-mix(in srgb, var(--pico-muted-border-color) 55%, transparent); }
   .swapbar button small { font-weight: 400; opacity: .7; }
@@ -90,9 +92,7 @@ else try { const t = localStorage.getItem('reviewtool.theme'); if (t) document.d
   .view:hover .step:not([hidden]), .view .step:focus-visible { opacity: .9; }
   .view .step:hover { opacity: 1; background: rgb(0 0 0 / .75); }
   @media (hover: none) { .view .step:not([hidden]) { opacity: .6; } }
-  .flip[data-show="after"] .shot.before, .flip[data-show="before"] .shot.after,
-  .flip[data-show="after"] .pins[data-key="before"], .flip[data-show="before"] .pins[data-key="after"],
-  .flip[data-show="before"] .outlines { display: none; }
+
   .rowtitle { font-size: .95rem; margin: 0 0 -.45rem; }
   figure { margin: 0; min-width: 0; }
   figcaption { font-size: .9em; font-weight: 600; margin-bottom: .35rem; display: flex; gap: .5rem; }
@@ -396,21 +396,22 @@ function unsentChanges() {
 }
 const firstForRound = () => (pages().find(needsMe) ?? pages()[0])?.id;
 
-// What a page shows: its before and after, one at a time. Phone screenshots are always a page of their own.
-let showing = 'after'; // which of the two is on screen; each page opens on the after
+// What a page shows: one screenshot at a time, from this round, the previous round or round 1, picked in a bar under it.
+// Phone screenshots are always a page of their own.
+const VIEWS = ['previous', 'first', 'after'];
+let showing = 'after'; // on screen: 'after' (this round), 'previous' or 'first'; each page opens on this round
+let lastOther = 'previous'; // what Space swaps to from this round
 function rows(p) {
-  const phonePage = p.device === 'phone';
-  const desktop = {
-    narrow: phonePage,
-    cmp: p.before ? { key: 'before', file: p.before, label: 'Before', sub: p.beforeLabel && p.beforeLabel !== 'before' ? p.beforeLabel : '' } : null,
-    base: { key: 'after', file: p.after, label: 'After', sub: p.afterLabel && p.afterLabel !== 'after' ? p.afterLabel : `round ${roundN}` },
-  };
-  if (phonePage) {
-    desktop.base.sub = `phone · ${desktop.base.sub}`;
-    if (desktop.cmp) desktop.cmp.sub = `phone${desktop.cmp.sub ? ` · ${desktop.cmp.sub}` : ''}`;
-  }
-  const out = [desktop];
-  return out;
+  const prevShot = prevRound()?.pages.find((x) => x.id === p.id)?.after ?? null;
+  const firstShot = roundN > 2 ? data.rounds[0]?.pages.find((x) => x.id === p.id)?.after ?? null : null;
+  return [{
+    narrow: p.device === 'phone',
+    shots: {
+      previous: prevShot ? { file: prevShot, label: `Previous · #${roundN - 1}` } : { file: null, label: roundN > 1 ? `Not in #${roundN - 1}` : 'No previous round' },
+      first: firstShot ? { file: firstShot, label: '#1' } : { file: null, label: roundN <= 2 ? '#1' : 'Not in #1', why: roundN === 1 ? 'This is round 1' : roundN === 2 ? 'Round 1 is the previous round' : 'This page was not in round 1' },
+      after: { file: p.after, label: `Current · #${roundN}` },
+    },
+  }];
 }
 
 /* ---------- loading and navigation ---------- */
@@ -599,7 +600,7 @@ function renderPage(p) {
   // The same screenshots as already on screen: only the markers on them can have changed. Rebuilding would reload the
   // images, which flashes.
   const shown = rows(p);
-  const key = JSON.stringify([roundN, p.id, shown.map((r) => [r.base.file, r.cmp?.file])]);
+  const key = JSON.stringify([roundN, p.id, shown.map((r) => VIEWS.map((k) => r.shots[k].file))]);
   if ($('canvas').dataset.key === key) updatePins();
   else {
   $('canvas').dataset.key = key;
@@ -611,31 +612,39 @@ function renderPage(p) {
 
 // The screenshots that show pins in the current view.
 function visibleKeys(p) {
-  return new Set(rows(p).flatMap((r) => [r.cmp, r.base]).filter((f) => f && !f.noPin).map((f) => f.key));
+  return new Set(rows(p).flatMap((r) => VIEWS.filter((k) => r.shots[k].file)));
 }
 
 // Where a click on a screenshot lands: the screenshot on screen, and how far across and down it, in percent.
 function spotAt(frame, e) {
-  const shot = frame.querySelector(`.shot.${frame.closest('.flip').dataset.show}`);
+  const shot = frame.querySelector('.shot.on');
   const box = shot.getBoundingClientRect();
   const clamp = (v) => Math.round(Math.min(100, Math.max(0, v)) * 10) / 10;
   return { img: frame.dataset.img, x: clamp(((e.clientX - box.left) / box.width) * 100), y: clamp(((e.clientY - box.top) / box.height) * 100) };
 }
 
-// Show the before or the after. Swapping only flips which image is visible, so it is instant and nothing reloads.
+// Show this round, the previous one or round 1. Switching only flips which image is visible, so it is instant and
+// nothing reloads.
 function setShowing(which) {
   for (const fig of $('canvas').querySelectorAll('.flip')) {
-    const show = which === 'before' && fig.dataset.hasBefore === 'true' ? 'before' : 'after';
+    const views = fig.dataset.views.split(' ');
+    const show = views.includes(which) ? which : 'after';
     fig.dataset.show = show;
-    const frame = fig.querySelector('.frame');
-    frame.dataset.img = show === 'before' && fig.dataset.beforePins !== 'true' ? '' : show;
-    frame.classList.toggle('nopin', !frame.dataset.img);
+    for (const el of fig.querySelectorAll('.shot, .pins')) el.classList.toggle('on', el.dataset.key === show);
+    fig.querySelector('.outlines')?.classList.toggle('on', show === 'after');
+    fig.querySelector('.frame').dataset.img = show;
     for (const b of fig.querySelectorAll('.swapbar button')) b.setAttribute('aria-pressed', b.dataset.show === show);
   }
   showing = which;
+  if (which !== 'after') lastOther = which;
   placePopover();
 }
-const swap = () => setShowing(showing === 'after' ? 'before' : 'after');
+// Space: between this round and the last other one you looked at (the previous round at first).
+const swap = () => {
+  const views = $('canvas').querySelector('.flip')?.dataset.views.split(' ') ?? [];
+  const other = [lastOther, 'previous', 'first'].find((k) => views.includes(k));
+  if (other) setShowing(showing === 'after' ? other : 'after');
+};
 
 function renderChangeBar(p) {
   const bar = $('changeBar');
@@ -686,15 +695,14 @@ function updatePins() {
 }
 
 function flipHtml(p, r) {
-  const { base, cmp } = r;
-  const missing = p.change?.status === 'new' ? 'New page, nothing before' : 'No before screenshot';
-  const half = (f, which) => (which === 'before' && !f
-    ? `<button data-show="before" disabled>${missing}</button>`
-    : `<button data-show="${which}" title="Hover or click to see the ${which} (Space swaps)">${which === 'after' ? 'After' : 'Before'}${f?.sub ? `<small>${esc(f.sub)}</small>` : ''}</button>`);
-  const img = (f, which) => (f?.file ? `<img class="shot ${which}" src="${imgUrl(f.file)}" alt="${esc(`${which}: ${p.title}`)}" draggable="false">` : '');
-  return `${r.title ? `<h3 class="rowtitle">${r.title}</h3>` : ''}<figure class="flip${r.narrow ? ' phone' : ''}" data-show="after" data-has-before="${!!cmp}" data-before-pins="${!!cmp && !cmp.noPin}">
-    <div class="view"><div class="frame" data-img="after" title="Click to mark a spot"><div class="stage">${img(cmp, 'before')}${img(base, 'after')}${outlinesHtml(p, 'after')}${pinsHtml(p, 'after')}${cmp && !cmp.noPin ? pinsHtml(p, cmp.key) : ''}</div></div>${stepButtons(p)}</div>
-    <div class="swapbar" role="group" aria-label="Before or after">${half(cmp, 'before')}${half(base, 'after')}</div>
+  const shots = VIEWS.filter((k) => r.shots[k].file);
+  const img = (k) => `<img class="shot" data-key="${k}" src="${imgUrl(r.shots[k].file)}" alt="${esc(`${r.shots[k].label}: ${p.title}`)}" draggable="false">`;
+  const button = (k) => (r.shots[k].file
+    ? `<button data-show="${k}" title="Show ${k === 'after' ? 'this round' : k === 'previous' ? 'the previous round' : 'round 1'} (Space swaps with this round)">${esc(r.shots[k].label)}</button>`
+    : `<button data-show="${k}" disabled title="${esc(r.shots[k].why ?? r.shots[k].label)}">${esc(r.shots[k].label)}</button>`);
+  return `<figure class="flip${r.narrow ? ' phone' : ''}" data-show="after" data-views="${shots.join(' ')}">
+    <div class="view"><div class="frame" data-img="after" title="Click to mark a spot"><div class="stage">${shots.map(img).join('')}${outlinesHtml(p, 'after')}${shots.map((k) => pinsHtml(p, k)).join('')}</div></div>${stepButtons(p)}</div>
+    <div class="swapbar" role="group" aria-label="Which round">${VIEWS.map(button).join('')}</div>
   </figure>`;
 }
 
@@ -711,9 +719,7 @@ function stepButtons(p) {
 }
 
 function bindCanvas() {
-  for (const b of $('canvas').querySelectorAll('.swapbar button:not(:disabled)')) {
-    for (const ev of ['pointerenter', 'click', 'focus']) b.addEventListener(ev, () => { if (showing !== b.dataset.show || ev === 'click') setShowing(b.dataset.show); });
-  }
+  for (const b of $('canvas').querySelectorAll('.swapbar button:not(:disabled)')) b.addEventListener('click', () => setShowing(b.dataset.show));
   for (const f of $('canvas').querySelectorAll('.frame')) f.addEventListener('scroll', () => requestAnimationFrame(placePopover));
 }
 
@@ -721,7 +727,7 @@ function preloadNeighbours() {
   const ps = pages();
   const i = ps.findIndex((p) => p.id === current);
   for (const p of [ps[i + 1], ps[i - 1]].filter(Boolean)) {
-    for (const f of rows(p).flatMap((r) => [r.base, r.cmp])) if (f?.file) new Image().src = imgUrl(f.file);
+    for (const f of rows(p).flatMap((r) => Object.values(r.shots))) if (f.file) new Image().src = imgUrl(f.file);
   }
 }
 
@@ -809,7 +815,7 @@ function focusThread(id, k = 1) {
   openThread = id;
   openMark = k;
   const spot = pinsOf(threadById(id) ?? {})[k - 1];
-  if (spot && (spot.img === 'before' || spot.img === 'after')) showing = spot.img;
+  if (spot && VIEWS.includes(spot.img)) showing = spot.img;
   render();
   const pin = $('canvas').querySelector(`.pin[data-thread="${id}"][data-k="${k}"]`) ?? $('canvas').querySelector(`.pin[data-thread="${id}"]`);
   if (pin) {

@@ -140,10 +140,10 @@ and follows your light or dark setting.
   next page (<kbd>K</kbd> and <kbd>J</kbd> do the same).
 - **A heading that says what this is.** The top bar reads "*T3 thread* · *what this round changes*": the agent sums
   up each round in about five words (the round's title).
-- **Before and after in one place.** One screenshot at a time, with a bar under it: hover its left half for the
-  before and its right half for the after, so moving along the bar flips between them in place and what changed
-  jumps out. A click or tap works too, and so do <kbd>Space</kbd> and <kbd>B</kbd>. Each page opens on the after. Areas
-  that changed since the last round are outlined on it.
+- **This round against earlier ones, in one place.** One screenshot at a time, with a bar under it: *Previous* (the
+  last round), *#1* (the first round) and *Current*. A click switches in place, so what changed jumps out;
+  <kbd>Space</kbd> or <kbd>B</kbd> jumps between current and the last other round you looked at. Areas that changed
+  since the last round are outlined on the current one. The `before` screenshots in a manifest are not shown.
 - **Comment while you look, and point at what you mean.** The comment box is always under the page. Press
   <kbd>Enter</kbd> (or <kbd>G</kbd>) to write; while you write, each click on a screenshot puts a numbered marker on
   that spot and its number, like `[1]`, in your text where the cursor is, so one comment can point at several spots

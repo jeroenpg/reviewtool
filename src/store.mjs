@@ -25,7 +25,8 @@ export function cleanGroup(group) {
   if (parts.join('/').length > 120) throw new ReviewError(`group "${group}" is too long`);
   return parts.join('/');
 }
-const PIN_TARGETS = ['before', 'after', 'previous'];
+// Which screenshot a spot is on: this round's after, the previous round's or round 1's, or the before (older reviews).
+const PIN_TARGETS = ['before', 'after', 'previous', 'first'];
 const MAX_PINS = 26;
 
 export function defaultRoot() {

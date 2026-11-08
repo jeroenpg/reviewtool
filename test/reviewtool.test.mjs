@@ -359,6 +359,17 @@ test('markers number spots across a round for a chat to refer to, and never reus
   assert.doesNotMatch(text, /^\[2\]/m, "the removed marker is gone");
   assert.match(text, /Approved: 1 of 2 pages \(team\)/);
   assert.deepEqual(JSON.parse(cli('markers', 'demo', '--json')).markers.map((m) => m.n), [1, 3]);
+  // Spots on an earlier round's screenshot point at that round's image.
+  store.addRound('demo', { pages: [{ id: 'inbox', title: 'Inbox', group: 'Start', after: 'after2.png' }] }, dir);
+  store.addRound('demo', { pages: [{ id: 'inbox', title: 'Inbox', group: 'Start', after: 'after2.png' }] }, dir);
+  store.addMarker('demo', { round: 3, page: 'inbox', img: 'first', x: 1, y: 2 });
+  store.addMarker('demo', { round: 3, page: 'inbox', img: 'previous', x: 3, y: 4 });
+  const later = JSON.parse(cli('markers', 'demo', '--json'));
+  const r1 = store.get('demo').rounds[0].pages.find((p) => p.id === 'inbox').after;
+  const r2 = store.get('demo').rounds[1].pages.find((p) => p.id === 'inbox').after;
+  assert.equal(later.markers[0].image, store.imagePath('demo', r1));
+  assert.equal(later.markers[1].image, store.imagePath('demo', r2));
+  assert.match(cli('markers', 'demo'), /the round 1 screenshot at 1% across/);
 });
 
 test('reviews stored with phone variants on a page get them split into their own pages', () => {

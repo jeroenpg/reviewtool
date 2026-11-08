@@ -40,9 +40,10 @@ links, not localhost.
 Take the screenshots first: desktop, and phone too when the change affects phones. Capture every page the change
 touches, in the states the change is about (hovered, open, empty, error).
 
-- **Before**: the state before the work, from main or production. Keep the same before in every round. When a page
-  in the manifest has no `before`, reviewtool reuses the before from the previous round.
-- **After**: the current state of your branch.
+- **After**: the current state of your branch. The reviewer compares it with the same page in the previous round
+  and in round 1, so keep page ids the same from round to round.
+- **Before** (optional): the state before the work, from main or production. The app does not show it; it is kept
+  with the round. When a page in the manifest has no `before`, reviewtool reuses the one from the previous round.
 
 **Give every round a title of about five words that sums up what it changes** ("Calmer sidebars, fewer buttons"), in
 the manifest's `title` or with `--title`. The app shows it in its top bar after the name of your T3 thread (or the

@@ -4,7 +4,14 @@ import { needsReply, pinsOf, threads } from './store.mjs';
 
 const fmtDate = (iso) => new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
-const SHOT = { mobile: 'phone', previous: 'last round' };
+const SHOT = { mobile: 'phone', previous: 'previous round\'s', first: 'round 1' };
+
+/** The image file a spot on a page of round `n` points at. */
+function shotFile(rounds, n, pageId, img) {
+  const r = img === 'previous' ? rounds.find((x) => x.n === n - 1) : img === 'first' ? rounds[0] : rounds.find((x) => x.n === n);
+  const page = r?.pages.find((p) => p.id === pageId);
+  return img === 'previous' || img === 'first' ? page?.after : page?.[img];
+}
 
 export function collectFeedback(store, slug, { all = false, round = null } = {}) {
   const { review, rounds, feedback } = store.get(slug);
@@ -31,7 +38,7 @@ export function feedbackText(store, slug, { all = false, round = null, submissio
     const phone = page?.device === 'phone' ? 'phone ' : '';
     const spot = (pin) => `the ${phone}${SHOT[pin.img] ?? pin.img} screenshot at ${pin.x}% across, ${pin.y}% down`;
     const image = (pin) => {
-      const file = pin.img === 'previous' ? rounds.find((x) => x.n === t.round - 1)?.pages.find((p) => p.id === t.page)?.after : page?.[pin.img];
+      const file = shotFile(rounds, t.round, t.page, pin.img);
       return file ? store.imagePath(slug, file) : null;
     };
     // An older comment holds one spot and does not name it in its text.
@@ -75,10 +82,9 @@ export function collectMarkers(store, slug, { round = null } = {}) {
   const { rounds, feedback } = store.get(slug);
   const r = round == null || round === 'latest' ? rounds.at(-1) : rounds.find((x) => x.n === Number(round));
   if (!r) return { round: null, markers: [], approved: [], notApproved: [] };
-  const prev = rounds.find((x) => x.n === r.n - 1);
   const markers = feedback.markers.filter((m) => m.round === r.n).sort((a, b) => a.n - b.n).map((m) => {
     const page = r.pages.find((p) => p.id === m.page);
-    const file = m.img === 'previous' ? prev?.pages.find((p) => p.id === m.page)?.after : page?.[m.img];
+    const file = shotFile(rounds, r.n, m.page, m.img);
     return { ...m, title: page ? [...(page.group ? page.group.split('/') : []), page.title].join(' › ') : m.page, device: page?.device ?? 'desktop', image: file ? store.imagePath(slug, file) : null };
   });
   const approved = r.pages.filter((p) => feedback.verdicts[`${r.n}/${p.id}`]?.verdict === 'approve').map((p) => p.id);
