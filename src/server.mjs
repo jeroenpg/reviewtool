@@ -45,6 +45,8 @@ export function createApp(store) {
       return send(res, 200, page('review.html'), 'text/html; charset=utf-8');
     }
     if (method === 'GET' && url.pathname === '/favicon.svg') return send(res, 200, page('favicon.svg'), 'image/svg+xml', { 'cache-control': 'max-age=86400' });
+    if (method === 'GET' && url.pathname === '/vendor/pico.jade.min.css') return send(res, 200, page('vendor/pico.jade.min.css'), 'text/css; charset=utf-8', { 'cache-control': 'max-age=86400' });
+    if (method === 'GET' && url.pathname === '/app.css') return send(res, 200, page('app.css'), 'text/css; charset=utf-8', { 'cache-control': 'no-cache' });
     if (parts[0] !== 'api') return send(res, 404, { error: 'not found' });
 
     if (method === 'GET' && parts[1] === 'reviews' && parts.length === 2) return send(res, 200, store.list());

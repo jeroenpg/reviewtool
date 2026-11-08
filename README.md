@@ -17,7 +17,7 @@ Review UI changes in rounds, the way you would with a designer, while an AI agen
 It is built so that Claude Code, Codex and other coding agents can drive it. The included
 [skill](skills/reviewtool/SKILL.md) teaches them the loop.
 
-The tool needs no dependencies, only Node.js 20 or newer.
+The tool needs no dependencies, only Node.js 20 or newer. The web app's styling, [Pico CSS](https://picocss.com) (MIT), is included.
 
 ## Install
 
@@ -93,27 +93,30 @@ Rules for manifests:
 
 ## In the browser
 
-- **Overview first.** A review opens on the round's overview: what the agent changed, how many pages still need a
-  verdict, which threads the agent answered, and a button that takes you to the next page that needs you.
+The app has three columns that stay put: the pages of the round on the left, the screenshots in the middle, and the
+comments on the right. On a phone they stack, and the page list becomes a picker. It is built on
+[Pico CSS](https://picocss.com), which ships inside the package, and follows your light or dark setting.
+
+- **Opens where you are needed.** A review opens on the first page that needs you: no verdict yet, an answer from
+  the agent to check, or a new reply. <kbd>N</kbd> jumps to the next one.
 - **Compare two ways.** Pick what to compare the after with (*vs Before* or *vs Last round*) and how (*Side by
-  side*, *Swipe* with a draggable handle, or *After only*). *Phone* switches to the phone screenshots. *Fit* / *100%*
-  zooms; at 100% the two screenshots scroll together.
+  side*, *Swipe* with a draggable handle, or *After only*). *Phone* switches to the phone screenshots. *100%* zooms
+  in, and the two screenshots then scroll together.
 - **Comment at the spot.** Click a screenshot and a comment box opens right there. Click a numbered pin to open its
-  thread. The comments panel on the right lists every thread on the page, with the ones from earlier rounds folded.
-- **See what changed since the last round.** Every page is marked *changed*, *tiny*, *same* or *new*, and changed
-  areas are outlined on the screenshot (<kbd>H</kbd> hides them). The overview lists the changed pages, and one
-  click approves every unchanged page you already approved last round. *Unchanged* means pixel for pixel identical,
-  so nothing that moved is skipped.
-- **Send when you are done.** *Send to agent* (or *Send to T3 thread*) in the top bar counts what you have added since you last sent; add an
-  optional note for the agent. The top bar shows when an agent is waiting for you, and when it is working on your
-  feedback.
-- **Know what's new.** Agent replies since your last visit are marked *new*; threads the agent answered say
-  *answered · check it* until you resolve them. The page list has filters for pages without a verdict, with
-  answered threads, and with new replies.
+  thread. The comments column lists every thread on the page, with the ones from earlier rounds folded.
+- **See what changed since the last round.** Pages are marked *changed*, *tiny change* or *new*, and changed areas
+  are outlined on the screenshot (<kbd>H</kbd> turns the outlines off). The top of the page list says how many pages
+  changed, and offers to approve, in one click, every unchanged page you already approved last round. *Unchanged*
+  means pixel for pixel identical, so nothing that moved is skipped.
+- **Send when you are done.** *Send to agent* (or *Send to T3 thread*) counts what you have added since you last
+  sent, and takes an optional note. The top bar shows when an agent is waiting for you and when your feedback was
+  delivered.
+- **Know what's new.** Each page in the list shows its most urgent signal: new replies (purple), threads the agent
+  answered that you have not resolved yet (orange), or that the page changed. The filters show all pages, the ones
+  that need you, or the changed ones.
 - **Keyboard.** <kbd>J</kbd>/<kbd>K</kbd> next or previous page, <kbd>N</kbd> next page that needs you,
   <kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> for the verdicts, <kbd>S</kbd> <kbd>W</kbd> <kbd>A</kbd> for the layouts,
-  <kbd>C</kbd> to switch the comparison, <kbd>P</kbd> phone, <kbd>Z</kbd> zoom, <kbd>O</kbd> overview, <kbd>?</kbd>
-  for the full list.
+  <kbd>C</kbd> to switch the comparison, <kbd>P</kbd> phone, <kbd>Z</kbd> zoom, <kbd>?</kbd> for the full list.
 
 ## Where the data lives
 

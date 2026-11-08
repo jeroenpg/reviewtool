@@ -5,361 +5,257 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Review</title>
 <link rel="icon" href="/favicon.svg">
+<link rel="stylesheet" href="/vendor/pico.jade.min.css">
+<link rel="stylesheet" href="/app.css">
 <style>
-  :root {
-    --bg: #f3f5f5; --surface: #fff; --surface-2: #f7f9f8; --ink: #161d1b; --muted: #64706d; --line: #e2e7e6; --line-strong: #c9d1cf;
-    --accent: #0f766e; --accent-ink: #fff; --accent-soft: #e4f2ef; --agent: #eef6f4; --agent-line: #cfe4df;
-    --approve: #15803d; --approve-soft: #e3f5e9; --update: #b45309; --update-soft: #fdf0dc; --revert: #b91c1c; --revert-soft: #fde7e7;
-    --pin: #ea580c; --new: #6d28d9; --new-soft: #efe9fd;
-    --shadow: 0 1px 2px rgb(0 0 0 / .05), 0 10px 30px rgb(0 0 0 / .10);
-    color-scheme: light;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #0f1312; --surface: #171c1b; --surface-2: #1c2221; --ink: #e8edeb; --muted: #97a39f; --line: #27302e; --line-strong: #3a4543;
-      --accent: #34d399; --accent-ink: #05211a; --accent-soft: #15302a; --agent: #142925; --agent-line: #22463f;
-      --approve: #4ade80; --approve-soft: #13301f; --update: #fbbf24; --update-soft: #3a2a0c; --revert: #f87171; --revert-soft: #3d1717;
-      --pin: #fb923c; --new: #a78bfa; --new-soft: #2a2144;
-      --shadow: 0 1px 2px rgb(0 0 0 / .4), 0 12px 32px rgb(0 0 0 / .5);
-      color-scheme: dark;
-    }
-  }
-  * { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; }
-  body { font: 13.5px/1.45 Inter, system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--ink); background: var(--bg); display: grid; grid-template-rows: 48px minmax(0, 1fr); }
-  button, select, input, textarea { font: inherit; color: inherit; }
-  button { cursor: pointer; }
-  a { color: var(--accent); }
-  h1, h2, h3 { margin: 0; font-weight: 650; letter-spacing: -.01em; }
-  kbd { font: 11px ui-monospace, SFMono-Regular, monospace; border: 1px solid var(--line-strong); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; background: var(--surface); color: var(--muted); }
-  [hidden] { display: none !important; }
-  .muted { color: var(--muted); }
-  .spacer { flex: 1; }
+  body { display: grid; grid-template-rows: var(--bar-h) minmax(0, 1fr); }
 
   /* Top bar */
-  .bar { display: flex; align-items: center; gap: 12px; padding: 0 14px; background: var(--surface); border-bottom: 1px solid var(--line); min-width: 0; }
-  .brand { display: inline-flex; align-items: center; gap: 8px; font-weight: 650; color: var(--ink); text-decoration: none; }
-  .brand img { width: 20px; height: 20px; }
-  .bar .sep { width: 1px; height: 20px; background: var(--line); }
-  .bar .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
-  .bar .name a { font-weight: 400; color: var(--muted); text-decoration: none; margin-left: 6px; }
-  .bar .name a:hover { color: var(--accent); }
-  .bar select, .bar input { border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; background: var(--surface); }
-  .bar input { width: 120px; }
-  .ring { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12.5px; white-space: nowrap; }
-  .ring svg { width: 22px; height: 22px; transform: rotate(-90deg); }
-  .ring circle { fill: none; stroke-width: 3.5; }
-  .ring .track { stroke: var(--line); }
-  .ring .fill { stroke: var(--approve); stroke-linecap: round; transition: stroke-dashoffset .3s; }
-  .iconbtn { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; width: 30px; height: 30px; display: inline-grid; place-items: center; color: var(--muted); padding: 0; }
-  .iconbtn:hover { color: var(--ink); border-color: var(--line-strong); }
-  .iconbtn[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
+  .topbar { display: flex; align-items: center; gap: .75rem; padding: 0 1rem; border-bottom: 1px solid var(--pico-muted-border-color); background: var(--pico-background-color); min-width: 0; }
+  .topbar .brand { display: inline-flex; flex: none; }
+  .topbar .brand img { width: 22px; height: 22px; }
+  .topbar .title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+  .topbar .title a { font-weight: 400; margin-left: .4rem; font-size: .9em; }
+  .topbar select { width: auto; max-width: 300px; padding-block: .3rem; }
+  .topbar .progress { display: inline-flex; align-items: center; gap: .5rem; font-size: .9em; white-space: nowrap; }
+  .topbar progress { width: 80px; margin: 0; height: .4rem; }
+  .agent { display: inline-flex; align-items: center; gap: .45rem; font-size: .9em; white-space: nowrap; color: var(--pico-muted-color); }
+  .agent .pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--pico-muted-border-color); }
+  .agent.waiting { color: var(--approve); font-weight: 600; }
+  .agent.waiting .pulse { background: var(--approve); animation: beat 1.6s infinite; }
+  .agent.working .pulse { background: var(--update); animation: beat 1.6s infinite; }
+  .agent.sent .pulse { background: var(--pico-primary); }
+  @keyframes beat { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 55%, transparent); } 70%, 100% { box-shadow: 0 0 0 7px transparent; } }
+  #sendBtn { white-space: nowrap; padding-block: .3rem; }
+  #sendBtn .n { margin-left: .4rem; padding: 0 .45rem; border-radius: 9px; background: rgb(255 255 255 / .25); font-size: .85em; }
 
-  /* Three columns */
-  .app { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; min-height: 0; }
-  .rail { width: 250px; border-right: 1px solid var(--line); background: var(--surface); display: flex; flex-direction: column; min-height: 0; }
-  .app[data-rail="closed"] .rail { display: none; }
-  .rail-tools { padding: 10px 10px 8px; border-bottom: 1px solid var(--line); display: grid; gap: 8px; }
-  .rail-tools input { width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 6px 9px; background: var(--surface-2); }
-  .chips { display: flex; flex-wrap: wrap; gap: 4px; }
-  .chip { border: 1px solid transparent; background: var(--surface-2); border-radius: 999px; padding: 2px 9px; font-size: 12px; color: var(--muted); }
-  .chip:hover { border-color: var(--line-strong); }
-  .chip[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
-  .chip b { font-weight: 600; margin-left: 4px; }
-  nav { overflow-y: auto; padding: 6px; flex: 1; }
-  nav .group { font-size: 11px; text-transform: none; letter-spacing: .02em; color: var(--muted); padding: 12px 10px 4px; font-weight: 600; position: sticky; top: 0; background: var(--surface); }
-  nav button { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; border: 0; background: none; padding: 6px 10px; border-radius: 7px; color: var(--ink); }
-  nav button:hover { background: var(--surface-2); }
-  nav button[aria-current="true"] { background: var(--accent-soft); font-weight: 600; }
-  nav .label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  nav .ov { font-weight: 600; margin-bottom: 2px; }
-  .dot { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--line-strong); flex: none; }
-  .dot.approve { background: var(--approve); border-color: var(--approve); }
-  .dot.update { background: var(--update); border-color: var(--update); }
-  .dot.revert { background: var(--revert); border-color: var(--revert); }
-  .count { font-size: 11px; font-weight: 700; color: #fff; background: var(--pin); border-radius: 9px; padding: 0 6px; line-height: 17px; }
-  .count.new { background: var(--new); }
-  .tag { font-size: 10.5px; font-weight: 600; color: var(--new); background: var(--new-soft); border-radius: 5px; padding: 1px 5px; }
-  .rail-foot { padding: 8px 12px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); display: flex; gap: 10px; }
-  .rail-foot a { color: var(--muted); }
+  /* Three columns, always all three */
+  .app { display: grid; grid-template-columns: 250px minmax(0, 1fr) 330px; min-height: 0; }
+  .rail, .panel { display: flex; flex-direction: column; min-height: 0; background: var(--pico-background-color); }
+  .rail { border-right: 1px solid var(--pico-muted-border-color); }
+  .panel { border-left: 1px solid var(--pico-muted-border-color); }
+  .rail-head { padding: .75rem; display: grid; gap: .55rem; border-bottom: 1px solid var(--pico-muted-border-color); }
+  .notes { font-size: .9em; color: var(--pico-muted-color); max-height: 7.5em; overflow-y: auto; white-space: pre-wrap; }
+  .changes { font-size: .9em; }
+  .rail-head [role="group"] button { font-size: .85em; padding: .25rem .4rem; }
+  #pageSelect { display: none; }
+  .pages { overflow-y: auto; padding: .4rem; flex: 1; }
+  .pages .group { font-size: .8em; font-weight: 600; color: var(--pico-muted-color); padding: .8rem .6rem .25rem; }
+  .pages button { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: .5rem; width: 100%; padding: .38rem .6rem; border-radius: var(--pico-border-radius); cursor: pointer; }
+  .pages button:hover { background: color-mix(in srgb, var(--pico-muted-border-color) 45%, transparent); }
+  .pages button[aria-current="true"] { background: color-mix(in srgb, var(--pico-primary) 16%, transparent); font-weight: 600; }
+  .pages button:focus-visible { outline: 2px solid var(--pico-primary); }
+  .pages .label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pages .settled .label { color: var(--pico-muted-color); }
+  .rail-foot { padding: .6rem .75rem; border-top: 1px solid var(--pico-muted-border-color); font-size: .9em; display: flex; gap: .75rem; }
 
-  main { overflow-y: auto; min-width: 0; padding: 16px 20px 56px; }
-  .page-head { display: flex; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
-  .page-head h1 { font-size: 19px; line-height: 1.25; }
-  .route { color: var(--muted); font: 12px ui-monospace, SFMono-Regular, monospace; overflow-wrap: anywhere; margin-top: 2px; }
-  .page-note { margin: 10px 0 0; padding: 8px 12px; background: var(--accent-soft); border-radius: 8px; white-space: pre-wrap; }
-  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); padding: 2px; gap: 2px; }
-  .seg button { border: 0; background: none; padding: 5px 11px; border-radius: 7px; color: var(--ink); display: inline-flex; align-items: center; gap: 6px; }
-  .seg button:hover:not(:disabled):not([aria-pressed="true"]) { background: var(--surface-2); }
-  .seg button:disabled { opacity: .38; cursor: default; }
-  .seg button[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
-  .seg kbd { margin-left: 2px; }
-  .seg button[aria-pressed="true"] kbd { border-color: transparent; background: rgb(255 255 255 / .18); color: inherit; }
-  .verdicts button[data-v="approve"][aria-pressed="true"] { background: var(--approve); color: #fff; }
-  .verdicts button[data-v="update"][aria-pressed="true"] { background: var(--update); color: #fff; }
-  .verdicts button[data-v="revert"][aria-pressed="true"] { background: var(--revert); color: #fff; }
-  .toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 14px 0 10px; }
-  .toolbar .hint { color: var(--muted); font-size: 12.5px; }
+  main { overflow-y: auto; min-width: 0; padding: 1rem 1.25rem 3rem; }
+  .page-head { display: flex; align-items: flex-start; gap: 1rem; flex-wrap: wrap; }
+  .page-head hgroup { margin: 0; min-width: 0; }
+  .page-head h1 { font-size: 1.35rem; margin: 0; }
+  #verdicts { width: auto; }
+  #verdicts button { padding: .35rem .9rem; }
+  #verdicts button[data-v="approve"][aria-pressed="true"] { --pico-background-color: var(--approve) !important; --pico-border-color: var(--approve) !important; --pico-color: #fff !important; }
+  #verdicts button[data-v="update"][aria-pressed="true"] { --pico-background-color: var(--update) !important; --pico-border-color: var(--update) !important; --pico-color: #fff !important; }
+  #verdicts button[data-v="revert"][aria-pressed="true"] { --pico-background-color: var(--revert) !important; --pico-border-color: var(--revert) !important; --pico-color: #fff !important; }
+  .page-head hgroup p { font: .85em ui-monospace, SFMono-Regular, monospace; overflow-wrap: anywhere; }
+  .changebar { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem .9rem; margin-top: .6rem; font-size: .9em; color: var(--pico-muted-color); }
+  .changebar b { color: var(--pico-color); }
+  .changebar label { display: inline-flex; align-items: center; gap: .4rem; margin: 0; cursor: pointer; }
+  .changebar input { margin: 0; }
+  .pagenote { margin-top: .6rem; font-size: .95em; }
+  .toolbar { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; margin: .9rem 0 .7rem; }
+  .toolbar [role="group"] { width: auto; }
+  .toolbar button { font-size: .9em; padding: .3rem .7rem; }
 
-  /* Canvas */
-  .canvas { display: grid; gap: 14px; align-items: start; grid-template-columns: minmax(0, 1fr); }
+  .canvas { display: grid; gap: .9rem; align-items: start; grid-template-columns: minmax(0, 1fr); }
   .canvas[data-layout="side"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .canvas[data-phone="true"] { grid-template-columns: repeat(auto-fit, minmax(0, 400px)); justify-content: start; }
+  .canvas[data-phone="true"] { grid-template-columns: repeat(auto-fit, minmax(0, 390px)); justify-content: start; }
   figure { margin: 0; min-width: 0; }
-  figcaption { display: flex; gap: 8px; align-items: baseline; margin-bottom: 6px; font-weight: 600; }
-  figcaption small { font-weight: 400; color: var(--muted); }
-  .frame { position: relative; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); overflow: auto; max-height: calc(100vh - 230px); cursor: crosshair; scrollbar-width: thin; }
+  figcaption { font-size: .9em; font-weight: 600; margin-bottom: .35rem; display: flex; gap: .5rem; }
+  figcaption small { font-weight: 400; color: var(--pico-muted-color); }
+  .frame { position: relative; border: 1px solid var(--pico-muted-border-color); border-radius: var(--pico-border-radius); overflow: auto; max-height: calc(100vh - 210px); cursor: crosshair; background: var(--pico-card-background-color); scrollbar-width: thin; }
   .frame.nopin { cursor: default; }
+  .frame.missing { padding: 3rem 1rem; text-align: center; color: var(--pico-muted-color); border-style: dashed; cursor: default; }
   .stage { position: relative; width: 100%; }
   .stage > img { display: block; width: 100%; height: auto; user-select: none; -webkit-user-drag: none; }
   .canvas[data-zoom="full"] .stage { width: max-content; min-width: 100%; }
-  .canvas[data-zoom="full"] .stage > img { width: auto; max-width: none; }
-  .canvas[data-phone="true"] .frame { max-height: calc(100vh - 230px); }
-  .missing { padding: 56px 16px; text-align: center; color: var(--muted); border-style: dashed; cursor: default; }
-  .pins { position: absolute; inset: 0; pointer-events: none; }
-  .pin { position: absolute; transform: translate(-50%, -50%); min-width: 24px; height: 24px; padding: 0 6px; border: 2px solid #fff; border-radius: 12px 12px 12px 3px; background: var(--pin); color: #fff; font-size: 12px; font-weight: 700; display: grid; place-items: center; box-shadow: 0 1px 4px rgb(0 0 0 / .4); cursor: pointer; pointer-events: auto; transition: transform .12s; }
+  .canvas[data-zoom="full"] .stage > img, .canvas[data-zoom="full"] .swipe .over img { width: auto; max-width: none; }
+  .pins, .outlines { position: absolute; inset: 0; pointer-events: none; }
+  .outlines i { position: absolute; border: 2px solid var(--new); background: color-mix(in srgb, var(--new) 10%, transparent); border-radius: 3px; }
+  .pin { all: unset; position: absolute; transform: translate(-50%, -50%); min-width: 24px; height: 24px; padding: 0 6px; box-sizing: border-box; border: 2px solid #fff; border-radius: 12px 12px 12px 3px; background: var(--pin); color: #fff; font-size: 12px; font-weight: 700; display: grid; place-items: center; box-shadow: 0 1px 4px rgb(0 0 0 / .4); cursor: pointer; pointer-events: auto; }
   .pin:hover, .pin.active { transform: translate(-50%, -50%) scale(1.15); z-index: 2; }
-  .pin.active { outline: 3px solid color-mix(in srgb, var(--pin) 40%, transparent); }
   .pin.resolved { background: #8a9592; }
-  .pin.new::after { content: ''; position: absolute; top: -4px; right: -4px; width: 9px; height: 9px; border-radius: 50%; background: var(--new); border: 2px solid #fff; }
-  .pin.draft { background: var(--accent); color: var(--accent-ink); animation: pulse 1.2s infinite; }
+  .pin.draft { background: var(--pico-primary); animation: pulse 1.2s infinite; }
   @keyframes pulse { 50% { transform: translate(-50%, -50%) scale(1.18); } }
-  /* Swipe */
   .swipe .over { position: absolute; inset: 0; clip-path: inset(0 calc(100% - var(--split)) 0 0); }
   .swipe .over img { display: block; width: 100%; height: auto; }
-  .canvas[data-zoom="full"] .swipe .over img { width: auto; max-width: none; }
   .swipe .handle { position: absolute; top: 0; bottom: 0; left: var(--split); width: 2px; background: #fff; box-shadow: 0 0 0 1px rgb(0 0 0 / .35); transform: translateX(-1px); cursor: ew-resize; }
-  .swipe .handle::after { content: '⇔'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 32px; height: 32px; border-radius: 50%; background: #fff; color: #222; display: grid; place-items: center; font-size: 15px; box-shadow: 0 1px 5px rgb(0 0 0 / .4); }
+  .swipe .handle::after { content: '⇔'; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 32px; height: 32px; border-radius: 50%; background: #fff; color: #222; display: grid; place-items: center; box-shadow: 0 1px 5px rgb(0 0 0 / .4); }
   .swipe .corner { position: absolute; top: 8px; font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 5px; background: rgb(0 0 0 / .62); color: #fff; pointer-events: none; }
   .swipe .corner.l { left: 8px; } .swipe .corner.r { right: 8px; }
 
-  /* Panel */
-  .panel { width: 340px; border-left: 1px solid var(--line); background: var(--surface); display: flex; flex-direction: column; min-height: 0; }
-  .app[data-panel="closed"] .panel { display: none; }
-  .panel-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--line); font-weight: 600; }
-  .panel-body { overflow-y: auto; padding: 10px 12px 24px; display: grid; gap: 10px; align-content: start; }
-  .btn { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 5px 10px; }
-  .btn:hover { border-color: var(--line-strong); }
-  .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: transparent; font-weight: 600; }
-  .btn.primary:disabled { opacity: .5; cursor: default; }
-  .btn.small { padding: 3px 8px; font-size: 12.5px; }
-  .link { border: 0; background: none; color: var(--accent); padding: 0; font-size: 12.5px; }
-  .link:hover { text-decoration: underline; }
-  .link.danger { color: var(--revert); }
-  textarea { width: 100%; min-height: 64px; resize: vertical; border: 1px solid var(--line); border-radius: 8px; padding: 8px; background: var(--surface); }
-  textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
-  .actions { display: flex; justify-content: flex-end; gap: 8px; align-items: center; margin-top: 6px; }
-  .thread { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: var(--surface); display: grid; gap: 8px; cursor: pointer; }
+  /* Comments */
+  .panel-head { display: flex; align-items: center; gap: .5rem; padding: .7rem .75rem; border-bottom: 1px solid var(--pico-muted-border-color); font-weight: 600; }
+  .panel-body { overflow-y: auto; padding: .75rem; display: grid; gap: .6rem; align-content: start; }
+  .thread { margin: 0; padding: .7rem .8rem; display: grid; gap: .5rem; cursor: pointer; border: 1px solid var(--pico-muted-border-color); box-shadow: none; }
   .thread:hover, .thread.hl { border-color: var(--pin); }
   .thread.resolved { opacity: .6; }
-  .thread.resolved:hover { opacity: 1; }
-  .thread header { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
-  .thread header b { color: var(--ink); font-size: 13px; }
-  .num { width: 22px; height: 22px; border-radius: 11px 11px 11px 3px; background: var(--line); font-size: 11.5px; font-weight: 700; display: grid; place-items: center; flex: none; color: var(--ink); }
+  .thread header { all: unset; display: flex; align-items: center; gap: .5rem; font-size: .85em; color: var(--pico-muted-color); }
+  .num { width: 22px; height: 22px; border-radius: 11px 11px 11px 3px; background: var(--pico-muted-border-color); font-size: 11.5px; font-weight: 700; display: grid; place-items: center; color: var(--pico-color); flex: none; }
   .num.pinned { background: var(--pin); color: #fff; }
-  .text { white-space: pre-wrap; overflow-wrap: anywhere; }
-  .msg { display: grid; gap: 2px; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface-2); }
-  .msg.agent { background: var(--agent); border-color: var(--agent-line); }
-  .msg .meta { font-size: 12px; color: var(--muted); display: flex; gap: 8px; align-items: center; }
-  .msg .meta b { color: var(--ink); }
-  .badge { font-size: 10.5px; font-weight: 600; border-radius: 5px; padding: 1px 6px; }
-  .badge.agent { background: var(--accent); color: var(--accent-ink); }
-  .badge.new { background: var(--new-soft); color: var(--new); }
-  .badge.waiting { background: var(--update-soft); color: var(--update); }
-  .badge.resolved { background: var(--surface-2); color: var(--muted); border: 1px solid var(--line); }
-  .tools { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
-  .replybox textarea { min-height: 48px; }
-  .empty { color: var(--muted); padding: 24px 8px; text-align: center; }
-  details.earlier summary { cursor: pointer; color: var(--muted); font-size: 12.5px; padding: 4px 0; }
-  details.earlier .thread { margin-top: 8px; }
-  .roundmark { font-size: 11px; color: var(--muted); }
+  .msg { display: grid; gap: .1rem; }
+  .msg + .msg { padding-top: .45rem; border-top: 1px solid var(--pico-muted-border-color); }
+  .msg .meta { font-size: .82em; color: var(--pico-muted-color); display: flex; gap: .45rem; flex-wrap: wrap; }
+  .msg .meta b { color: var(--pico-color); }
+  .msg.agent .meta b { color: var(--pico-primary); }
+  .msg .text { white-space: pre-wrap; overflow-wrap: anywhere; }
+  .thread textarea, .popover textarea { min-height: 2.6rem; font-size: .95em; resize: vertical; }
+  .tools { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; font-size: .85em; }
+  .tools a { cursor: pointer; }
+  .tools .state { font-weight: 600; }
+  .tools .state.waiting { color: var(--update); }
+  .tools .state.answered { color: var(--new); }
+  .empty { color: var(--pico-muted-color); text-align: center; padding: 1.5rem .5rem; font-size: .95em; }
+  details.earlier summary { font-size: .9em; color: var(--pico-muted-color); }
+  details.earlier .thread { margin-top: .5rem; }
 
-  /* Popover at a pin */
-  .popover { position: fixed; z-index: 20; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); padding: 12px; display: grid; gap: 8px; max-height: min(70vh, 560px); overflow-y: auto; }
-  .popover .ph { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
-  .popover .ph b { color: var(--ink); font-size: 13px; }
-  .popover .close { margin-left: auto; }
-
-  /* Overview */
-  .ov { max-width: 920px; display: grid; gap: 18px; }
-  .ov h1 { font-size: 22px; }
-  .ov .meta { color: var(--muted); margin-top: 4px; }
-  .ov .notes { padding: 12px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; white-space: pre-wrap; margin: 0; }
-  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
-  .stat { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; display: grid; gap: 2px; text-align: left; cursor: pointer; }
-  .stat:hover { border-color: var(--line-strong); }
-  .stat b { font-size: 22px; font-weight: 650; letter-spacing: -.02em; }
-  .stat span { color: var(--muted); font-size: 12.5px; }
-  .stat.approve b { color: var(--approve); } .stat.update b { color: var(--update); } .stat.revert b { color: var(--revert); } .stat.waiting b { color: var(--pin); } .stat.new b { color: var(--new); }
-  .ov .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-  .ov .btn.primary { padding: 8px 16px; }
-  .ov h2 { font-size: 14px; margin-bottom: 8px; }
-  .pagechips { display: flex; flex-wrap: wrap; gap: 6px; }
-  .pagechips button { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 3px 10px; display: inline-flex; gap: 6px; align-items: center; }
-  .pagechips button:hover { border-color: var(--accent); }
-  table.rounds { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
-  table.rounds th, table.rounds td { text-align: left; padding: 8px 12px; border-top: 1px solid var(--line); font-size: 13px; }
-  table.rounds th { border-top: 0; color: var(--muted); font-weight: 600; font-size: 12px; }
-  table.rounds tr[data-n] { cursor: pointer; }
-  table.rounds tr[data-n]:hover td { background: var(--surface-2); }
-  .ov .empty-state { padding: 40px; text-align: center; border: 1px dashed var(--line-strong); border-radius: 12px; color: var(--muted); }
-
-  dialog { border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); padding: 18px 20px; background: var(--surface); color: var(--ink); max-width: 460px; }
-  dialog::backdrop { background: rgb(0 0 0 / .3); }
-  dialog table { border-collapse: collapse; width: 100%; }
-  dialog td { padding: 4px 0; vertical-align: top; }
-  dialog td:first-child { width: 120px; white-space: nowrap; }
-  /* Agent status and sending feedback */
-  .agentstate { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--muted); white-space: nowrap; }
-  .agentstate .pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--line-strong); flex: none; }
-  .agentstate.waiting { color: var(--approve); font-weight: 600; }
-  .agentstate.waiting .pulse { background: var(--approve); animation: beat 1.6s infinite; }
-  .agentstate.working .pulse { background: var(--update); animation: beat 1.6s infinite; }
-  .agentstate.sent .pulse { background: var(--accent); }
-  @keyframes beat { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 55%, transparent); } 70%, 100% { box-shadow: 0 0 0 7px transparent; } }
-  .sendbtn { background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 8px; padding: 6px 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
-  .sendbtn:hover { filter: brightness(1.08); }
-  .sendbtn.quiet { background: var(--surface); color: var(--ink); border: 1px solid var(--line); font-weight: 500; }
-  .sendbtn .n { background: rgb(255 255 255 / .24); border-radius: 9px; padding: 0 7px; font-size: 11.5px; }
-  .sendbtn.quiet .n { background: var(--surface-2); }
-  dialog.send { width: min(480px, calc(100vw - 32px)); }
-  dialog.send h2 { font-size: 16px; margin-bottom: 4px; }
-  dialog.send ul { margin: 10px 0 12px; padding-left: 18px; display: grid; gap: 3px; }
-  dialog.send .who { margin: 0 0 10px; font-size: 12.5px; }
-  /* Changes between rounds */
-  .chg { font-size: 10.5px; font-weight: 600; border-radius: 5px; padding: 1px 5px; white-space: nowrap; }
-  .chg.changed { background: var(--update-soft); color: var(--update); }
-  .chg.minor { color: var(--muted); border: 1px solid var(--line); }
-  .chg.same { color: var(--muted); font-weight: 500; }
-  .changes { position: absolute; inset: 0; pointer-events: none; }
-  .changes i { position: absolute; border: 2px solid var(--new); background: color-mix(in srgb, var(--new) 10%, transparent); border-radius: 3px; box-shadow: 0 0 0 1px rgb(255 255 255 / .6); }
-  .changebar { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; margin-top: 10px; font-size: 12.5px; color: var(--muted); }
-  .changebar b { color: var(--ink); font-weight: 600; }
-  .changebar label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
-  .toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--surface); padding: 8px 14px; border-radius: 8px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 30; }
+  .popover { position: fixed; z-index: 20; width: 360px; max-height: min(70vh, 560px); overflow-y: auto; margin: 0; padding: .85rem; display: grid; gap: .55rem; box-shadow: 0 10px 30px rgb(0 0 0 / .18); border: 1px solid var(--pico-muted-border-color); }
+  .popover .ph { display: flex; align-items: center; gap: .5rem; font-size: .9em; color: var(--pico-muted-color); }
+  .popover .ph b { color: var(--pico-color); }
+  dialog article { width: min(480px, calc(100vw - 2rem)); padding: 1.1rem 1.25rem; }
+  dialog article > header { margin: -1.1rem -1.25rem .9rem; padding: .9rem 1.25rem; }
+  dialog article > footer { margin: .9rem -1.25rem -1.1rem; padding: .8rem 1.25rem; display: flex; justify-content: flex-end; gap: .5rem; }
+  dialog article > footer button { width: auto; margin: 0; }
+  dialog ul { margin: 0 0 .8rem; padding-left: 1.1rem; }
+  dialog table { margin: 0; font-size: .95em; }
+  dialog td { padding: .3rem .4rem; }
+  .toast { position: fixed; bottom: 1rem; left: 50%; transform: translateX(-50%); background: var(--pico-contrast-background); color: var(--pico-contrast-inverse); padding: .5rem .9rem; border-radius: var(--pico-border-radius); opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 30; }
   .toast.show { opacity: 1; }
+  .noround { padding: 3rem 1rem; text-align: center; }
 
-  @media (max-width: 1100px) {
-    .app { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; }
-    .rail { position: fixed; inset: 48px auto 0 0; z-index: 15; box-shadow: var(--shadow); }
-    .panel { width: auto; border-left: 0; border-top: 1px solid var(--line); max-height: 45vh; }
-    .app[data-panel="closed"] .panel { display: none; }
-  }
-  @media (max-width: 720px) {
-    body { font-size: 14px; }
-    .bar { gap: 8px; padding: 0 10px; }
-    .bar .ring, .bar .name a, .bar .me, .bar .sep { display: none; }
-    .bar select { min-width: 0; flex: 1; }
-    .seg kbd { display: none; }
-    main { padding: 12px 12px 48px; }
+  /* Narrow screens: one column. The page list becomes a picker; nothing is hidden behind a toggle. */
+  @media (max-width: 1000px) {
+    body { display: block; height: auto; }
+    .topbar { flex-wrap: wrap; padding: .5rem .75rem; gap: .5rem; min-height: var(--bar-h); }
+    .topbar .progress, .agent { order: 5; }
+    #helpBtn { display: none; }
+    .notes { max-height: 4.4em; }
+    .app { display: block; }
+    .rail { border-right: 0; border-bottom: 1px solid var(--pico-muted-border-color); }
+    .pages, .rail-foot, #search, #filters { display: none !important; }
+    #pageSelect { display: block; }
+    main { overflow: visible; padding: .9rem .75rem 1.5rem; }
     .canvas[data-layout="side"], .canvas[data-phone="true"] { grid-template-columns: minmax(0, 1fr); }
     .frame { max-height: none; }
-    .toolbar .hint { display: none; }
-    .popover { left: 12px !important; right: 12px; width: auto !important; }
-    .rail { width: min(86vw, 320px); }
+    .panel { border-left: 0; border-top: 1px solid var(--pico-muted-border-color); }
+    .popover { left: .75rem !important; right: .75rem; width: auto; }
   }
 </style>
 </head>
 <body>
-<header class="bar">
-  <button class="iconbtn" id="railToggle" title="Pages ([)" aria-label="Toggle page list">☰</button>
-  <a class="brand" href="/" title="All reviews"><img src="/favicon.svg" alt=""></a>
-  <span class="sep"></span>
-  <div class="name"><span id="reviewTitle"></span><a id="prLink" target="_blank" rel="noopener"></a></div>
+<header class="topbar">
+  <a class="brand" href="/" data-tooltip="All reviews" data-placement="bottom"><img src="/favicon.svg" alt="All reviews"></a>
+  <div class="title"><span id="reviewTitle"></span><a id="prLink" target="_blank" rel="noopener" hidden></a></div>
   <select id="round" aria-label="Round"></select>
-  <div class="spacer"></div>
-  <span class="ring" id="ring" title="Pages with a verdict in this round"><svg viewBox="0 0 24 24"><circle class="track" cx="12" cy="12" r="9"></circle><circle class="fill" cx="12" cy="12" r="9" stroke-dasharray="56.5" stroke-dashoffset="56.5"></circle></svg><span id="ringText"></span></span>
-  <label class="me muted">as <input id="me" maxlength="60" placeholder="your name" aria-label="Your name"></label>
-  <span class="agentstate" id="agentState" hidden><span class="pulse"></span><span id="agentText"></span></span>
-  <button class="sendbtn" id="sendBtn" title="Tell the agent you are done for now"><span id="sendLabel">Send to agent</span><span class="n" id="sendCount" hidden></span></button>
-  <button class="iconbtn" id="panelToggle" title="Comments (])" aria-label="Toggle comments">💬</button>
-  <button class="iconbtn" id="helpBtn" title="Shortcuts (?)" aria-label="Shortcuts">?</button>
+  <span class="spacer"></span>
+  <span class="progress" id="progress"><progress id="progressBar" value="0" max="1"></progress><span id="progressText"></span></span>
+  <span class="agent" id="agentState" hidden><span class="pulse"></span><span id="agentText"></span></span>
+  <button class="secondary outline small" id="meBtn">Set your name</button>
+  <button class="secondary outline small" id="helpBtn" aria-label="Keyboard shortcuts">?</button>
+  <button id="sendBtn"><span id="sendLabel">Send to agent</span><span class="n" id="sendCount" hidden></span></button>
 </header>
 
-<div class="app" id="app">
-  <aside class="rail" id="rail">
-    <div class="rail-tools">
-      <input id="search" placeholder="Filter pages" aria-label="Filter pages">
-      <div class="chips" id="filters"></div>
+<div class="app">
+  <aside class="rail">
+    <div class="rail-head">
+      <div class="notes" id="roundNotes" hidden></div>
+      <div class="changes" id="roundChanges" hidden></div>
+      <button class="secondary outline small" id="carryBtn" hidden></button>
+      <select id="pageSelect" aria-label="Page"></select>
+      <input type="search" id="search" placeholder="Filter pages" aria-label="Filter pages">
+      <div role="group" id="filters"></div>
     </div>
-    <nav id="nav"></nav>
-    <div class="rail-foot"><a id="logLink" href="#">Review log</a><span class="spacer"></span><a href="/">All reviews</a></div>
+    <div class="pages" id="pages" role="navigation" aria-label="Pages"></div>
+    <div class="rail-foot"><a id="logLink" href="#" target="_blank">Review log</a><span class="spacer"></span><a href="/">All reviews</a></div>
   </aside>
 
   <main id="main">
-    <section id="overview" class="ov" hidden></section>
-    <section id="pageView" hidden>
+    <div id="pageView" hidden>
       <div class="page-head">
-        <div>
-          <h1 id="title"></h1>
-          <div class="route" id="route"></div>
-        </div>
-        <div class="spacer"></div>
-        <div class="seg verdicts" id="verdicts" role="group" aria-label="Verdict">
-          <button data-v="approve" title="Keep this page as it is now">Approve <kbd>1</kbd></button>
-          <button data-v="update" title="Keep the change, but adjust it per the comments">Needs update <kbd>2</kbd></button>
-          <button data-v="revert" title="Put this page back the way it was">Revert <kbd>3</kbd></button>
+        <hgroup><h1 id="title"></h1><p id="route"></p></hgroup>
+        <span class="spacer"></span>
+        <div role="group" id="verdicts" aria-label="Verdict">
+          <button class="secondary outline" data-v="approve" title="Keep this page as it is now (1)">Approve</button>
+          <button class="secondary outline" data-v="update" title="Keep the change, but adjust it per the comments (2)">Needs update</button>
+          <button class="secondary outline" data-v="revert" title="Put this page back the way it was (3)">Revert</button>
         </div>
       </div>
       <div class="changebar" id="changeBar" hidden></div>
-      <p class="page-note" id="note" hidden></p>
+      <p class="pagenote" id="note" hidden></p>
       <div class="toolbar">
-        <div class="seg" id="pairs" role="group" aria-label="Compare with">
-          <button data-pair="before" title="Compare with the state before the work">vs Before</button>
-          <button data-pair="last" title="Compare with the previous round">vs Last round</button>
+        <div role="group" id="pairs" aria-label="Compare with">
+          <button class="secondary outline" data-pair="before" title="Compare with the state before the work (C)">vs Before</button>
+          <button class="secondary outline" data-pair="last" title="Compare with the previous round (C)">vs Last round</button>
         </div>
-        <div class="seg" id="layouts" role="group" aria-label="Layout">
-          <button data-layout="side" title="Side by side (S)">Side by side</button>
-          <button data-layout="swipe" title="Swipe between the two (W)">Swipe</button>
-          <button data-layout="single" title="Only the after (A)">After only</button>
+        <div role="group" id="layouts" aria-label="Layout">
+          <button class="secondary outline" data-layout="side" title="Side by side (S)">Side by side</button>
+          <button class="secondary outline" data-layout="swipe" title="Swipe between the two (W)">Swipe</button>
+          <button class="secondary outline" data-layout="single" title="Only the after (A)">After only</button>
         </div>
-        <button class="btn" id="phoneBtn" aria-pressed="false" title="Phone screenshots (P)">📱 Phone</button>
-        <button class="btn" id="zoomBtn" title="Fit or 100% (Z)">Fit</button>
-        <span class="spacer"></span>
-        <span class="hint">Click a screenshot to comment at that spot · <kbd>N</kbd> next page that needs you · <kbd>?</kbd> shortcuts</span>
+        <button class="secondary outline" id="phoneBtn" aria-pressed="false" title="Phone screenshots (P)">Phone</button>
+        <button class="secondary outline" id="zoomBtn" title="Fit or 100% (Z)">100%</button>
       </div>
       <div class="canvas" id="canvas"></div>
-    </section>
+    </div>
+    <div class="noround" id="noRound" hidden></div>
   </main>
 
-  <aside class="panel" id="panel">
-    <div class="panel-head"><span id="panelTitle">Comments</span><span class="spacer"></span><button class="btn small" id="generalBtn">+ General comment</button></div>
+  <aside class="panel">
+    <div class="panel-head"><span id="panelTitle">Comments</span><span class="spacer"></span><button class="secondary outline small" id="generalBtn">General comment</button></div>
     <div class="panel-body" id="panelBody"></div>
   </aside>
 </div>
 
-<div class="popover" id="popover" hidden></div>
-<dialog id="sendDlg" class="send">
-  <h2 id="sendTitle">Send your feedback to the agent</h2>
-  <p class="muted who" id="sendWho"></p>
-  <ul id="sendSummary"></ul>
-  <textarea id="sendNote" placeholder="Anything else for the agent? (optional)"></textarea>
-  <div class="actions"><button class="btn" id="sendCancel">Keep reviewing</button><button class="btn primary" id="sendConfirm">Send to agent</button></div>
+<article class="popover" id="popover" hidden></article>
+
+<dialog id="sendDlg">
+  <article>
+    <header><strong id="sendTitle">Send your feedback to the agent</strong></header>
+    <p class="muted" id="sendWho"></p>
+    <ul id="sendSummary"></ul>
+    <textarea id="sendNote" placeholder="Anything else for the agent? (optional)"></textarea>
+    <footer><button class="secondary outline" id="sendCancel">Keep reviewing</button><button id="sendConfirm">Send</button></footer>
+  </article>
+</dialog>
+<dialog id="meDlg">
+  <article>
+    <header><strong>Your name</strong></header>
+    <p class="muted">Shown on your comments and verdicts.</p>
+    <input id="meInput" maxlength="60" placeholder="Name" autocomplete="name">
+    <footer><button class="secondary outline" id="meCancel">Cancel</button><button id="meSave">Save</button></footer>
+  </article>
 </dialog>
 <dialog id="help">
-  <h2>Keyboard</h2>
-  <table>
-    <tr><td><kbd>J</kbd> / <kbd>K</kbd></td><td>Next or previous page</td></tr>
-    <tr><td><kbd>N</kbd></td><td>Next page that needs you: no verdict, or a thread waiting on your reply</td></tr>
-    <tr><td><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd></td><td>Approve · Needs update · Revert (press again to clear)</td></tr>
-    <tr><td><kbd>S</kbd> <kbd>W</kbd> <kbd>A</kbd></td><td>Side by side · Swipe · After only</td></tr>
-    <tr><td><kbd>C</kbd></td><td>Compare with Before or with the last round</td></tr>
-    <tr><td><kbd>P</kbd> <kbd>Z</kbd></td><td>Phone screenshots · zoom Fit/100%</td></tr>
-    <tr><td><kbd>[</kbd> <kbd>]</kbd></td><td>Page list · comments panel</td></tr>
-    <tr><td><kbd>O</kbd></td><td>Round overview</td></tr>
-    <tr><td><kbd>H</kbd></td><td>Show or hide what changed since the last round</td></tr>
-    <tr><td><kbd>Shift</kbd>+<kbd>S</kbd></td><td>Send your feedback to the agent</td></tr>
-    <tr><td><kbd>Ctrl</kbd>+<kbd>Enter</kbd></td><td>Send the comment you are writing</td></tr>
-    <tr><td><kbd>Esc</kbd></td><td>Close the comment popover</td></tr>
-  </table>
-  <p class="muted">Click a screenshot to pin a comment there. Click a numbered pin to open its thread. Drag the handle in Swipe to compare.</p>
-  <form method="dialog" class="actions"><button class="btn primary">Close</button></form>
+  <article>
+    <header><strong>Keyboard</strong></header>
+    <table>
+      <tr><td><kbd>J</kbd> <kbd>K</kbd></td><td>Next or previous page</td></tr>
+      <tr><td><kbd>N</kbd></td><td>Next page that needs you</td></tr>
+      <tr><td><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd></td><td>Approve, needs update, revert (again to clear)</td></tr>
+      <tr><td><kbd>C</kbd></td><td>Compare with before or with the last round</td></tr>
+      <tr><td><kbd>S</kbd> <kbd>W</kbd> <kbd>A</kbd></td><td>Side by side, swipe, after only</td></tr>
+      <tr><td><kbd>P</kbd> <kbd>Z</kbd> <kbd>H</kbd></td><td>Phone, zoom, outline changes</td></tr>
+      <tr><td><kbd>Shift</kbd> <kbd>S</kbd></td><td>Send your feedback</td></tr>
+      <tr><td><kbd>Ctrl</kbd> <kbd>Enter</kbd></td><td>Post what you are writing</td></tr>
+    </table>
+    <footer><button id="helpClose">Close</button></footer>
+  </article>
 </dialog>
 <div class="toast" id="toast"></div>
 
 <script>
 const $ = (id) => document.getElementById(id);
-const OVERVIEW = '__overview';
 const slug = decodeURIComponent(location.pathname.split('/').filter(Boolean)[1] || '');
 const PIN_LABEL = { before: 'before', after: 'after', previous: 'last round', mobile: 'phone' };
 const VERDICT_TEXT = { approve: 'Approved', update: 'Needs update', revert: 'Revert' };
@@ -375,41 +271,34 @@ const pref = {
 };
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const when = (iso) => new Date(iso).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-const dateOf = (iso) => new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
 const plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
 const imgUrl = (file) => `/api/r/${encodeURIComponent(slug)}/img/${encodeURIComponent(file)}`;
 
 let data = null;
 let roundN = null;
-let current = OVERVIEW;
-let draftPin = null;      // { img, x, y }
-let openThread = null;    // thread id, or 'draft'
-let composing = false;    // general-comment box in the panel
+let current = null;
+let draftPin = null;
+let openThread = null;
+let composing = false;
 const ui = {
   layout: pref.get('layout', 'side'),
   pair: pref.get('pair', 'before'),
   phone: false,
   zoom: 'fit',
   filter: 'all',
-  changes: pref.get('changes', '1') === '1',
   search: '',
-  rail: pref.get('rail', 'open') === 'open',
-  panel: pref.get('panel', window.innerWidth >= 1250 ? 'open' : 'closed') === 'open',
+  changes: pref.get('changes', '1') === '1',
 };
-// Agent replies newer than this are marked "new" for this visit. A first visit has nothing to compare with.
 const lastVisit = pref.get(`seen.${slug}`, new Date().toISOString());
 pref.set(`seen.${slug}`, new Date().toISOString());
-if (window.innerWidth <= 1100) ui.rail = false;
-$('me').value = pref.get('me', '');
-$('me').addEventListener('change', () => pref.set('me', $('me').value.trim()));
-const me = () => $('me').value.trim() || 'You';
+const me = () => pref.get('me', '') || 'You';
 
 function toast(msg) {
   const t = $('toast');
   t.textContent = msg;
   t.classList.add('show');
   clearTimeout(toast.timer);
-  toast.timer = setTimeout(() => t.classList.remove('show'), msg.length > 60 ? 5000 : 1600);
+  toast.timer = setTimeout(() => t.classList.remove('show'), msg.length > 60 ? 5000 : 1800);
 }
 
 /* ---------- derived state ---------- */
@@ -429,15 +318,13 @@ const waiting = (t) => t.status !== 'resolved' && last(t).kind === 'human';
 const answered = (t) => t.status !== 'resolved' && last(t).kind === 'agent';
 const isNew = (m) => m.kind === 'agent' && m.at > lastVisit;
 const hasNew = (t) => [t, ...t.replies].some(isNew);
-// Unchanged: the after (and the phone shot, when there is one) is pixel for pixel last round's. A tiny change still
-// counts as a change, so nothing that moved is ever skipped.
 const unchanged = (p) => p.change?.status === 'same' && (!p.mobile || p.mobileChange?.status === 'same');
 const changedKind = (p) => (p.change ? (unchanged(p) ? 'same' : p.change.status === 'new' ? 'new' : 'changed') : null);
-// Unchanged and approved last round: nothing to look at again.
+const tiny = (p) => changedKind(p) === 'changed' && [p.change, p.mobile ? p.mobileChange : null].every((c) => !c || ['same', 'minor'].includes(c.status));
 const settled = (p) => unchanged(p) && verdictOf(roundN - 1, p.id) === 'approve';
 const needsMe = (p) => (!verdictOf(roundN, p.id) && !settled(p)) || threadsOf(null, p.id).some(answered) || threadsOf(null, p.id).some(hasNew);
+const numbering = (p) => new Map(threadsOf(roundN, p.id).map((t, i) => [t.id, i + 1]));
 const lastSubmission = () => data.feedback.submissions?.at(-1) ?? null;
-// Feedback goes into the agent's T3 Code thread, unless an agent is blocked in `reviewtool wait` right now.
 const threadTarget = () => (data.review.target?.kind === 't3' && !data.waiting ? data.review.target : null);
 const threadName = (t) => (t.title ? `T3 thread “${t.title}”` : 'the T3 thread');
 function unsentChanges() {
@@ -445,11 +332,12 @@ function unsentChanges() {
   const all = data.feedback.comments;
   const answeredLater = (c) => all.some((m) => m.kind === 'agent' && (m.replyTo ?? m.id) === (c.replyTo ?? c.id) && m.at > c.at);
   const resolvedThread = (c) => all.find((m) => m.id === (c.replyTo ?? c.id))?.status === 'resolved';
-  const comments = all.filter((c) => c.kind === 'human' && c.at > since && !answeredLater(c) && !resolvedThread(c));
-  const verdicts = Object.entries(data.feedback.verdicts).filter(([, v]) => v.at > since);
-  return { comments, verdicts };
+  return {
+    comments: all.filter((c) => c.kind === 'human' && c.at > since && !answeredLater(c) && !resolvedThread(c)),
+    verdicts: Object.entries(data.feedback.verdicts).filter(([, v]) => v.at > since),
+  };
 }
-const numbering = (p) => new Map(threadsOf(roundN, p.id).map((t, i) => [t.id, i + 1]));
+const firstForRound = () => (pages().find(needsMe) ?? pages()[0])?.id;
 
 function shots(p) {
   const prev = prevPage(p.id);
@@ -457,12 +345,10 @@ function shots(p) {
   const base = phone
     ? { key: 'mobile', file: p.mobile, label: 'After', sub: `phone · round ${roundN}` }
     : { key: 'after', file: p.after, label: 'After', sub: p.afterLabel && p.afterLabel !== 'after' ? p.afterLabel : `round ${roundN}` };
-  let cmp = null;
-  const pair = effectivePair(p);
-  if (pair === 'last') cmp = phone ? { key: 'previousMobile', file: prev?.mobile, label: 'Last round', sub: `phone · round ${roundN - 1}`, noPin: true } : { key: 'previous', file: prev?.after, label: 'Last round', sub: `round ${roundN - 1}` };
+  let cmp;
+  if (effectivePair(p) === 'last') cmp = phone ? { key: 'previousMobile', file: prev?.mobile, label: 'Last round', sub: `phone · round ${roundN - 1}`, noPin: true } : { key: 'previous', file: prev?.after, label: 'Last round', sub: `round ${roundN - 1}` };
   else cmp = phone ? { key: 'mobileBefore', file: p.mobileBefore, label: 'Before', sub: 'phone', noPin: true } : { key: 'before', file: p.before, label: 'Before', sub: p.beforeLabel && p.beforeLabel !== 'before' ? p.beforeLabel : '' };
-  if (!cmp.file) cmp = null;
-  return { base, cmp, phone };
+  return { base, cmp: cmp.file ? cmp : null, phone };
 }
 const effectivePair = (p) => (ui.pair === 'last' && !prevPage(p.id) ? 'before' : ui.pair);
 
@@ -475,34 +361,35 @@ async function load() {
   if (first) {
     const [h, r] = decodeURIComponent(location.hash.slice(1)).split('@');
     roundN = data.rounds.some((x) => x.n === Number(r)) ? Number(r) : latest;
-    current = h && pages().some((p) => p.id === h) ? h : OVERVIEW;
+    current = pages().some((p) => p.id === h) ? h : firstForRound();
+    setHash();
   } else if (!round()) {
     roundN = latest;
   }
-  if (current !== OVERVIEW && !page()) current = OVERVIEW;
+  if (!page()) current = firstForRound();
   render();
 }
 
 function setHash() {
+  if (!data?.rounds.length) return;
   const r = roundN !== data.rounds.at(-1)?.n ? `@${roundN}` : '';
-  history.replaceState(null, '', current === OVERVIEW ? (r ? `#overview${r}` : '#') : `#${encodeURIComponent(current)}${r}`);
+  history.replaceState(null, '', `#${encodeURIComponent(current ?? '')}${r}`);
 }
 
-function go(id, { scroll = true } = {}) {
-  if (id === current) return;
+function go(id) {
+  if (!id || id === current) return;
   current = id;
   draftPin = null;
   openThread = null;
   composing = false;
   setHash();
   render();
-  if (scroll) $('main').scrollTo({ top: 0 });
-  if (window.innerWidth <= 1100 && ui.rail) { ui.rail = false; applyPanels(); }
+  $('main').scrollTo({ top: 0 });
 }
 
 function setRound(n) {
   roundN = n;
-  if (current !== OVERVIEW && !page()) current = OVERVIEW;
+  current = pages().some((p) => p.id === current) ? current : firstForRound();
   draftPin = null;
   openThread = null;
   setHash();
@@ -511,129 +398,92 @@ function setRound(n) {
 
 /* ---------- rendering ---------- */
 function render() {
-  if (!data.rounds.length) return renderNoRounds();
-  applyPanels();
   renderBar();
+  if (!data.rounds.length) return renderNoRounds();
   renderRail();
-  if (current === OVERVIEW) {
-    $('pageView').hidden = true;
-    $('overview').hidden = false;
-    renderOverview();
-    renderPanelForOverview();
-  } else {
-    $('overview').hidden = true;
-    $('pageView').hidden = false;
-    renderPage(page());
-    renderPanel(page());
-  }
+  renderPage(page());
+  renderPanel(page());
   renderPopover();
   preloadNeighbours();
 }
 
-function applyPanels() {
-  $('app').dataset.rail = ui.rail ? 'open' : 'closed';
-  $('app').dataset.panel = ui.panel ? 'open' : 'closed';
-  $('railToggle').setAttribute('aria-pressed', ui.rail);
-  $('panelToggle').setAttribute('aria-pressed', ui.panel);
-}
-
 function renderBar() {
   const { review } = data;
-  document.title = `${review.title} · round ${roundN}`;
+  document.title = `${review.title}${roundN ? ` · round ${roundN}` : ''}`;
   $('reviewTitle').textContent = review.title;
   const pr = $('prLink');
   pr.hidden = !(review.repo && review.pr);
-  if (!pr.hidden) { pr.href = `https://github.com/${review.repo}/pull/${review.pr}`; pr.textContent = `${review.repo}#${review.pr}`; }
+  if (!pr.hidden) { pr.href = `https://github.com/${review.repo}/pull/${review.pr}`; pr.textContent = `#${review.pr}`; }
   const latest = data.rounds.at(-1)?.n;
+  $('round').hidden = !data.rounds.length;
   $('round').innerHTML = [...data.rounds].reverse().map((r) => `<option value="${r.n}" ${r.n === roundN ? 'selected' : ''}>Round ${r.n}${r.title && r.title !== `Round ${r.n}` ? ` · ${esc(r.title)}` : ''}${r.n === latest ? ' (latest)' : ''}</option>`).join('');
   const ps = pages();
   const done = ps.filter((p) => verdictOf(roundN, p.id)).length;
-  $('ringText').textContent = `${done}/${ps.length} judged`;
-  $('ring').querySelector('.fill').style.strokeDashoffset = String(56.5 * (1 - done / Math.max(1, ps.length)));
+  $('progress').hidden = !ps.length;
+  $('progressBar').max = Math.max(1, ps.length);
+  $('progressBar').value = done;
+  $('progressText').textContent = `${done}/${ps.length} judged`;
+  $('meBtn').textContent = pref.get('me', '') || 'Set your name';
   $('logLink').href = `/api/r/${encodeURIComponent(slug)}/log`;
-  renderAgentState();
-}
 
-function renderAgentState() {
-  const el = $('agentState');
   const sub = lastSubmission();
   const newest = data.rounds.at(-1);
   let cls = '';
   let text = '';
   if (data.waiting) { cls = 'waiting'; text = `${data.waiting.by} is waiting for your feedback`; }
-  else if (sub?.delivery?.error && !sub.pickedUpAt) { cls = 'sent'; text = `Could not reach ${sub.delivery.to} · saved for the next agent`; }
-  else if (sub && !sub.pickedUpAt) { cls = 'sent'; text = 'Sent · no agent has picked it up yet'; }
-  else if (sub?.delivery && newest.createdAt < sub.pickedUpAt) { cls = 'working'; text = `Sent to ${sub.delivery.to}`; }
-  else if (sub && sub.pickedUpAt && newest.createdAt < sub.pickedUpAt) { cls = 'working'; text = `${sub.pickedUpBy} is working on your feedback`; }
-  el.hidden = !text;
-  el.className = `agentstate ${cls}`;
+  else if (sub?.delivery?.error && !sub.pickedUpAt) { cls = 'sent'; text = `Could not reach ${sub.delivery.to}; saved for the next agent`; }
+  else if (sub && !sub.pickedUpAt) { cls = 'sent'; text = 'Sent, not picked up yet'; }
+  else if (newest && sub?.pickedUpAt && newest.createdAt < sub.pickedUpAt) { cls = 'working'; text = sub.delivery ? `Sent to ${sub.delivery.to}` : `${sub.pickedUpBy} is working on your feedback`; }
+  $('agentState').hidden = !text;
+  $('agentState').className = `agent ${cls}`;
   $('agentText').textContent = text;
-  el.title = sub ? `Last sent ${when(sub.at)}${sub.pickedUpAt ? `, picked up by ${sub.pickedUpBy} ${when(sub.pickedUpAt)}` : ''}` : '';
   const { comments, verdicts } = unsentChanges();
   const n = comments.length + verdicts.length;
   $('sendCount').hidden = !n;
   $('sendCount').textContent = n;
-  // Loud when there is something to send or an agent is waiting; quiet otherwise.
-  $('sendBtn').classList.toggle('quiet', !n && !data.waiting);
   const t = threadTarget();
   $('sendLabel').textContent = t ? 'Send to T3 thread' : 'Send to agent';
-  $('sendBtn').title = t ? `Post your feedback in ${threadName(t)}` : 'Tell the agent you are done for now';
-}
-
-function openSend() {
-  const { comments, verdicts } = unsentChanges();
-  const latest = data.rounds.at(-1);
-  const count = (v) => verdicts.filter(([, x]) => x.verdict === v).length;
-  const replies = comments.filter((c) => c.replyTo).length;
-  const open = latest.pages.filter((p) => !verdictOf(latest.n, p.id) && !settled(p)).length;
-  const items = [
-    comments.length - replies ? plural(comments.length - replies, 'new comment') : null,
-    replies ? plural(replies, 'reply') : null,
-    count('approve') ? `${count('approve')} approved` : null,
-    count('update') ? `${count('update')} need an update` : null,
-    count('revert') ? `${count('revert')} to revert` : null,
-  ].filter(Boolean);
-  const t = threadTarget();
-  $('sendTitle').textContent = t ? 'Send your feedback to the T3 thread' : 'Send your feedback to the agent';
-  $('sendConfirm').textContent = t ? 'Send to T3 thread' : 'Send to agent';
-  $('sendWho').innerHTML = data.waiting ? `${esc(data.waiting.by)} is waiting and starts as soon as you send.`
-    : t ? `It arrives in ${t.link ? `<a href="${esc(t.link)}" target="_blank" rel="noopener">${esc(threadName(t))}</a>` : esc(threadName(t))} as a new message. If the agent is busy, it reads it as its next turn.`
-    : 'No agent is waiting right now; the next one that runs "reviewtool wait" picks this up.';
-  $('sendSummary').innerHTML = (items.length ? items : ['Nothing new since you last sent; send anyway to let the agent continue']).map((x) => `<li>${esc(x)}</li>`).join('') +
-    (open ? `<li class="muted">${plural(open, 'page')} in round ${latest.n} still without a verdict</li>` : '');
-  $('sendDlg').showModal();
-  $('sendNote').focus();
-}
-
-async function confirmSend() {
-  try {
-    $('sendConfirm').disabled = true;
-    const sub = await api('POST', '/submit', { round: data.rounds.at(-1).n, by: me(), note: $('sendNote').value });
-    $('sendNote').value = '';
-    $('sendDlg').close();
-    await load();
-    if (sub.delivery?.error) toast(`Saved, but ${sub.delivery.to} could not be reached: ${sub.delivery.error}`);
-    else toast(sub.delivery ? `Sent to ${sub.delivery.to}` : 'Sent to the agent');
-  } catch (err) { toast(`Could not send: ${err.message}`); }
-  finally { $('sendConfirm').disabled = false; }
+  $('sendBtn').className = n || data.waiting ? '' : 'secondary outline';
+  $('sendBtn').hidden = !data.rounds.length;
 }
 
 function renderRail() {
-  const ps = pages();
+  const r = round();
+  const ps = r.pages;
+  const prev = prevRound();
+  // What the agent said about this round, and what changed since the last one.
+  $('roundNotes').hidden = !r.notes;
+  $('roundNotes').textContent = r.notes || '';
+  const changed = ps.filter((p) => changedKind(p) === 'changed').length;
+  const added = ps.filter((p) => changedKind(p) === 'new').length;
+  const same = ps.filter((p) => changedKind(p) === 'same').length;
+  const compared = ps.some((p) => p.change);
+  $('roundChanges').hidden = !compared;
+  $('roundChanges').innerHTML = compared ? `Since round ${r.n - 1}: <b>${changed} changed</b>${added ? `, ${added} new` : ''}, ${same} unchanged` : '';
+  const carry = ps.filter((p) => settled(p) && !verdictOf(r.n, p.id));
+  $('carryBtn').hidden = !carry.length;
+  $('carryBtn').textContent = `Approve ${plural(carry.length, 'unchanged page')} approved last round`;
+  $('carryBtn').onclick = async () => {
+    try {
+      $('carryBtn').setAttribute('aria-busy', 'true');
+      for (const p of carry) data.feedback.verdicts[`${r.n}/${p.id}`] = (await api('PUT', '/verdict', { round: r.n, page: p.id, verdict: 'approve', by: me() })).verdict;
+      toast(`Approved ${plural(carry.length, 'unchanged page')}`);
+    } catch (err) { toast(`Could not save: ${err.message}`); }
+    $('carryBtn').removeAttribute('aria-busy');
+    render();
+  };
+
   const sets = {
     all: ps,
-    todo: ps.filter((p) => !verdictOf(roundN, p.id)),
-    waiting: ps.filter((p) => threadsOf(null, p.id).some(answered)),
-    new: ps.filter((p) => threadsOf(null, p.id).some(hasNew)),
+    attention: ps.filter(needsMe),
     changed: ps.filter((p) => ['changed', 'new'].includes(changedKind(p))),
-    same: ps.filter((p) => changedKind(p) === 'same'),
   };
-  const labels = { all: 'All', todo: 'No verdict', waiting: 'Answered', new: 'New replies', changed: 'Changed', same: 'Unchanged' };
-  $('filters').innerHTML = Object.keys(sets).filter((k) => k === 'all' || sets[k].length).map((k) => `<button class="chip" data-filter="${k}" aria-pressed="${ui.filter === k}">${labels[k]}<b>${sets[k].length}</b></button>`).join('');
-  if (!sets[ui.filter]?.length) ui.filter = 'all';
+  const labels = { all: 'All', attention: 'Needs you', changed: 'Changed' };
+  if (!sets[ui.filter]) ui.filter = 'all';
+  $('filters').innerHTML = Object.keys(sets).filter((k) => k !== 'changed' || compared).map((k) => `<button class="secondary outline" data-filter="${k}" aria-pressed="${ui.filter === k}">${labels[k]} ${sets[k].length}</button>`).join('');
   const q = ui.search.trim().toLowerCase();
   const shown = sets[ui.filter].filter((p) => !q || p.title.toLowerCase().includes(q) || (p.route || '').toLowerCase().includes(q));
-  // Group by the part before " · " when at least two pages share it.
+
   const prefix = (p) => (p.title.includes(' · ') ? p.title.split(' · ')[0] : null);
   const counts = {};
   for (const p of shown) if (prefix(p)) counts[prefix(p)] = (counts[prefix(p)] || 0) + 1;
@@ -644,101 +494,42 @@ function renderRail() {
     if (!bucket) groups.push((bucket = { name: g, items: [] }));
     bucket.items.push(p);
   }
-  const prev = prevRound();
-  const item = (p, g) => {
+  // One signal per row, the most urgent: new replies, then answered threads, then whether the page changed.
+  const signal = (p) => {
     const ts = threadsOf(null, p.id);
-    const nAnswered = ts.filter(answered).length;
     const nNew = ts.filter(hasNew).length;
-    const label = g && p.title.startsWith(g + ' · ') ? p.title.slice(g.length + 3) : p.title;
-    const kind = changedKind(p);
-    const tiny = kind === 'changed' && [p.change, p.mobile ? p.mobileChange : null].every((c) => !c || ['same', 'minor'].includes(c.status));
-    const chg = kind === 'changed' ? (tiny ? '<span class="chg minor" title="A tiny change since the last round, like a clock">tiny</span>' : '<span class="chg changed" title="Changed since the last round">changed</span>') : kind === 'same' ? `<span class="chg same" title="Looks the same as round ${roundN - 1}${settled(p) ? ', where you approved it' : ''}">${settled(p) ? '= approved' : 'same'}</span>` : '';
-    return `<button data-id="${esc(p.id)}" aria-current="${p.id === current}"><span class="dot ${verdictOf(roundN, p.id) ?? ''}"></span><span class="label">${esc(label)}</span>${prev && !prevPage(p.id) ? '<span class="tag">new</span>' : chg}${nNew ? `<span class="count new" title="${plural(nNew, 'new reply')}">${nNew}</span>` : nAnswered ? `<span class="count" title="${plural(nAnswered, 'answered thread')} to check">${nAnswered}</span>` : ''}</button>`;
+    if (nNew) return `<span class="count new" title="${plural(nNew, 'new reply')}">${nNew}</span>`;
+    const nAns = ts.filter(answered).length;
+    if (nAns) return `<span class="count" title="${plural(nAns, 'answered thread')} to check">${nAns}</span>`;
+    if (prev && !prevPage(p.id)) return '<span class="tag new">new</span>';
+    if (changedKind(p) === 'changed') return `<span class="tag changed">${tiny(p) ? 'tiny change' : 'changed'}</span>`;
+    return '';
   };
-  $('nav').innerHTML = `<button class="ov" data-id="${OVERVIEW}" aria-current="${current === OVERVIEW}"><span class="dot" style="border-color:transparent">◎</span><span class="label">Round ${roundN} overview</span></button>` +
-    groups.map((g) => `${g.name ? `<div class="group">${esc(g.name)}</div>` : ''}${g.items.map((p) => item(p, g.name)).join('')}`).join('') +
-    (shown.length ? '' : '<div class="empty">No pages match.</div>');
+  const item = (p, g) => {
+    const label = g && p.title.startsWith(g + ' · ') ? p.title.slice(g.length + 3) : p.title;
+    return `<button data-id="${esc(p.id)}" aria-current="${p.id === current}" class="${settled(p) ? 'settled' : ''}" title="${esc(p.title)}${settled(p) ? ' · unchanged, approved last round' : ''}"><span class="dot ${verdictOf(r.n, p.id) ?? ''}"></span><span class="label">${esc(label)}</span>${signal(p)}</button>`;
+  };
+  $('pages').innerHTML = groups.map((g) => `${g.name ? `<div class="group">${esc(g.name)}</div>` : ''}${g.items.map((p) => item(p, g.name)).join('')}`).join('') || '<div class="empty">No pages match.</div>';
   if (renderRail.shown !== `${roundN}/${current}`) {
     renderRail.shown = `${roundN}/${current}`;
-    $('nav').querySelector('[aria-current="true"]')?.scrollIntoView({ block: 'nearest' });
+    $('pages').querySelector('[aria-current="true"]')?.scrollIntoView({ block: 'nearest' });
   }
-}
-
-function renderOverview() {
-  const r = round();
-  const prev = prevRound();
-  const ps = r.pages;
-  const tally = { approve: 0, update: 0, revert: 0, none: 0 };
-  for (const p of ps) tally[verdictOf(r.n, p.id) ?? 'none']++;
-  const withAnswers = ps.filter((p) => threadsOf(null, p.id).some(answered));
-  const withNew = ps.filter((p) => threadsOf(null, p.id).some(hasNew));
-  const newPages = prev ? ps.filter((p) => !prevPage(p.id)) : [];
-  const roundThreads = data.feedback.comments.filter((c) => !c.replyTo && c.round === r.n).length;
-  const next = ps.find(needsMe);
-  const compared = ps.some((p) => p.change);
-  const changedPages = ps.filter((p) => changedKind(p) === 'changed');
-  const samePages = ps.filter((p) => changedKind(p) === 'same');
-  const carry = samePages.filter((p) => verdictOf(r.n - 1, p.id) === 'approve' && !verdictOf(r.n, p.id));
-  const subs = (data.feedback.submissions ?? []).filter((x) => x.round === r.n);
-  const chips = (list) => `<div class="pagechips">${list.map((p) => `<button data-id="${esc(p.id)}"><span class="dot ${verdictOf(r.n, p.id) ?? ''}"></span>${esc(p.title)}</button>`).join('')}</div>`;
-  const stat = (cls, n, label, filter) => `<button class="stat ${cls}" data-filter="${filter}"><b>${n}</b><span>${label}</span></button>`;
-  $('overview').innerHTML = `
-    <div>
-      <h1>Round ${r.n}${r.title && r.title !== `Round ${r.n}` ? ` · ${esc(r.title)}` : ''}</h1>
-      <div class="meta">${dateOf(r.createdAt)}${r.by ? ` · published by ${esc(r.by)}` : ''} · ${plural(ps.length, 'page')} · ${plural(roundThreads, 'comment thread')}</div>
-    </div>
-    ${r.notes ? `<p class="notes">${esc(r.notes)}</p>` : ''}
-    <div class="stats">
-      ${stat('', tally.none, 'without a verdict', 'todo')}
-      ${stat('approve', tally.approve, 'approved', 'all')}
-      ${stat('update', tally.update, 'need an update', 'all')}
-      ${stat('revert', tally.revert, 'revert', 'all')}
-      ${stat('waiting', withAnswers.length, 'pages with answered threads', 'waiting')}
-      ${withNew.length ? stat('new', withNew.length, 'pages with new replies', 'new') : ''}
-    </div>
-    <div class="row">
-      ${next ? `<button class="btn primary" id="startBtn">${tally.none === ps.length ? 'Start reviewing' : 'Continue'} → ${esc(next.title)}</button>` : '<span class="badge resolved">Every page has a verdict and nothing is waiting for you</span>'}
-      <a class="btn" href="/api/r/${encodeURIComponent(slug)}/log" target="_blank">Review log</a>
-      ${data.review.repo && data.review.pr ? `<a class="btn" href="https://github.com/${esc(data.review.repo)}/pull/${data.review.pr}" target="_blank" rel="noopener">Pull request</a>` : ''}
-    </div>
-    ${compared ? `<section><h2>Since round ${r.n - 1}: ${plural(changedPages.length, 'page')} changed${newPages.length ? `, ${newPages.length} new` : ''}, ${samePages.length} unchanged</h2>
-      ${changedPages.length ? chips(changedPages) : '<p class="muted">No page looks different from the last round.</p>'}
-      ${carry.length ? `<div class="row" style="margin-top:10px"><button class="btn" id="carryBtn">Approve the ${plural(carry.length, 'unchanged page')} you approved in round ${r.n - 1}</button></div>` : ''}
-    </section>` : ''}
-    ${withNew.length ? `<section><h2>New replies since your last visit</h2>${chips(withNew)}</section>` : ''}
-    ${withAnswers.length ? `<section><h2>Answered by the agent, waiting for you to check</h2>${chips(withAnswers)}</section>` : ''}
-    ${newPages.length ? `<section><h2>New in this round</h2>${chips(newPages)}</section>` : ''}
-    ${subs.length ? `<section><h2>Feedback sent in this round</h2><div class="pagechips">${subs.map((x) => `<span class="badge resolved">${when(x.at)}${x.by ? ` by ${esc(x.by)}` : ''} · ${x.pickedUpAt ? `picked up by ${esc(x.pickedUpBy)}` : 'not picked up yet'}</span>`).join('')}</div></section>` : ''}
-    <section><h2>Rounds</h2>
-      <table class="rounds"><tr><th>Round</th><th>Date</th><th>Pages</th><th>Threads</th><th>Verdicts</th></tr>
-      ${[...data.rounds].reverse().map((x) => {
-        const t = data.feedback.comments.filter((c) => !c.replyTo && c.round === x.n);
-        const v = x.pages.filter((p) => verdictOf(x.n, p.id)).length;
-        return `<tr data-n="${x.n}"><td><b>Round ${x.n}</b>${x.title && x.title !== `Round ${x.n}` ? ` · ${esc(x.title)}` : ''}${x.n === roundN ? ' <span class="badge agent">viewing</span>' : ''}</td><td>${dateOf(x.createdAt)}</td><td>${x.pages.length}</td><td>${t.length}${t.length ? ` <span class="muted">(${t.filter((c) => c.status === 'resolved').length} resolved)</span>` : ''}</td><td>${v}/${x.pages.length}</td></tr>`;
-      }).join('')}
-      </table>
-    </section>`;
-  $('startBtn')?.addEventListener('click', () => go(next.id));
-  $('carryBtn')?.addEventListener('click', async () => {
-    try {
-      for (const p of carry) {
-        const res = await api('PUT', '/verdict', { round: r.n, page: p.id, verdict: 'approve', by: me() });
-        data.feedback.verdicts[`${r.n}/${p.id}`] = res.verdict;
-      }
-      render();
-      toast(`Approved ${plural(carry.length, 'unchanged page')}`);
-    } catch (err) { toast(`Could not save: ${err.message}`); }
-  });
+  // Narrow screens pick a page here instead of the list.
+  const mark = (p) => (verdictOf(r.n, p.id) ? '✓ ' : needsMe(p) ? '• ' : '  ');
+  $('pageSelect').innerHTML = ps.map((p) => `<option value="${esc(p.id)}" ${p.id === current ? 'selected' : ''}>${mark(p)}${esc(p.title)}${changedKind(p) === 'changed' ? ' (changed)' : changedKind(p) === 'new' ? ' (new)' : ''}</option>`).join('');
 }
 
 function renderPage(p) {
+  $('noRound').hidden = true;
+  $('pageView').hidden = false;
   $('title').textContent = p.title;
   $('route').textContent = p.route || '';
+  $('route').hidden = !p.route;
   $('note').hidden = !p.note;
   $('note').textContent = p.note || '';
-  renderChangeBar(p);
   const v = verdictOf(roundN, p.id);
   for (const b of $('verdicts').querySelectorAll('button')) b.setAttribute('aria-pressed', b.dataset.v === v);
+  renderChangeBar(p);
   const { base, cmp, phone } = shots(p);
   const pair = effectivePair(p);
   for (const b of $('pairs').querySelectorAll('button')) {
@@ -752,9 +543,7 @@ function renderPage(p) {
   }
   $('phoneBtn').setAttribute('aria-pressed', phone);
   $('phoneBtn').disabled = !p.mobile;
-  $('zoomBtn').textContent = ui.zoom === 'fit' ? 'Fit' : '100%';
   $('zoomBtn').setAttribute('aria-pressed', ui.zoom === 'full');
-
   const canvas = $('canvas');
   canvas.dataset.layout = layout;
   canvas.dataset.zoom = ui.zoom;
@@ -769,55 +558,54 @@ function renderChangeBar(p) {
   if (!c) { bar.hidden = true; return; }
   const prevN = roundN - 1;
   const was = verdictOf(prevN, p.id);
-  const wasText = was ? ` · round ${prevN} verdict: ${VERDICT_TEXT[was].toLowerCase()}` : '';
+  const wasText = was ? `<span>Round ${prevN}: ${VERDICT_TEXT[was].toLowerCase()}</span>` : '';
   let text;
-  if (c.status === 'new') text = '<span class="tag">new</span> <b>New in this round</b>';
+  if (c.status === 'new') text = '<b>New in this round</b>';
   else if (c.status === 'same') text = `<b>Identical to round ${prevN}</b>${wasText}`;
-  else if (c.status === 'minor') text = `<span class="chg minor">tiny change</span> <b>Almost identical to round ${prevN}</b> · ${(c.ratio * 100).toFixed(2)}% of pixels${wasText}`;
-  else if (c.status === 'changed') text = `<span class="chg changed">changed</span> <b>Changed since round ${prevN}</b> · ${c.size ? 'the screenshot size changed' : `${(c.ratio * 100).toFixed(1)}% of the screen, ${plural(c.boxes.length, 'area')}`}${wasText}`;
-  else text = `<b>Not compared with round ${prevN}</b> · that screenshot is missing or not a PNG`;
+  else if (c.status === 'minor') text = `<b>Tiny change since round ${prevN}</b><span>${(c.ratio * 100).toFixed(2)}% of pixels</span>${wasText}`;
+  else if (c.status === 'changed') text = `<b>Changed since round ${prevN}</b><span>${c.size ? 'the screenshot size changed' : `${(c.ratio * 100).toFixed(1)}% of the screen, ${plural(c.boxes.length, 'area')}`}</span>${wasText}`;
+  else text = `<b>Not compared with round ${prevN}</b><span>that screenshot is missing or not a PNG</span>`;
   const canShow = ['changed', 'minor'].includes(c.status) && c.boxes?.length;
-  bar.innerHTML = `${text}${canShow ? `<span class="spacer"></span><label><input type="checkbox" id="showChanges" ${ui.changes ? 'checked' : ''}> Outline changes <kbd>H</kbd></label>` : ''}`;
+  bar.innerHTML = `${text}${canShow ? `<label><input type="checkbox" role="switch" id="showChanges" ${ui.changes ? 'checked' : ''}>Outline changes</label>` : ''}`;
   bar.hidden = false;
   $('showChanges')?.addEventListener('change', (e) => { ui.changes = e.target.checked; pref.set('changes', ui.changes ? '1' : '0'); renderPage(page()); });
 }
 
-function changesHtml(p, key) {
+function outlinesHtml(p, key) {
   if (!ui.changes) return '';
   const c = key === 'after' ? p.change : key === 'mobile' ? p.mobileChange : null;
   if (!c || !['changed', 'minor'].includes(c.status)) return '';
-  return `<div class="changes">${c.boxes.map((b) => `<i style="left:${b.x}%;top:${b.y}%;width:${b.w}%;height:${b.h}%"></i>`).join('')}</div>`;
+  return `<div class="outlines">${c.boxes.map((b) => `<i style="left:${b.x}%;top:${b.y}%;width:${b.w}%;height:${b.h}%"></i>`).join('')}</div>`;
 }
 
 function pinsHtml(p, key) {
   const nums = numbering(p);
   const pins = threadsOf(roundN, p.id).filter((t) => t.pin?.img === key).map((t) => {
     const n = nums.get(t.id);
-    return `<button class="pin${t.status === 'resolved' ? ' resolved' : ''}${openThread === t.id ? ' active' : ''}${hasNew(t) ? ' new' : ''}" data-thread="${t.id}" data-n="${n}" style="left:${t.pin.x}%;top:${t.pin.y}%" title="${esc(t.text.slice(0, 140))}" aria-label="Comment ${n}">${n}</button>`;
+    return `<button class="pin${t.status === 'resolved' ? ' resolved' : ''}${openThread === t.id ? ' active' : ''}" data-thread="${t.id}" style="left:${t.pin.x}%;top:${t.pin.y}%" title="${esc(t.text.slice(0, 140))}" aria-label="Comment ${n}">${n}</button>`;
   });
   if (draftPin?.img === key) pins.push(`<span class="pin draft" data-thread="draft" style="left:${draftPin.x}%;top:${draftPin.y}%">+</span>`);
-  return pins.join('');
+  return `<div class="pins">${pins.join('')}</div>`;
 }
 
 function figureHtml(p, f) {
   if (!f.file) return `<figure><figcaption>${esc(f.label)} <small>${esc(f.sub)}</small></figcaption><div class="frame missing">No screenshot</div></figure>`;
   return `<figure><figcaption>${esc(f.label)} <small>${esc(f.sub)}</small></figcaption>
-    <div class="frame${f.noPin ? ' nopin' : ''}" data-img="${f.noPin ? '' : f.key}"><div class="stage"><img src="${imgUrl(f.file)}" alt="${esc(`${f.label}: ${p.title}`)}" draggable="false">${changesHtml(p, f.key)}<div class="pins">${pinsHtml(p, f.key)}</div></div></div></figure>`;
+    <div class="frame${f.noPin ? ' nopin' : ''}" data-img="${f.noPin ? '' : f.key}"><div class="stage"><img src="${imgUrl(f.file)}" alt="${esc(`${f.label}: ${p.title}`)}" draggable="false">${outlinesHtml(p, f.key)}${pinsHtml(p, f.key)}</div></div></figure>`;
 }
 
 function swipeHtml(p, base, cmp) {
-  return `<figure><figcaption>Swipe <small>${esc(cmp.label)} ↔ ${esc(base.label)} · drag the handle; comments pin on the after</small></figcaption>
+  return `<figure><figcaption>${esc(cmp.label)} ↔ ${esc(base.label)} <small>drag the handle</small></figcaption>
     <div class="frame" data-img="${base.key}"><div class="stage swipe" style="--split:${pref.get('split', '50')}%">
       <img src="${imgUrl(base.file)}" alt="${esc(`${base.label}: ${p.title}`)}" draggable="false">
       <div class="over"><img src="${imgUrl(cmp.file)}" alt="${esc(`${cmp.label}: ${p.title}`)}" draggable="false"></div>
       <span class="corner l">${esc(cmp.label)}</span><span class="corner r">${esc(base.label)}</span>
       <div class="handle" aria-label="Drag to compare"></div>
-      ${changesHtml(p, base.key)}<div class="pins">${pinsHtml(p, base.key)}</div>
+      ${outlinesHtml(p, base.key)}${pinsHtml(p, base.key)}
     </div></div></figure>`;
 }
 
 function bindCanvas() {
-  // Synced scrolling of the two frames at 100%.
   const frames = [...$('canvas').querySelectorAll('.frame')];
   let syncing = false;
   for (const f of frames) f.addEventListener('scroll', () => {
@@ -827,53 +615,48 @@ function bindCanvas() {
     requestAnimationFrame(() => { syncing = false; placePopover(); });
   });
   const handle = $('canvas').querySelector('.swipe .handle');
-  if (handle) {
-    const stage = handle.parentElement;
-    const move = (e) => {
-      const r = stage.getBoundingClientRect();
-      const pct = Math.min(100, Math.max(0, ((e.clientX - r.left) / r.width) * 100));
-      stage.style.setProperty('--split', `${pct}%`);
-      pref.set('split', pct.toFixed(1));
-    };
-    handle.addEventListener('pointerdown', (e) => {
-      e.preventDefault();
-      handle.setPointerCapture(e.pointerId);
-      handle.addEventListener('pointermove', move);
-      handle.addEventListener('pointerup', () => handle.removeEventListener('pointermove', move), { once: true });
-    });
-  }
+  if (!handle) return;
+  const stage = handle.parentElement;
+  const move = (e) => {
+    const r = stage.getBoundingClientRect();
+    const pct = Math.min(100, Math.max(0, ((e.clientX - r.left) / r.width) * 100));
+    stage.style.setProperty('--split', `${pct}%`);
+    pref.set('split', pct.toFixed(1));
+  };
+  handle.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    handle.setPointerCapture(e.pointerId);
+    handle.addEventListener('pointermove', move);
+    handle.addEventListener('pointerup', () => handle.removeEventListener('pointermove', move), { once: true });
+  });
 }
 
 function preloadNeighbours() {
-  if (current === OVERVIEW) return;
   const ps = pages();
   const i = ps.findIndex((p) => p.id === current);
   for (const p of [ps[i + 1], ps[i - 1]].filter(Boolean)) {
     const { base, cmp } = shots(p);
-    for (const f of [base, cmp]) if (f?.file) { const im = new Image(); im.src = imgUrl(f.file); }
+    for (const f of [base, cmp]) if (f?.file) new Image().src = imgUrl(f.file);
   }
 }
 
-/* ---------- threads: panel and popover ---------- */
-function msgHtml(m, first, t) {
-  const where = t.pin ? `on the ${PIN_LABEL[t.pin.img] ?? t.pin.img} screenshot` : 'general';
-  return `<div class="msg ${m.kind}"><div class="meta"><b>${esc(m.author)}</b>${m.kind === 'agent' ? '<span class="badge agent">agent</span>' : ''}${isNew(m) ? '<span class="badge new">new</span>' : ''}${first ? `<span>${where}</span>` : ''}<span>${when(m.at)}</span></div><div class="text">${esc(m.text)}</div></div>`;
-}
-
-function threadBody(t, { inPopover = false } = {}) {
-  const status = waiting(t) ? '<span class="badge waiting">waiting for the agent</span>' : t.status === 'resolved' ? '<span class="badge resolved">resolved</span>' : answered(t) ? '<span class="badge new">answered · check it</span>' : '';
-  return `${[t, ...t.replies].map((m, i) => msgHtml(m, i === 0, t)).join('')}
-    <div class="replybox"><textarea data-reply="${t.id}" placeholder="Reply" rows="1"></textarea></div>
-    <div class="tools">${status}<span class="spacer"></span>
-      <button class="link" data-act="status" data-id="${t.id}">${t.status === 'resolved' ? 'Reopen' : 'Resolve'}</button>
-      ${t.kind === 'human' && !t.replies.length ? `<button class="link danger" data-act="delete" data-id="${t.id}">Delete</button>` : ''}
-      <button class="btn primary small" data-act="send" data-id="${t.id}">Reply</button>
+/* ---------- comments ---------- */
+function threadBody(t) {
+  const where = t.pin ? `on the ${PIN_LABEL[t.pin.img] ?? t.pin.img}` : 'general';
+  const msgs = [t, ...t.replies].map((m, i) => `<div class="msg ${m.kind}"><div class="meta"><b>${esc(m.author)}</b>${m.kind === 'agent' ? '<span>agent</span>' : ''}${i === 0 ? `<span>${where}</span>` : ''}<span>${when(m.at)}</span>${isNew(m) ? '<span class="tag new">new</span>' : ''}</div><div class="text">${esc(m.text)}</div></div>`).join('');
+  const state = waiting(t) ? '<span class="state waiting">Waiting for the agent</span>' : t.status === 'resolved' ? '<span class="state">Resolved</span>' : answered(t) ? '<span class="state answered">Answered, check it</span>' : '';
+  return `${msgs}
+    <textarea data-reply="${t.id}" placeholder="Reply" rows="1"></textarea>
+    <div class="tools">${state}<span class="spacer"></span>
+      ${t.kind === 'human' && !t.replies.length ? `<a data-act="delete" data-id="${t.id}">Delete</a>` : ''}
+      <a data-act="status" data-id="${t.id}">${t.status === 'resolved' ? 'Reopen' : 'Resolve'}</a>
+      <button class="small" data-act="send" data-id="${t.id}">Reply</button>
     </div>`;
 }
 
-function threadCard(t, n, roundMark) {
-  return `<article class="thread${t.status === 'resolved' ? ' resolved' : ''}${openThread === t.id ? ' hl' : ''}" data-id="${t.id}" data-n="${n ?? ''}">
-    <header><span class="num${t.pin && n ? ' pinned' : ''}">${n ?? '·'}</span>${roundMark ? `<span class="roundmark">round ${t.round}</span>` : ''}${t.pin ? '' : '<span>general</span>'}${hasNew(t) ? '<span class="badge new">new reply</span>' : ''}</header>
+function threadCard(t, n, showRound) {
+  return `<article class="thread${t.status === 'resolved' ? ' resolved' : ''}${openThread === t.id ? ' hl' : ''}" data-id="${t.id}">
+    <header><span class="num${t.pin && n ? ' pinned' : ''}">${n ?? '·'}</span>${showRound ? `<span>Round ${t.round}</span>` : ''}</header>
     ${threadBody(t)}
   </article>`;
 }
@@ -883,35 +666,23 @@ function renderPanel(p) {
   const here = threadsOf(roundN, p.id);
   const earlier = threadsOf(null, p.id).filter((t) => t.round !== roundN).sort((a, b) => b.round - a.round);
   const checkable = here.filter(answered);
-  $('panelTitle').textContent = `Comments · ${p.title}`;
-  $('generalBtn').hidden = false;
+  $('panelTitle').textContent = here.length ? `Comments (${here.length})` : 'Comments';
   $('panelBody').innerHTML = `
-    ${composing ? `<div class="thread" style="cursor:default"><b>General comment</b><textarea id="generalText" placeholder="About this page as a whole"></textarea><div class="actions"><button class="link" data-act="cancelGeneral">Cancel</button><button class="btn primary small" data-act="sendGeneral">Comment</button></div></div>` : ''}
-    ${checkable.length > 1 ? `<button class="btn small" data-act="resolveAnswered">Resolve all ${checkable.length} answered threads on this page</button>` : ''}
-    ${here.length ? here.map((t) => threadCard(t, nums.get(t.id))).join('') : composing ? '' : '<div class="empty">No comments on this page in this round.<br>Click a screenshot to add one at a spot.</div>'}
-    ${earlier.length ? `<details class="earlier"${earlier.some(hasNew) || earlier.some(answered) ? ' open' : ''}><summary>${plural(earlier.length, 'thread')} from earlier rounds</summary>${earlier.map((t) => threadCard(t, null, true)).join('')}</details>` : ''}`;
+    ${composing ? `<article class="thread" style="cursor:default"><textarea id="generalText" placeholder="About this page as a whole"></textarea><div class="tools"><span class="spacer"></span><a data-act="cancelGeneral">Cancel</a><button class="small" data-act="sendGeneral">Comment</button></div></article>` : ''}
+    ${checkable.length > 1 ? `<button class="secondary outline small" data-act="resolveAnswered">Resolve all ${checkable.length} answered threads</button>` : ''}
+    ${here.length ? here.map((t) => threadCard(t, nums.get(t.id))).join('') : composing ? '' : '<div class="empty">Click a screenshot to comment on that spot.</div>'}
+    ${earlier.length ? `<details class="earlier"${earlier.some((t) => hasNew(t) || answered(t)) ? ' open' : ''}><summary>${plural(earlier.length, 'thread')} from earlier rounds</summary>${earlier.map((t) => threadCard(t, null, true)).join('')}</details>` : ''}`;
   if (composing) $('generalText')?.focus();
-}
-
-function renderPanelForOverview() {
-  const r = round();
-  const all = [];
-  for (const p of r.pages) for (const t of threadsOf(null, p.id)) if (hasNew(t) || answered(t) || waiting(t)) all.push({ t, p });
-  $('panelTitle').textContent = 'Needs attention';
-  $('generalBtn').hidden = true;
-  $('panelBody').innerHTML = all.length
-    ? all.sort((a, b) => (hasNew(b.t) - hasNew(a.t)) || (answered(b.t) - answered(a.t))).map(({ t, p }) => `<article class="thread" data-goto="${esc(p.id)}" data-round="${t.round}"><header><b>${esc(p.title)}</b><span class="roundmark">round ${t.round}</span>${hasNew(t) ? '<span class="badge new">new reply</span>' : answered(t) ? '<span class="badge new">answered</span>' : '<span class="badge waiting">waiting for the agent</span>'}</header><div class="text">${esc(last(t).text.slice(0, 160))}${last(t).text.length > 160 ? '…' : ''}</div></article>`).join('')
-    : '<div class="empty">Nothing is waiting on anyone.</div>';
 }
 
 function renderPopover() {
   const pop = $('popover');
-  if (!openThread || current === OVERVIEW) { pop.hidden = true; return; }
+  if (!openThread) { pop.hidden = true; return; }
   if (openThread === 'draft') {
     if (!draftPin) { openThread = null; pop.hidden = true; return; }
-    pop.innerHTML = `<div class="ph"><b>New comment</b><span>on the ${PIN_LABEL[draftPin.img] ?? draftPin.img} screenshot</span><button class="link close" data-act="closePop">✕</button></div>
+    pop.innerHTML = `<div class="ph"><b>New comment</b><span>on the ${PIN_LABEL[draftPin.img] ?? draftPin.img}</span><span class="spacer"></span><a href="#" data-act="closePop" aria-label="Close">✕</a></div>
       <textarea id="draftText" placeholder="What should change, stay, or go back?"></textarea>
-      <div class="actions"><span class="muted" style="font-size:12px">Ctrl+Enter</span><span class="spacer"></span><button class="btn primary small" data-act="sendDraft">Comment</button></div>`;
+      <div class="tools"><span class="muted">Ctrl+Enter</span><span class="spacer"></span><button class="small" data-act="sendDraft">Comment</button></div>`;
     pop.hidden = false;
     placePopover();
     $('draftText').focus({ preventScroll: true });
@@ -919,8 +690,7 @@ function renderPopover() {
   }
   const t = threadById(openThread);
   if (!t) { openThread = null; pop.hidden = true; return; }
-  const n = numbering(page()).get(t.id);
-  pop.innerHTML = `<div class="ph"><span class="num${t.pin ? ' pinned' : ''}">${n ?? '·'}</span><b>Thread</b>${t.round !== roundN ? `<span>round ${t.round}</span>` : ''}<button class="link close" data-act="closePop">✕</button></div>${threadBody(t, { inPopover: true })}`;
+  pop.innerHTML = `<div class="ph"><span class="num${t.pin ? ' pinned' : ''}">${numbering(page()).get(t.id) ?? '·'}</span>${t.round !== roundN ? `<span>Round ${t.round}</span>` : ''}<span class="spacer"></span><a href="#" data-act="closePop" aria-label="Close">✕</a></div>${threadBody(t)}`;
   pop.hidden = false;
   placePopover();
 }
@@ -929,18 +699,17 @@ function placePopover() {
   const pop = $('popover');
   if (pop.hidden) return;
   const anchor = $('canvas').querySelector(`.pin[data-thread="${openThread}"]`);
-  if (!anchor) { if (openThread === 'draft') return; pop.style.left = '50%'; pop.style.top = '120px'; pop.style.width = '360px'; return; }
+  if (!anchor) return;
   const r = anchor.getBoundingClientRect();
-  const w = Math.min(380, window.innerWidth - 24);
-  const h = pop.offsetHeight;
+  const w = Math.min(360, window.innerWidth - 24);
   let left = r.right + 10;
   if (left + w > window.innerWidth - 12) left = r.left - 10 - w;
   if (left < 12) left = 12;
   let top = r.top - 10;
+  const h = pop.offsetHeight;
   if (top + h > window.innerHeight - 12) top = Math.max(12, window.innerHeight - 12 - h);
   pop.style.left = `${left}px`;
   pop.style.top = `${top}px`;
-  pop.style.width = `${w}px`;
 }
 window.addEventListener('resize', placePopover);
 $('main').addEventListener('scroll', placePopover);
@@ -951,23 +720,19 @@ function focusThread(id) {
   render();
   const pin = $('canvas').querySelector(`.pin[data-thread="${id}"]`);
   pin?.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' });
-  if (!pin) {
-    const t = threadById(id);
-    if (t && t.pin) toast(`Pinned on the ${PIN_LABEL[t.pin.img]} screenshot, which is not shown in this view`);
-  }
+  if (!pin && threadById(id)?.pin) toast(`Pinned on the ${PIN_LABEL[threadById(id).pin.img]} screenshot, not shown in this view`);
   setTimeout(placePopover, 350);
 }
 
 /* ---------- actions ---------- */
 async function setVerdict(v) {
-  if (current === OVERVIEW) return;
   const verdict = verdictOf(roundN, current) === v ? null : v;
   try {
     const res = await api('PUT', '/verdict', { round: roundN, page: current, verdict, by: me() });
     if (res.verdict) data.feedback.verdicts[`${roundN}/${current}`] = res.verdict;
     else delete data.feedback.verdicts[`${roundN}/${current}`];
     render();
-    toast(verdict ? `${VERDICT_TEXT[verdict]} · ${page().title}` : 'Verdict cleared');
+    toast(verdict ? `${VERDICT_TEXT[verdict]}: ${page().title}` : 'Verdict cleared');
   } catch (err) { toast(`Could not save: ${err.message}`); }
 }
 
@@ -995,13 +760,12 @@ async function sendReply(id, box) {
 }
 
 async function setStatus(id, status) {
-  const c = await api('PATCH', `/comments/${id}`, { status });
-  Object.assign(data.feedback.comments.find((x) => x.id === id), c);
+  Object.assign(data.feedback.comments.find((x) => x.id === id), await api('PATCH', `/comments/${id}`, { status }));
 }
 
-async function onAction(b, scope) {
-  const act = b.dataset.act;
-  const id = b.dataset.id;
+async function onAction(el, scope) {
+  const act = el.dataset.act;
+  const id = el.dataset.id;
   try {
     if (act === 'closePop') { openThread = null; draftPin = null; render(); }
     else if (act === 'sendDraft') { const text = $('draftText').value.trim(); if (!text) return $('draftText').focus(); await sendComment(text, draftPin); }
@@ -1014,34 +778,75 @@ async function onAction(b, scope) {
   } catch (err) { toast(`Could not save: ${err.message}`); }
 }
 
+/* ---------- sending ---------- */
+function openSend() {
+  const { comments, verdicts } = unsentChanges();
+  const latest = data.rounds.at(-1);
+  const count = (v) => verdicts.filter(([, x]) => x.verdict === v).length;
+  const replies = comments.filter((c) => c.replyTo).length;
+  const open = latest.pages.filter((p) => !verdictOf(latest.n, p.id) && !(unchanged(p) && verdictOf(latest.n - 1, p.id) === 'approve')).length;
+  const items = [
+    comments.length - replies ? plural(comments.length - replies, 'new comment') : null,
+    replies ? plural(replies, 'reply') : null,
+    count('approve') ? `${count('approve')} approved` : null,
+    count('update') ? `${count('update')} need an update` : null,
+    count('revert') ? `${count('revert')} to revert` : null,
+  ].filter(Boolean);
+  const t = threadTarget();
+  $('sendTitle').textContent = t ? 'Send your feedback to the T3 thread' : 'Send your feedback to the agent';
+  $('sendConfirm').textContent = t ? 'Send to T3 thread' : 'Send to agent';
+  $('sendWho').innerHTML = data.waiting ? `${esc(data.waiting.by)} is waiting and starts as soon as you send.`
+    : t ? `It arrives in ${t.link ? `<a href="${esc(t.link)}" target="_blank" rel="noopener">${esc(threadName(t))}</a>` : esc(threadName(t))} as a new message. If the agent is busy, it reads it next.`
+    : 'No agent is waiting right now; the next one that runs "reviewtool wait" picks this up.';
+  $('sendSummary').innerHTML = (items.length ? items : ['Nothing new since you last sent']).map((x) => `<li>${esc(x)}</li>`).join('') +
+    (open ? `<li class="muted">${plural(open, 'page')} still without a verdict</li>` : '');
+  $('sendDlg').showModal();
+  $('sendNote').focus();
+}
+
+async function confirmSend() {
+  const btn = $('sendConfirm');
+  btn.setAttribute('aria-busy', 'true');
+  try {
+    const sub = await api('POST', '/submit', { round: data.rounds.at(-1).n, by: me(), note: $('sendNote').value });
+    $('sendNote').value = '';
+    $('sendDlg').close();
+    await load();
+    if (sub.delivery?.error) toast(`Saved, but ${sub.delivery.to} could not be reached: ${sub.delivery.error}`);
+    else toast(sub.delivery ? `Sent to ${sub.delivery.to}` : 'Sent to the agent');
+  } catch (err) { toast(`Could not send: ${err.message}`); }
+  btn.removeAttribute('aria-busy');
+}
+
+function renderNoRounds() {
+  $('pageView').hidden = true;
+  $('noRound').hidden = false;
+  $('noRound').innerHTML = `<h2>No rounds yet</h2><p class="muted">An agent publishes the first one with <code>reviewtool round ${esc(slug)} manifest.json</code>. This page updates by itself.</p>`;
+  $('panelBody').innerHTML = '';
+  $('pages').innerHTML = '';
+}
+
 /* ---------- events ---------- */
-$('nav').addEventListener('click', (e) => { const b = e.target.closest('button[data-id]'); if (b) go(b.dataset.id); });
+$('pages').addEventListener('click', (e) => { const b = e.target.closest('button[data-id]'); if (b) go(b.dataset.id); });
+$('pageSelect').addEventListener('change', () => go($('pageSelect').value));
 $('filters').addEventListener('click', (e) => { const b = e.target.closest('[data-filter]'); if (b) { ui.filter = b.dataset.filter; renderRail(); } });
 $('search').addEventListener('input', () => { ui.search = $('search').value; renderRail(); });
 $('round').addEventListener('change', () => setRound(Number($('round').value)));
-$('railToggle').addEventListener('click', () => { ui.rail = !ui.rail; if (window.innerWidth > 1100) pref.set('rail', ui.rail ? 'open' : 'closed'); applyPanels(); });
-// On narrow screens the page list is a drawer: tapping the content closes it.
-$('main').addEventListener('pointerdown', () => { if (window.innerWidth <= 1100 && ui.rail) { ui.rail = false; applyPanels(); } });
-$('panelToggle').addEventListener('click', () => { ui.panel = !ui.panel; pref.set('panel', ui.panel ? 'open' : 'closed'); applyPanels(); });
-$('helpBtn').addEventListener('click', () => $('help').showModal());
-$('sendBtn').addEventListener('click', openSend);
-$('sendCancel').addEventListener('click', () => $('sendDlg').close());
-$('sendConfirm').addEventListener('click', confirmSend);
 $('verdicts').addEventListener('click', (e) => { const b = e.target.closest('button[data-v]'); if (b) setVerdict(b.dataset.v); });
 $('pairs').addEventListener('click', (e) => { const b = e.target.closest('button[data-pair]'); if (b && !b.disabled) { ui.pair = b.dataset.pair; pref.set('pair', ui.pair); render(); } });
 $('layouts').addEventListener('click', (e) => { const b = e.target.closest('button[data-layout]'); if (b && !b.disabled) { ui.layout = b.dataset.layout; pref.set('layout', ui.layout); render(); } });
 $('phoneBtn').addEventListener('click', () => { ui.phone = !ui.phone; render(); });
 $('zoomBtn').addEventListener('click', () => { ui.zoom = ui.zoom === 'fit' ? 'full' : 'fit'; render(); });
-$('generalBtn').addEventListener('click', () => { composing = true; ui.panel = true; render(); });
-
-$('overview').addEventListener('click', (e) => {
-  const chip = e.target.closest('[data-id]');
-  if (chip) return go(chip.dataset.id);
-  const stat = e.target.closest('.stat[data-filter]');
-  if (stat) { ui.filter = stat.dataset.filter; ui.rail = true; renderRail(); applyPanels(); return; }
-  const row = e.target.closest('tr[data-n]');
-  if (row) setRound(Number(row.dataset.n));
-});
+$('generalBtn').addEventListener('click', () => { composing = true; render(); });
+$('helpBtn').addEventListener('click', () => $('help').showModal());
+$('helpClose').addEventListener('click', () => $('help').close());
+$('meBtn').addEventListener('click', () => { $('meInput').value = pref.get('me', ''); $('meDlg').showModal(); $('meInput').focus(); });
+$('meCancel').addEventListener('click', () => $('meDlg').close());
+$('meSave').addEventListener('click', () => { pref.set('me', $('meInput').value.trim()); $('meDlg').close(); renderBar(); });
+$('meInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('meSave').click(); });
+$('sendBtn').addEventListener('click', openSend);
+$('sendCancel').addEventListener('click', () => $('sendDlg').close());
+$('sendConfirm').addEventListener('click', confirmSend);
 
 $('canvas').addEventListener('click', (e) => {
   const pin = e.target.closest('.pin[data-thread]');
@@ -1049,27 +854,22 @@ $('canvas').addEventListener('click', (e) => {
   if (e.target.closest('.handle, .corner')) return;
   const frame = e.target.closest('.frame[data-img]');
   if (!frame || !frame.dataset.img) return;
-  const stage = frame.querySelector('.stage');
-  const box = stage.getBoundingClientRect();
+  const box = frame.querySelector('.stage').getBoundingClientRect();
   const clamp = (n) => Math.round(Math.min(100, Math.max(0, n)) * 10) / 10;
   draftPin = { img: frame.dataset.img, x: clamp(((e.clientX - box.left) / box.width) * 100), y: clamp(((e.clientY - box.top) / box.height) * 100) };
   openThread = 'draft';
   render();
 });
-
 $('panelBody').addEventListener('click', (e) => {
-  const b = e.target.closest('button[data-act]');
-  if (b) return onAction(b, e.target.closest('.thread') ?? $('panelBody'));
-  const jump = e.target.closest('[data-goto]');
-  if (jump) { if (Number(jump.dataset.round) !== roundN) roundN = Number(jump.dataset.round); return go(jump.dataset.goto); }
+  const act = e.target.closest('[data-act]');
+  if (act) { e.preventDefault(); return onAction(act, e.target.closest('.thread') ?? $('panelBody')); }
   const card = e.target.closest('.thread[data-id]');
-  if (card && !e.target.closest('textarea, a')) focusThread(card.dataset.id);
+  if (card && !e.target.closest('textarea, a, button, summary')) focusThread(card.dataset.id);
 });
-$('popover').addEventListener('click', (e) => { const b = e.target.closest('button[data-act]'); if (b) onAction(b, $('popover')); });
+$('popover').addEventListener('click', (e) => { const act = e.target.closest('[data-act]'); if (act) { e.preventDefault(); onAction(act, $('popover')); } });
 
 document.addEventListener('keydown', (e) => {
-  const inField = e.target.closest('textarea, input, select');
-  if (inField) {
+  if (e.target.closest('textarea, input, select')) {
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
       const box = e.target;
       if (box.id === 'sendNote') confirmSend();
@@ -1077,55 +877,42 @@ document.addEventListener('keydown', (e) => {
       else if (box.id === 'generalText') onAction({ dataset: { act: 'sendGeneral' } });
       else if (box.dataset.reply) sendReply(box.dataset.reply, box);
     }
-    if (e.key === 'Escape') { if (openThread) { openThread = null; draftPin = null; render(); } else e.target.blur(); }
+    if (e.key === 'Escape' && openThread) { openThread = null; draftPin = null; render(); }
     return;
   }
-  if (!data?.rounds.length || e.ctrlKey || e.metaKey || e.altKey || $('help').open || $('sendDlg').open) return;
+  if (!data?.rounds.length || e.ctrlKey || e.metaKey || e.altKey || document.querySelector('dialog[open]')) return;
   const ps = pages();
   const i = ps.findIndex((p) => p.id === current);
-  const key = e.key;
-  if (key === 'Escape') { openThread = null; draftPin = null; render(); }
-  else if (key === 'j' || key === 'ArrowDown') { e.preventDefault(); const n = current === OVERVIEW ? ps[0] : ps[i + 1]; if (n) go(n.id); }
-  else if (key === 'k' || key === 'ArrowUp') { e.preventDefault(); if (current === OVERVIEW) return; const n = ps[i - 1]; go(n ? n.id : OVERVIEW); }
-  else if (key === 'n') { const order = [...ps.slice(i + 1), ...ps.slice(0, i + 1)]; const n = order.find(needsMe); if (n) go(n.id); else toast('Nothing left that needs you in this round'); }
-  else if (key === 'o') go(OVERVIEW);
-  else if (key === 'S') openSend();
-  else if (key === 'h') { ui.changes = !ui.changes; pref.set('changes', ui.changes ? '1' : '0'); if (current !== OVERVIEW) renderPage(page()); }
-  else if (key === '1') setVerdict('approve');
-  else if (key === '2') setVerdict('update');
-  else if (key === '3') setVerdict('revert');
-  else if (key === 's' || key === 'w' || key === 'a') { const l = { s: 'side', w: 'swipe', a: 'single' }[key]; if (!$('layouts').querySelector(`[data-layout="${l}"]`).disabled) { ui.layout = l; pref.set('layout', l); render(); } }
-  else if (key === 'c') { const next = ui.pair === 'before' ? 'last' : 'before'; if (!$('pairs').querySelector(`[data-pair="${next}"]`).disabled) { ui.pair = next; pref.set('pair', next); render(); } }
-  else if (key === 'p') { if (page()?.mobile) { ui.phone = !ui.phone; render(); } }
-  else if (key === 'z') { ui.zoom = ui.zoom === 'fit' ? 'full' : 'fit'; render(); }
-  else if (key === '[') $('railToggle').click();
-  else if (key === ']') $('panelToggle').click();
-  else if (key === '?') $('help').showModal();
+  const k = e.key;
+  const view = (set) => { Object.assign(ui, set); for (const key of Object.keys(set)) if (key !== 'phone' && key !== 'zoom') pref.set(key, set[key]); render(); };
+  if (k === 'Escape') { openThread = null; draftPin = null; render(); }
+  else if (k === 'j' || k === 'ArrowDown') { e.preventDefault(); go(ps[i + 1]?.id); }
+  else if (k === 'k' || k === 'ArrowUp') { e.preventDefault(); go(ps[i - 1]?.id); }
+  else if (k === 'n') { const n = [...ps.slice(i + 1), ...ps.slice(0, i + 1)].find(needsMe); if (n && n.id !== current) go(n.id); else toast('Nothing else needs you in this round'); }
+  else if (k === '1' || k === '2' || k === '3') setVerdict({ 1: 'approve', 2: 'update', 3: 'revert' }[k]);
+  else if (k === 's' || k === 'w' || k === 'a') { const l = { s: 'side', w: 'swipe', a: 'single' }[k]; if (!$('layouts').querySelector(`[data-layout="${l}"]`).disabled) view({ layout: l }); }
+  else if (k === 'c') { const next = ui.pair === 'before' ? 'last' : 'before'; if (!$('pairs').querySelector(`[data-pair="${next}"]`).disabled) view({ pair: next }); }
+  else if (k === 'p') { if (page()?.mobile) view({ phone: !ui.phone }); }
+  else if (k === 'z') view({ zoom: ui.zoom === 'fit' ? 'full' : 'fit' });
+  else if (k === 'h') { ui.changes = !ui.changes; pref.set('changes', ui.changes ? '1' : '0'); renderPage(page()); }
+  else if (k === 'S') openSend();
+  else if (k === '?') $('help').showModal();
 });
-
-function renderNoRounds() {
-  $('reviewTitle').textContent = data.review.title;
-  $('overview').hidden = false;
-  $('pageView').hidden = true;
-  $('overview').innerHTML = `<div class="empty-state"><h1>No rounds yet</h1><p>An agent publishes the first one with <code>reviewtool round ${esc(slug)} manifest.json</code>. This page updates by itself.</p></div>`;
-  $('panelBody').innerHTML = '';
-}
 
 // Pick up agent replies and new rounds without a reload, but never while you are writing.
 setInterval(() => {
   const el = document.activeElement;
-  const typing = el?.matches('textarea, input') && el.value;
-  if (document.hidden || typing || openThread === 'draft' || composing) return;
+  if (document.hidden || (el?.matches('textarea, input') && el.value) || openThread === 'draft' || composing || document.querySelector('dialog[open]')) return;
   load().catch(() => {});
 }, 5000);
 
 window.addEventListener('hashchange', () => {
-  if (!data) return;
+  if (!data?.rounds.length) return;
   const [h, r] = decodeURIComponent(location.hash.slice(1)).split('@');
-  const n = r ? Number(r) : data.rounds.at(-1)?.n;
+  const n = r ? Number(r) : data.rounds.at(-1).n;
   if (!data.rounds.some((x) => x.n === n)) return;
   roundN = n;
-  current = pages().some((p) => p.id === h) ? h : OVERVIEW;
+  current = pages().some((p) => p.id === h) ? h : firstForRound();
   draftPin = null; openThread = null;
   render();
 });

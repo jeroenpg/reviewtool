@@ -1,0 +1,38 @@
+/* reviewtool on top of Pico CSS: a compact density for a working tool, plus the few things Pico has no part for
+   (status colours, pins, change outlines, the swipe handle). Colours come from Pico's variables where it has them. */
+:root {
+  --pico-font-size: 14px !important;
+  --pico-line-height: 1.45;
+  --pico-spacing: .75rem;
+  --pico-typography-spacing-vertical: .5rem;
+  --pico-form-element-spacing-vertical: .38rem;
+  --pico-form-element-spacing-horizontal: .7rem;
+  --pico-border-radius: .45rem;
+  --approve: #15803d;
+  --update: #b45309;
+  --revert: #b91c1c;
+  --pin: #ea580c;
+  --new: #7c3aed;
+  --bar-h: 52px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --approve: #4ade80; --update: #fbbf24; --revert: #f87171; --pin: #fb923c; --new: #a78bfa; }
+}
+html, body { height: 100%; }
+body { margin: 0; }
+input, select, textarea, button, [role="group"], fieldset, form { margin-bottom: 0 !important; }
+h1, h2, h3, p { margin-bottom: 0; }
+button.small, a.small[role="button"] { padding: .2rem .55rem; font-size: .9em; }
+/* A pressed toggle looks selected, also on Pico's outline buttons (which set their own colours with more specificity). */
+button[aria-pressed="true"] { --pico-background-color: var(--pico-primary-background) !important; --pico-border-color: var(--pico-primary-border) !important; --pico-color: var(--pico-primary-inverse) !important; }
+.muted { color: var(--pico-muted-color); }
+.spacer { flex: 1; }
+.dot { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--pico-muted-border-color); flex: none; display: inline-block; }
+.dot.approve { background: var(--approve); border-color: var(--approve); }
+.dot.update { background: var(--update); border-color: var(--update); }
+.dot.revert { background: var(--revert); border-color: var(--revert); }
+.count { font-size: 11px; font-weight: 700; line-height: 17px; padding: 0 6px; border-radius: 9px; color: #fff; background: var(--pin); }
+.count.new { background: var(--new); }
+.tag { font-size: 11px; font-weight: 600; color: var(--muted, var(--pico-muted-color)); white-space: nowrap; }
+.tag.changed { color: var(--update); }
+.tag.new { color: var(--new); }
