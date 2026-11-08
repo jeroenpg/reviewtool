@@ -338,9 +338,9 @@ const waiting = (t) => t.status !== 'resolved' && last(t).kind === 'human';
 const answered = (t) => t.status !== 'resolved' && last(t).kind === 'agent';
 const isNew = (m) => m.kind === 'agent' && m.at > lastVisit;
 const hasNew = (t) => [t, ...t.replies].some(isNew);
-const unchanged = (p) => p.change?.status === 'same' && (!p.mobile || p.mobileChange?.status === 'same');
+const unchanged = (p) => p.change?.status === 'same';
 const changedKind = (p) => (p.change ? (unchanged(p) ? 'same' : p.change.status === 'new' ? 'new' : 'changed') : null);
-const tiny = (p) => changedKind(p) === 'changed' && [p.change, p.mobile ? p.mobileChange : null].every((c) => !c || ['same', 'minor'].includes(c.status));
+const tiny = (p) => p.change?.status === 'minor';
 const settled = (p) => unchanged(p) && verdictOf(roundN - 1, p.id) === 'approve';
 const needsMe = (p) => (!verdictOf(roundN, p.id) && !settled(p)) || threadsOf(null, p.id).some(answered) || threadsOf(null, p.id).some(hasNew);
 const numbering = (p) => new Map(threadsOf(roundN, p.id).map((t, i) => [t.id, i + 1]));
@@ -360,7 +360,7 @@ function unsentChanges() {
 const firstForRound = () => (pages().find(needsMe) ?? pages()[0])?.id;
 
 // What a page shows, without buttons to pick: before and after side by side (swiped where that would be too small to
-// read), and the phone screenshots underneath when the page has them.
+// read). Phone screenshots are always a page of their own.
 const narrowScreen = () => matchMedia('(max-width: 1000px)').matches;
 function rows(p) {
   const phonePage = p.device === 'phone';
@@ -374,14 +374,6 @@ function rows(p) {
     if (desktop.cmp) desktop.cmp.sub = `phone${desktop.cmp.sub ? ` · ${desktop.cmp.sub}` : ''}`;
   }
   const out = [desktop];
-  if (p.mobile) {
-    out.push({
-      narrow: true,
-      title: 'Phone',
-      cmp: p.mobileBefore ? { key: 'mobileBefore', file: p.mobileBefore, label: 'Before', sub: 'phone', noPin: true } : null,
-      base: { key: 'mobile', file: p.mobile, label: 'After', sub: 'phone' },
-    });
-  }
   for (const r of out) r.layout = r.cmp && !r.narrow && narrowScreen() ? 'swipe' : 'side';
   return out;
 }
@@ -621,7 +613,7 @@ function renderChangeBar(p) {
 }
 
 function outlinesHtml(p, key) {
-  const c = key === 'after' ? p.change : key === 'mobile' ? p.mobileChange : null;
+  const c = key === 'after' ? p.change : null;
   if (!c || !['changed', 'minor'].includes(c.status)) return '';
   return `<div class="outlines">${c.boxes.map((b) => `<i style="left:${b.x}%;top:${b.y}%;width:${b.w}%;height:${b.h}%"></i>`).join('')}</div>`;
 }

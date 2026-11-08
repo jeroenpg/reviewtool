@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readdirSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -320,17 +320,44 @@ test('pages sit in folders that carry over between rounds and can be moved', () 
   assert.match(renderLog(store.get('demo')), /Settings › Team & access › Members/);
 });
 
-test('phone screenshots go on the same page as a variant, or on a phone page of their own', () => {
+test('phone screenshots are always a page of their own', () => {
   const { dir, store } = fixture();
   store.create({ slug: 'demo' });
   const r1 = store.addRound('demo', { pages: [
-    { id: 'inbox', title: 'Inbox', after: 'after1.png', mobile: 'phone.png' },
+    { id: 'inbox', title: 'Inbox', group: 'Start', after: 'after1.png', mobile: 'phone.png' },
     { id: 'inbox-drawer', title: 'Inbox menu', device: 'phone', after: 'phone.png' },
   ] }, dir);
-  assert.deepEqual(r1.pages.map((p) => p.device), ['desktop', 'phone']);
-  assert.ok(r1.pages[0].mobile);
-  const r2 = store.addRound('demo', { pages: [{ id: 'inbox-drawer', title: 'Inbox menu', after: 'after2.png' }] }, dir);
+  assert.deepEqual(r1.pages.map((p) => [p.id, p.device, p.group]), [['inbox', 'desktop', 'Start'], ['inbox-phone', 'phone', 'Start'], ['inbox-drawer', 'phone', '']]);
+  assert.equal(r1.pages[1].title, 'Inbox (phone)');
+  assert.equal(r1.pages[1].after, r1.pages[2].after);
+  assert.equal(r1.pages[0].mobile, undefined);
+  const r2 = store.addRound('demo', { pages: [{ id: 'inbox-drawer', title: 'Inbox menu', after: 'after2.png' }, { id: 'inbox', after: 'after1.png', mobile: 'phone.png' }] }, dir);
   assert.equal(r2.pages[0].device, 'phone', 'the device carries over');
+  assert.equal(r2.pages.find((p) => p.id === 'inbox-phone').change.status, 'same', 'the phone page compares with its own last round');
   assert.throws(() => store.addRound('demo', { pages: [{ id: 'x', after: 'after1.png', device: 'tablet' }] }, dir), /device must be desktop or phone/);
   assert.throws(() => store.addRound('demo', { pages: [{ id: 'x', after: 'after1.png', device: 'phone', mobile: 'phone.png' }] }, dir), /takes no mobile ones/);
+});
+
+test('reviews stored with phone variants on a page get them split into their own pages', () => {
+  const { dir, store } = fixture();
+  store.create({ slug: 'old' });
+  const r = store.addRound('old', { pages: [{ id: 'inbox', title: 'Inbox', after: 'after1.png' }] }, dir);
+  // Write the old layout by hand: a phone variant on the page, a verdict, and a comment pinned on the phone shot.
+  const roundsFile = join(store.dir('old'), 'rounds.json');
+  const rounds = JSON.parse(readFileSync(roundsFile, 'utf8'));
+  Object.assign(rounds[0].pages[0], { mobile: r.pages[0].after, mobileBefore: null, mobileChange: null });
+  writeFileSync(roundsFile, JSON.stringify(rounds));
+  const feedbackFile = join(store.dir('old'), 'feedback.json');
+  const feedback = JSON.parse(readFileSync(feedbackFile, 'utf8'));
+  feedback.verdicts['1/inbox'] = { verdict: 'approve', by: 'J', at: '2026-01-01T00:00:00.000Z' };
+  feedback.comments.push({ id: 'c1', round: 1, page: 'inbox', author: 'J', kind: 'human', text: 'too wide', pin: { img: 'mobile', x: 1, y: 2 }, replyTo: null, status: 'open', at: '2026-01-01T00:00:00.000Z' });
+  writeFileSync(feedbackFile, JSON.stringify(feedback));
+
+  const fresh = new Store(store.root);
+  const { rounds: split, feedback: moved } = fresh.get('old');
+  assert.deepEqual(split[0].pages.map((p) => [p.id, p.device]), [['inbox', 'desktop'], ['inbox-phone', 'phone']]);
+  assert.equal(split[0].pages[0].mobile, undefined);
+  assert.equal(moved.verdicts['1/inbox-phone'].verdict, 'approve');
+  assert.equal(moved.comments[0].page, 'inbox-phone');
+  assert.deepEqual(moved.comments[0].pins, [{ img: 'after', x: 1, y: 2 }]);
 });

@@ -1,6 +1,7 @@
 // File-backed store for reviews. One folder per review under the store root:
 //   review.json    { slug, title, repo, pr, branch, createdAt }
-//   rounds.json    [{ n, title, notes, by, createdAt, pages: [{ id, title, route, before, beforeLabel, after, afterLabel, mobile, mobileLabel }] }]
+//   rounds.json    [{ n, title, notes, by, createdAt, pages: [{ id, title, group, device, route, before, beforeLabel, after, afterLabel, note, change }] }]
+//                  A page's phone screenshots ("mobile" in a manifest) become a page of their own, "<id>-phone".
 //   feedback.json  { verdicts: { "<round>/<page>": { verdict, by, at } }, comments: [{ id, round, page, author, kind, text, pins, replyTo, status, at }] }
 //                  pins: the spots a comment marks; its text names them as [1], [2], … (older comments hold one `pin`)
 //   images/<sha>.<ext>  content-addressed copies of every screenshot, so a deleted worktree never takes them along.
@@ -24,7 +25,7 @@ export function cleanGroup(group) {
   if (parts.join('/').length > 120) throw new ReviewError(`group "${group}" is too long`);
   return parts.join('/');
 }
-const PIN_TARGETS = ['before', 'after', 'previous', 'mobile'];
+const PIN_TARGETS = ['before', 'after', 'previous'];
 const MAX_PINS = 26;
 
 export function defaultRoot() {
@@ -87,6 +88,8 @@ const now = () => new Date().toISOString();
 const key = (round, page) => `${round}/${page}`;
 
 export class Store {
+  migrated = new Set();
+
   constructor(root = defaultRoot()) {
     this.root = root;
     this.reviewsDir = join(root, 'reviews');
@@ -179,6 +182,10 @@ export class Store {
   mustDir(slug) {
     const dir = this.dir(slug);
     if (!existsSync(join(dir, 'review.json'))) throw new ReviewError(`no review "${slug}"; create it with: reviewtool init ${slug}`, 404);
+    if (!this.migrated.has(slug)) {
+      this.migrated.add(slug);
+      splitStoredPhones(dir);
+    }
     return dir;
   }
 
@@ -220,6 +227,7 @@ export class Store {
   addRound(slug, manifest, baseDir = process.cwd()) {
     const dir = this.mustDir(slug);
     if (!manifest || !Array.isArray(manifest.pages) || manifest.pages.length === 0) throw new ReviewError('a round needs at least one page');
+    manifest = { ...manifest, pages: splitPhones(manifest.pages) };
     const seen = new Set();
     for (const p of manifest.pages) {
       if (!PAGE_ID.test(String(p.id ?? ''))) throw new ReviewError(`page id "${p.id}" is invalid: letters, digits, dot, dash, underscore`);
@@ -228,19 +236,15 @@ export class Store {
       if (!p.after) throw new ReviewError(`page "${p.id}" has no after image`);
       cleanGroup(p.group);
       if (p.device !== undefined && !DEVICES.includes(p.device)) throw new ReviewError(`page "${p.id}": device must be ${DEVICES.join(' or ')}`);
-      if (p.device === 'phone' && (p.mobile || p.mobileBefore)) throw new ReviewError(`page "${p.id}" is a phone page; its before and after are the phone screenshots, so it takes no mobile ones`);
     }
     // Copy images outside the lock (slow), then append the round under it.
     const imported = manifest.pages.map((p) => {
       const img = (field) => (p[field] ? this.importImage(slug, resolve(baseDir, p[field])) : p[field] === null ? null : undefined);
-      return { p, before: img('before'), after: img('after'), mobile: img('mobile'), mobileBefore: img('mobileBefore') };
+      return { p, before: img('before'), after: img('after') };
     });
     // Compare with the previous round outside the lock too; pixel diffs of large screenshots take a moment.
     const basis = readJson(join(dir, 'rounds.json'), []).at(-1);
-    const changes = new Map(imported.map(({ p, after, mobile }) => {
-      const prev = basis?.pages.find((x) => x.id === p.id);
-      return [p.id, { change: this.changeSince(slug, basis, prev, after), mobileChange: mobile ? this.changeSince(slug, basis, prev, mobile, 'mobile') : null }];
-    }));
+    const changes = new Map(imported.map(({ p, after }) => [p.id, this.changeSince(slug, basis, basis?.pages.find((x) => x.id === p.id), after)]));
     return withLock(dir, () => {
       const rounds = readJson(join(dir, 'rounds.json'), []);
       const previous = rounds.at(-1);
@@ -250,26 +254,23 @@ export class Store {
         notes: manifest.notes || '',
         by: manifest.by || null,
         createdAt: now(),
-        pages: imported.map(({ p, before, after, mobile, mobileBefore }) => {
+        pages: imported.map(({ p, before, after }) => {
           const prev = previous?.pages.find((x) => x.id === p.id);
           return {
             id: p.id,
             title: p.title || p.id,
             // A page keeps last round's folder unless the manifest names one ("" takes it out of its folder).
             group: p.group === undefined ? prev?.group ?? '' : cleanGroup(p.group),
-            // "phone": the before and after are phone screenshots (a page of its own). Desktop pages may add phone
-            // variants of the same screen in mobile and mobileBefore.
+            // "phone": the before and after are phone screenshots.
             device: p.device ?? prev?.device ?? 'desktop',
             route: p.route || '',
             before: before === undefined ? prev?.before ?? null : before,
             beforeLabel: p.beforeLabel || (before === undefined ? prev?.beforeLabel : null) || 'before',
             after,
             afterLabel: p.afterLabel || 'after',
-            mobile: mobile ?? null,
-            mobileBefore: mobileBefore === undefined ? (prev?.mobileBefore ?? null) : mobileBefore,
             note: p.note || '',
             // Another round landing in between (rare) would leave the comparison against a stale basis; redo it then.
-            ...(previous?.n === basis?.n ? changes.get(p.id) : { change: this.changeSince(slug, previous, prev, after), mobileChange: mobile ? this.changeSince(slug, previous, prev, mobile, 'mobile') : null }),
+            change: previous?.n === basis?.n ? changes.get(p.id) : this.changeSince(slug, previous, prev, after),
           };
         }),
       };
@@ -464,6 +465,56 @@ function newId(comments) {
     const id = randomBytes(4).toString('hex');
     if (!comments.some((c) => c.id === id)) return id;
   }
+}
+
+/**
+ * Desktop and phone are never one page: a manifest page's phone screenshots ("mobile", "mobileBefore") become a phone
+ * page of their own, "<id>-phone", right after it. Its before carries over from last round like any page's.
+ */
+export function splitPhones(pages) {
+  return pages.flatMap((p) => {
+    if (!p.mobile) {
+      if (p.mobileBefore) throw new ReviewError(`page "${p.id}" has a mobileBefore but no mobile screenshot`);
+      return [p];
+    }
+    if (p.device === 'phone') throw new ReviewError(`page "${p.id}" is a phone page; its before and after are the phone screenshots, so it takes no mobile ones`);
+    const { mobile, mobileBefore, ...desktop } = p;
+    const phone = { id: `${p.id}-phone`, title: `${p.title || p.id} (phone)`, group: p.group, device: 'phone', route: p.route, after: mobile };
+    if (mobileBefore !== undefined) phone.before = mobileBefore;
+    return [desktop, phone];
+  });
+}
+
+/** Reviews stored before that split: give their phone variants pages of their own too, with their comments and verdicts. */
+function splitStoredPhones(dir) {
+  const roundsFile = join(dir, 'rounds.json');
+  if (!readJson(roundsFile, []).some((r) => r.pages.some((p) => p.mobile))) return;
+  withLock(dir, () => {
+    const rounds = readJson(roundsFile, []);
+    const feedback = readJson(join(dir, 'feedback.json'), { verdicts: {}, comments: [] });
+    for (const round of rounds) {
+      round.pages = round.pages.flatMap((p) => {
+        const { mobile, mobileBefore, mobileChange, ...desktop } = p;
+        if (!mobile) return [desktop];
+        const id = `${p.id}-phone`;
+        const phone = { id, title: `${p.title} (phone)`, group: p.group ?? '', device: 'phone', route: p.route ?? '', before: mobileBefore ?? null, beforeLabel: 'before', after: mobile, afterLabel: 'after', note: '', change: mobileChange ?? null };
+        const verdict = feedback.verdicts[`${round.n}/${p.id}`];
+        if (verdict) feedback.verdicts[`${round.n}/${id}`] = { ...verdict };
+        for (const c of feedback.comments) {
+          const pins = c.pins ?? (c.pin ? [c.pin] : []);
+          if (c.round === round.n && c.page === p.id && pins.length && pins.every((x) => x.img === 'mobile')) {
+            c.page = id;
+            c.pins = pins.map((x) => ({ ...x, img: 'after' }));
+            delete c.pin;
+            for (const reply of feedback.comments) if (reply.replyTo === c.id) reply.page = id;
+          }
+        }
+        return [desktop, phone];
+      });
+    }
+    writeJson(join(dir, 'feedback.json'), feedback);
+    writeJson(roundsFile, rounds);
+  });
 }
 
 function cleanPin(pin) {

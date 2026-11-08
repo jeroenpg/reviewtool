@@ -83,8 +83,9 @@ Usage:
 Data lives in ${store.root} (REVIEWTOOL_HOME overrides).
 Manifest: { "title"?, "notes"?, "pages": [{ "id", "title", "group"?, "device"?, "route"?, "before"?, "beforeLabel"?,
             "after", "afterLabel"?, "mobile"?, "mobileBefore"?, "note"? }] } — image paths relative to the manifest;
-            "group" is a folder like "Settings/Team & access"; "mobile"/"mobileBefore" add phone variants to a
-            desktop page, "device": "phone" makes a page whose before and after are phone screenshots. Both carry over.`;
+            "group" is a folder like "Settings/Team & access"; "device": "phone" makes a page whose before and
+            after are phone screenshots; "mobile"/"mobileBefore" on a desktop page add such a phone page of its
+            own, "<id>-phone", right after it. Folders and devices carry over.`;
 
 const OPTIONS = {
   port: { type: 'string' },
@@ -221,7 +222,7 @@ async function main() {
       if (o.json) return console.log(JSON.stringify(rounds, null, 2));
       for (const r of rounds) {
         console.log(`round ${r.n} · ${r.title} · ${fmtDate(r.createdAt)}${changeSummary(r) ? ` · ${changeSummary(r)}` : ''}`);
-        for (const p of r.pages) console.log(`  ${p.group ? `${p.group}/` : ''}${p.id}${p.device === 'phone' ? ' (phone)' : p.mobile ? ' (+ phone)' : ''}${p.change ? `  ${CHANGE_TEXT[p.change.status]}${p.change.ratio ? ` (${(p.change.ratio * 100).toFixed(1)}%)` : ''}` : ''}`);
+        for (const p of r.pages) console.log(`  ${p.group ? `${p.group}/` : ''}${p.id}${p.device === 'phone' ? ' (phone)' : ''}${p.change ? `  ${CHANGE_TEXT[p.change.status]}${p.change.ratio ? ` (${(p.change.ratio * 100).toFixed(1)}%)` : ''}` : ''}`);
       }
       return;
     }
