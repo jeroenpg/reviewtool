@@ -337,11 +337,13 @@ async function main() {
       store.mustDir(slug);
       const src = publicLink(slug, args[1], { chat: true }).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
       const ratio = screenshotRatio(slug);
-      // The 1px border sits inside the size (border-box), so the review gets the width minus 2px and 96px more than
-      // the screenshot's height at that width, plus the border.
-      const height = o.height ? `${Math.min(2000, Math.max(300, Number(o.height)))}px` : `calc(98px + ${ratio} * (100vw - 2px))`;
-      console.log(`<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0}iframe{display:block;box-sizing:border-box;width:100%;height:${height};border:1px solid var(--border,#8884);border-radius:var(--radius,8px)}</style></head><body><iframe src="${src}" title="Review" allow="clipboard-write"></iframe></body></html>`);
-      if (!o.height) console.error(`(html_render height: ${Math.round(98 + ratio * 726)})`);
+      // Measured against the frame's own box (container units), not the window: the chat may pad its pages. The 1px
+      // border sits inside the size (border-box), so the review gets that width minus 2px and 96px more than the
+      // screenshot's height at that width, plus the border.
+      const height = o.height ? `${Math.min(2000, Math.max(300, Number(o.height)))}px` : `calc(98px + ${ratio} * (100cqw - 2px))`;
+      console.log(`<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0}.box{container-type:inline-size}iframe{display:block;box-sizing:border-box;width:100%;height:${height};border:1px solid var(--border,#8884);border-radius:var(--radius,8px)}</style></head><body><div class="box"><iframe src="${src}" title="Review" allow="clipboard-write"></iframe></div></body></html>`);
+      // T3's reply column is 728px and it pads a page by 8px, so the frame is 712px wide there.
+      if (!o.height) console.error(`(html_render height: ${Math.round(16 + 98 + ratio * 710)})`);
       return;
     }
     case 'relay': {
