@@ -1,13 +1,13 @@
 // HTTP server for the review app: the list of reviews at /, one review at /r/<name>, and a small JSON API.
+// Pull-based: the app only records approvals and markers. Feedback is the reviewer's chat message, and the agent pulls
+// the approvals and markers with the CLI. Nothing a browser sends reaches an agent as text.
 import { createServer } from 'node:http';
 import { timingSafeEqual } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { feedbackMessage } from './feedback.mjs';
 import { renderLog } from './log.mjs';
-import { deliver, targetLabel } from './targets.mjs';
 import { ReviewError } from './store.mjs';
 
 const publicDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'public');
@@ -100,28 +100,6 @@ export function createApp(store, { key = null } = {}) {
       const { round, page: pageId, verdict = null, by = null } = await body(req);
       return send(res, 200, { verdict: store.setVerdict(slug, { round: Number(round), page: pageId, verdict, by }) });
     }
-    if (method === 'POST' && rest[0] === 'comments' && rest.length === 1) {
-      const { round, page: pageId, text, pin, pins, replyTo, author } = await body(req);
-      // The browser always speaks for a person; agents use the CLI.
-      return send(res, 201, store.addComment(slug, { round, page: pageId, text, pin, pins, replyTo, author, kind: 'human' }));
-    }
-    if (method === 'POST' && rest[0] === 'submit' && rest.length === 1) {
-      const { round, by, note } = await body(req);
-      let submission = store.submit(slug, { round, by, note });
-      // An agent blocked in `reviewtool wait` picks it up itself. Otherwise, when the review is linked to a chat
-      // thread, post the feedback there; if that fails it stays pending for the next `wait`.
-      const target = store.get(slug).review.target;
-      if (target && !store.waiting(slug)) {
-        const to = targetLabel(target);
-        try {
-          await deliver(target, feedbackMessage(store, slug, submission));
-          submission = store.recordDelivery(slug, submission.id, { to, by: target.agent });
-        } catch (error) {
-          submission = store.recordDelivery(slug, submission.id, { to, error: error.message });
-        }
-      }
-      return send(res, 201, submission);
-    }
     if (method === 'POST' && rest[0] === 'markers' && rest.length === 1) {
       const { round, page: pageId, img, x, y, by } = await body(req);
       return send(res, 201, store.addMarker(slug, { round, page: pageId, img, x, y, by }));
@@ -129,16 +107,6 @@ export function createApp(store, { key = null } = {}) {
     if (method === 'DELETE' && rest[0] === 'markers' && rest.length === 3) {
       store.deleteMarker(slug, rest[1], rest[2]);
       return send(res, 204, null);
-    }
-    if (rest[0] === 'comments' && rest.length === 2) {
-      if (method === 'PATCH') {
-        const { status } = await body(req);
-        return send(res, 200, store.setStatus(slug, rest[1], status));
-      }
-      if (method === 'DELETE') {
-        store.deleteComment(slug, rest[1]);
-        return send(res, 204, null);
-      }
     }
     return send(res, 404, { error: 'not found' });
   }

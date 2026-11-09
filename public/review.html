@@ -274,11 +274,7 @@ else try { const t = localStorage.getItem('reviewtool.theme'); if (t) document.d
       <tr><td><kbd>N</kbd></td><td>Next page that needs you</td></tr>
       <tr><td><kbd>1</kbd></td><td>Approve (again to undo)</td></tr>
       <tr><td><kbd>Space</kbd> or <kbd>B</kbd></td><td>Swap between before and after</td></tr>
-      <tr><td><kbd>Enter</kbd> or <kbd>G</kbd></td><td>Write a comment; click a screenshot while you write to mark a spot</td></tr>
-      <tr><td>Dictating</td><td>Click the spots while you talk and say their number (“this card two”); each marker moves to where you said it</td></tr>
-      <tr><td><kbd>Ctrl</kbd> <kbd>Enter</kbd></td><td>Post the comment</td></tr>
-      <tr><td><kbd>Esc</kbd></td><td>Stop writing (your text stays) so the keys work again</td></tr>
-      <tr><td><kbd>Shift</kbd> <kbd>S</kbd></td><td>Send your feedback</td></tr>
+      <tr><td>Click</td><td>Put a numbered marker on a screenshot; name it in the chat (click it again to remove it)</td></tr>
     </table>
     <footer><button id="helpClose">Close</button></footer>
   </article>
@@ -294,7 +290,8 @@ const withKey = (u) => (KEY ? `${u}${u.includes('?') ? '&' : '?'}key=${encodeURI
 for (const a of document.querySelectorAll('a[href="/"]')) a.href = withKey('/');
 const slug = decodeURIComponent(location.pathname.split('/').filter(Boolean)[1] || '');
 // Shown inside an agent chat (reviewtool embed): comments go in the chat, so the page approves and marks spots.
-const CHAT = new URLSearchParams(location.search).get('chat') === '1';
+// Everywhere now: the review approves and marks spots, and the feedback is the reviewer's chat message.
+const CHAT = true;
 if (CHAT) {
   document.documentElement.classList.add('chat');
   document.querySelector('.rail-head').append($('approveBtn')); // one strip: the page and Approve
@@ -1139,14 +1136,11 @@ document.addEventListener('keydown', (e) => {
   const i = ps.findIndex((p) => p.id === current);
   const k = e.key;
   if (k === 'Escape') { openThread = null; render(); }
-  else if (k === 'Enter' && !e.target.closest('button, a, summary')) { e.preventDefault(); startWriting(); }
   else if (k === 'j' || k === 'ArrowDown') { e.preventDefault(); go(ps[i + 1]?.id); }
   else if (k === 'k' || k === 'ArrowUp') { e.preventDefault(); go(ps[i - 1]?.id); }
   else if (k === 'n') { const n = [...ps.slice(i + 1), ...ps.slice(0, i + 1)].find(needsMe); if (n && n.id !== current) go(n.id); else toast('Nothing else needs you in this round'); }
   else if (k === '1') setVerdict('approve');
   else if (k === ' ' || k === 'b') { e.preventDefault(); swap(); }
-  else if (k === 'S') openSend();
-  else if (k === 'g') { e.preventDefault(); startWriting(); }
   else if (k === '?') $('help').showModal();
 });
 

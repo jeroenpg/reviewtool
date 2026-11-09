@@ -46,10 +46,7 @@ async function load() {
   document.getElementById('list').innerHTML = reviews.length ? reviews.map((r) => {
     const v = r.verdicts || { approve: 0, update: 0, revert: 0 };
     const judged = v.approve + v.update + v.revert;
-    const status = r.waiting ? `<span class="status waiting">${esc(r.waiting.by)} is waiting for you</span>`
-      : r.open ? `<span class="status open">${r.open} waiting for the agent</span>`
-      : r.target?.kind === 't3' ? `<span class="status">Sends to T3: ${esc(r.target.title || 'thread')}</span>`
-      : '<span class="status"></span>';
+    const status = '<span class="status"></span>';
     return `<a class="review" href="${withKey(`/r/${encodeURIComponent(r.slug)}`)}">
       <strong>${esc(r.title)}</strong>${status}
       <span class="meta">Round ${r.rounds} · ${judged}/${r.pages} judged${r.repo && r.pr ? ` · ${esc(r.repo)}#${r.pr}` : ''}${r.updatedAt ? ` · ${ago(r.updatedAt)}` : ''}</span>

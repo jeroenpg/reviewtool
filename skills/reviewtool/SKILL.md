@@ -1,14 +1,15 @@
 ---
 name: reviewtool
-description: Run a screenshot review with the user in rounds. Publish before/after screenshots of UI changes to the reviewtool web app, wait until the user sends their feedback, read the comments they pin on the screenshots, fix the issues and reply to each comment, publish the next round (reviewtool shows which pages changed), and put the review log on the pull request. Use when the user wants to review UI changes visually, asks for a review round or the review tool, or leaves feedback in it ("I left comments", "check the review").
+description: Run a screenshot review with the user in rounds. Publish screenshots of UI changes to the reviewtool web app and show it to the user; they approve pages and put numbered markers on screenshots, then give their feedback in the chat, naming the markers ([1], [2]). Look the markers up, fix, publish the next round (reviewtool shows which pages changed), and put the review log on the pull request. Use when the user wants to review UI changes visually, asks for a review round or the review tool, or names markers like [1] in the chat.
 ---
 
 # Screenshot review rounds with reviewtool
 
-`reviewtool` is a small local web app plus a CLI. You publish a **round** of screenshots, and the user opens the app,
-compares before and after, pins comments on the screenshots and gives each page a verdict. You read that feedback with
-the CLI, fix the issues, reply to every comment and publish the next round. At the end you post the whole history to
-the pull request as one comment.
+`reviewtool` is a small web app plus a CLI. You publish a **round** of screenshots and show the review to the user.
+In it they compare each page with earlier rounds, **approve** the pages that are right, and click screenshots to put
+**numbered markers** on them. Nothing is sent from the app: the feedback is the user's next chat message, which names
+the markers ("[1] is too tall"). You pull the approvals and markers with the CLI, fix, and publish the next round. At
+the end you post the whole history to the pull request as one comment.
 
 Check that it is installed with `reviewtool --help`. If it is not, install it with
 `npm install -g github:jeroenpg/reviewtool`.
@@ -97,107 +98,44 @@ reviewtool url <name>
   changed. If a page you fixed shows as unchanged, your fix did not reach the screenshot; recapture before you tell the
   user. If a page you did not touch shows as changed, find out why. `reviewtool rounds <name>` lists the change per
   page.
-- Give the user the link from `reviewtool url`, and tell them how many pages the round has and which ones changed.
-  The user can approve the unchanged pages they approved last round in one click, so they only look at what changed.
+- Pages that did not change since the user approved them last round count as done already, so they only look at
+  what changed.
 
-## 3. Wait for the user to send feedback
+## 3. Show the review and end your turn
 
-The user reviews in the browser and presses **Send** when they are done. Wait for that; do not poll `feedback` in a
-loop, and do not start fixing half-finished feedback.
+**In T3 Code with a public link** (the environment has `T3CODE_THREAD_ID`, and `reviewtool url <name> --public`
+prints a link instead of an error): end your reply with the review. Pass the output of `reviewtool embed <name>` as
+the `html` of T3's `html_render` tool, with a title like "Review: round 3" and the height it prints on stderr
+("html_render height: …"). The embed holds the link's secret key: show it only in the user's own thread, and never
+put the key or the public link in a pull request, issue, log or commit.
 
-**In T3 Code** (the environment has `T3CODE_THREAD_ID`) **with a public link** (`reviewtool url <name> --public`
-prints one instead of an error), the review lives at the end of the conversation and the feedback in the chat:
+**Anywhere else**, give the link from `reviewtool url <name>` (T3's chat cannot show private or tailnet addresses).
 
-1. **End your reply with the review.** Pass the output of `reviewtool embed <name>` as the `html` of T3's
-   `html_render` tool, with a title like "Review: round 3" and the height it prints on stderr ("html_render height:
-   …"). Keep the reply text short, and say once that clicking a screenshot places a marker to name in the chat.
-2. **End your turn.** Do not run `wait`. In the review, the user approves pages, and clicks screenshots to put
-   numbered markers on them: [1], [2], … They write their feedback in the chat and name the markers: "[1] is too tall,
-   and [2] should line up with it". Dictation often drops the brackets ("the header 1 is too tall"); read a number
-   that fits as that marker.
-3. **When their message arrives, look the markers up:**
+Keep the reply short: how many pages, which changed, and once that clicking a screenshot places a marker to name in
+the chat. Then **end your turn**. Do not wait or poll: the user's next message is the feedback.
 
-   ```sh
-   reviewtool markers <name>          # each [n]: page, screenshot, spot (% across and down), image path
-   reviewtool markers <name> --json   # the same, plus the approved and not approved pages
-   ```
+## 4. Pull the feedback when the user writes
 
-   Open the image to see the exact spot. Approved pages stay as they are; the chat says what to change on the rest.
-   Marker numbers are never reused within a round, so [n] always means the spot listed under it.
-4. **Answer in the chat**, not with `reply`. Then fix, publish the next round, and end your reply with the review
-   again.
-
-The embed holds the link's secret key: show it only in the user's own thread, and never paste the key or the public
-link into a pull request, issue, log or commit.
-
-**In T3 Code without a public link**, T3's chat cannot show the review (it cannot reach private or tailnet addresses).
-Give the tailnet link instead. `init`, `round` and `wait` link the review to your thread, so the app's button reads
-**Send to T3 thread** and the user's comments and verdicts arrive in your thread as a new message. After publishing,
-tell the user it is ready and end your turn; do not run `wait`. When the message arrives, continue with step 4.
-`reviewtool target <name>` shows where feedback goes. `--here` links the current thread, and `--none` unlinks it.
-
-**Anywhere else**, wait for the user to send:
+The user's message is the feedback. When it names markers ([1], [2], …) or the review, look them up:
 
 ```sh
-reviewtool wait <name> --as Claude
+reviewtool markers <name>          # each [n]: page, which round's screenshot, spot (% across and down), image path
+reviewtool markers <name> --json   # the same, plus the approved and not approved pages
 ```
 
-`wait` blocks until the user sends, marks the feedback as picked up (the app then shows "Claude is working on your
-feedback"), prints it like `feedback` does, plus the user's note, and exits 0. While it waits, the app shows the user
-"Claude is waiting for your feedback".
+- **Open the image** at the listed path to see the exact spot.
+- **Dictation often drops the brackets** ("the header 1 is too tall"); read a number that fits as that marker.
+- **Marker numbers are never reused within a round**, so [n] always means the spot listed under it.
+- **Approved pages stay as they are.** The chat says what to change on the rest; a page without approval and without
+  a word about it is not done yet, so ask.
+- A marker can sit on the current screenshot, the previous round's or round 1's; the list says which. A spot on an
+  earlier round usually means "it was better like this".
 
-- **Claude Code:** run it as a background command (`run_in_background`, timeout up to 2 hours); you are notified when
-  it exits. Meanwhile, tell the user the round is ready and that you are waiting for them to press Send to agent.
-- **Agents that can only run commands in the foreground:** use `--timeout` below your command limit, for example
-  `reviewtool wait <name> --timeout 540`. Exit code 2 means nothing was sent yet; run it again.
-- Sent feedback stays pending until an agent picks it up, so nothing is lost if no one was waiting at that moment.
-- If the user tells you in the chat that they are done instead, skip the wait and read `reviewtool feedback <name>`.
-- An agent blocked in `wait` always gets the feedback itself, even when the review is linked to a T3 thread, so it
-  never arrives twice.
+## 5. Answer, fix, publish the next round
 
-## 4. Read the feedback
-
-```sh
-reviewtool feedback <name>          # threads waiting for you: open, and the user spoke last
-reviewtool feedback <name> --json   # the same as JSON, plus the verdicts of the latest round
-```
-
-Each thread shows:
-
-- its id in brackets;
-- the page and the round;
-- the spots it marks: the text names them `[1]`, `[2]`, … at the place the user means them, and each is listed with
-  its screenshot and a percentage across and down (a comment without spots is about the page as a whole);
-- the path to each image, so you can open it and look at the exact spot;
-- the conversation so far.
-
-Verdicts mean:
-
-- **Approve**: keep the page as it is.
-- **Needs update**: the user commented on the page; keep the change and do what the comments ask. Posting a comment
-  sets this.
-- **Revert**: put the page back the way it was before (only in older reviews; the app no longer offers it, so a
-  comment says so instead).
-
-## 5. Fix, then reply to every thread
-
-Fix the issues. Then reply to each thread with what you did, in plain words the user can check on the next round's
-screenshot:
-
-```sh
-reviewtool reply <name> <comment-id> "Moved snooze to the end of the row; it replaces the time on hover." --as Claude
-```
-
-- **Every thread you were shown gets a reply, even when you disagree or could not do it.** In that case say why, and
-  what the user can decide.
-- **Do not resolve threads yourself.** The user resolves them after checking. The exception is `--resolve`, for a
-  thread that needs no change: a question you answered, or a duplicate.
-- When the user answers in a thread, it shows up in `feedback` again.
-- To leave a note on a page without a thread, for example "this page also changed because of X", use
-  `reviewtool comment <name> <page-id> "..." --as Claude`.
-
-Then capture the screenshots again, publish the next round (step 2) and wait again (step 3). Repeat until the user
-sends feedback with every page approved and nothing waiting.
+Answer in the chat, per marker, what you will do; when you disagree or cannot do something, say why. Then fix it,
+capture again, and publish the next round (step 2) with `notes` that sum up the feedback you acted on, so the log on
+the pull request keeps it. Show the review again (step 3). Repeat until every page is approved.
 
 ## 6. Put the log on the pull request
 
@@ -208,8 +146,8 @@ reviewtool set <name> --repo owner/repo --pr 123   # if not set yet
 reviewtool log <name> --post
 ```
 
-This creates one comment on the PR, or updates the one it posted before. The comment holds every round, the verdict
-for each page and each comment thread with its replies. To preview it, run `reviewtool log <name>`. To save it to a
+This creates one comment on the PR, or updates the one it posted before. The comment holds every round with its notes
+and which pages were approved. To preview it, run `reviewtool log <name>`. To save it to a
 file, run `reviewtool log <name> --out file.md`.
 
 ## Rules
@@ -217,4 +155,5 @@ file, run `reviewtool log <name> --out file.md`.
 - **Never publish a round with screenshots you have not looked at.**
 - **Never edit the store's JSON files by hand.** Use the CLI, which locks the files so the user's comments and yours
   cannot overwrite each other.
-- **Speak as an agent through the CLI** (`--as Claude`, or your own name). The browser is for people.
+- **The feedback lives in the chat.** Do not use `wait`, `feedback`, `reply` or `comment`; they belong to an older way
+  of working where the app sent feedback, and the app no longer does.

@@ -92,9 +92,11 @@ Usage:
   reviewtool tailscale [--port 4477] [--https-port 14477]
                                                         open the app to your tailnet with tailscale serve and use that
                                                         address in the links agents print
-  reviewtool relay --via user@host --url https://name [--remote-port 4478] [--remove]
+  reviewtool relay --via user@host --url https://name [--allow IP,IP] [--new-key] [--remote-port 4478] [--remove]
                                                         reach the app from the internet through a server you can
-                                                        ssh into; every request there needs a secret key
+                                                        ssh into; every request there needs a secret key.
+                                                        --allow puts only those IPs in the printed web server setup;
+                                                        --new-key replaces the key (old links stop working)
 
 Data lives in ${store.root} (REVIEWTOOL_HOME overrides).
 Manifest: { "title"?, "notes"?, "pages": [{ "id", "title", "group"?, "device"?, "route"?, "before"?, "beforeLabel"?,
@@ -132,6 +134,8 @@ const OPTIONS = {
   url: { type: 'string' },
   height: { type: 'string' },
   'remote-port': { type: 'string' },
+  allow: { type: 'string' },
+  'new-key': { type: 'boolean' },
   help: { type: 'boolean', short: 'h' },
 };
 
@@ -366,7 +370,9 @@ async function main() {
       const publicPort = port + 1;
       const remotePort = Number(o['remote-port'] ?? publicPort);
       const config = readConfig();
-      const publicKey = config.publicKey ?? randomBytes(24).toString('base64url');
+      // --new-key replaces the key, so every link handed out before stops working.
+      const publicKey = (!o['new-key'] && config.publicKey) || randomBytes(24).toString('base64url');
+      const allow = o.allow ? String(o.allow).split(',').map((x) => x.trim()).filter(Boolean) : null;
       writeConfig({ publicKey, publicUrl: publicUrl.replace(/\/$/, ''), publicPort });
       const ssh = execFileSync('sh', ['-c', 'command -v ssh'], { encoding: 'utf8' }).trim();
       mkdirSync(unitDir, { recursive: true });
@@ -392,11 +398,24 @@ async function main() {
         `the tunnel runs as reviewtool-relay.service: ${via} port ${remotePort} (its localhost only) reaches this app's key-only side.`,
         `On ${via.split('@').pop()}, point ${publicUrl} at it, for example with Caddy:`,
         '',
+        '  {',
+        '    log default {',
+        '      exclude http.log.error   # links carry the key; keep it out of the logs',
+        '    }',
+        '  }',
         `  ${new URL(publicUrl).host} {`,
-        `    reverse_proxy 127.0.0.1:${remotePort}`,
+        ...(allow ? [
+          `    @allowed remote_ip ${allow.join(' ')}`,
+          '    handle @allowed {',
+          `      reverse_proxy 127.0.0.1:${remotePort}`,
+          '    }',
+          '    handle {',
+          '      abort                 # anyone else is cut off without an answer',
+          '    }',
+        ] : [`    reverse_proxy 127.0.0.1:${remotePort}`]),
         '  }',
         '',
-        `Links that work from anywhere: reviewtool url <name> --public. In T3 Code: reviewtool embed <name>.`,
+        `Public links, key included: reviewtool url <name> --public. In T3 Code: reviewtool embed <name>.`,
       ].join('\n'));
       return;
     }

@@ -2,17 +2,15 @@
 
 Review UI changes in rounds, the way you would with a designer, while an AI agent does the work.
 
-1. **The agent publishes a round.** It sends before and after screenshots of every page it changed, plus phone
-   screenshots if it has them. reviewtool compares each screenshot with the previous round, so you can see which
-   pages changed and where.
-2. **You review them in the browser.** You compare before with after, or this round with the last one. You click a
-   spot to pin a comment there, and you approve each page or comment on what should change.
-3. **You press Send.** Your comments, verdicts and an optional note go to the agent. In
-   [T3 Code](https://t3.codes) they arrive in the agent's thread as a new message (*Send to T3 thread*). Anywhere
-   else, an agent waiting with `reviewtool wait` picks them up. The agent fixes the issues, replies to each comment,
-   and publishes the next round.
-4. **The pull request gets a log of the whole review.** It is one comment, kept up to date, with every round, every
-   verdict and every thread.
+1. **The agent publishes a round** of screenshots of every page it changed. reviewtool compares each one with the
+   previous round, so you can see which pages changed and where.
+2. **You go through the pages.** You compare each with the previous round and round 1, **approve** the ones that are
+   right, and click a screenshot to put a numbered **marker** on what you want to talk about.
+3. **You give your feedback in the chat**, naming the markers: "[1] is too tall, [2] should line up with it". Nothing
+   is sent from the app: the agent pulls your approvals and markers with `reviewtool markers`, fixes, and publishes the
+   next round. In [T3 Code](https://t3.codes) the review sits at the end of the agent's reply, inside the chat.
+4. **The pull request gets a log of the whole review.** It is one comment, kept up to date, with every round, its
+   notes and which pages were approved.
 
 It is built so that Claude Code, Codex and other coding agents can drive it. The included
 [skill](skills/reviewtool/SKILL.md) teaches them the loop.
@@ -52,6 +50,9 @@ reviewtool relay --via user@server --url https://review.example.com
 - **The public side needs a secret key**, which `relay` creates and keeps in `~/.config/reviewtool/config.json`.
   The app answers the tunnel on a separate local port where every request must carry it, so it holds even for
   other users on the server. Your tailnet link keeps working without it.
+- **Only the addresses you allow get through.** `--allow` puts an IP allowlist in the printed web server setup;
+  everyone else is cut off without an answer, and request logging is off so the key stays out of logs. `--new-key`
+  replaces the key, and every older link stops working.
 - **Agents end their reply with the review** (`reviewtool embed <name>`, HTML for T3's `html_render`), and you
   give your feedback in the chat itself. In the chat, the review only has *Approve* and markers: click a screenshot
   to put a numbered marker there, [1], [2], …, and name it in your message ("[1] is too tall"); click it again to
@@ -65,8 +66,9 @@ reviewtool relay --via user@server --url https://review.example.com
 ```sh
 reviewtool init inbox-redesign --title "Inbox redesign" --repo acme/app --pr 42
 reviewtool round inbox-redesign round.json --as Claude
-reviewtool wait inbox-redesign --as Claude
-reviewtool reply inbox-redesign 3f2a9c1e "Moved snooze to the end of the row." --as Claude
+reviewtool embed inbox-redesign            # in T3 Code: the review inside the chat (or: reviewtool url)
+#   … you approve pages, place markers and write in the chat: "[1] is too tall" …
+reviewtool markers inbox-redesign          # where [1] is: page, round, spot, image
 reviewtool round inbox-redesign round2.json --as Claude
 reviewtool log inbox-redesign --post
 ```
@@ -74,21 +76,14 @@ reviewtool log inbox-redesign --post
 What each command does:
 
 - `init` starts a review. A good name is the branch name.
-- `round` publishes the screenshots listed in a manifest as the next round.
-- `round` also prints what changed since the last round, such as `5 changed, 1 new, 30 unchanged since round 3`.
-- `wait` blocks until you press **Send to agent** in the browser. It then prints the threads waiting for the agent,
-  with where each pin sits and the path of the image, plus your note. The app shows you when an agent is waiting and
-  when it has picked up your feedback. Use `--timeout` for agents that cannot run long commands; exit code 2 means
-  nothing was sent yet.
-- `feedback` prints the same without waiting.
-- **In T3 Code** you don't need `wait`. `init`, `round` and `wait` link the review to the agent's thread (from the
-  `T3CODE_THREAD_ID` that T3 gives its agents). Sending then posts the feedback into that thread with
-  `t3 thread send`, and a busy thread reads it as its next turn. `reviewtool target <name> --here | --none` changes
-  the link. If T3 can't be reached, the feedback stays saved for the next `wait`. `REVIEWTOOL_TARGET=none` turns the
-  linking off.
-- `reply` answers one thread. Only you resolve threads, after you have checked the fix.
-- The second `round` publishes the fixed screenshots as round 2.
+- `round` publishes the screenshots listed in a manifest as the next round, and prints what changed since the last
+  round, such as `5 changed, 1 new, 30 unchanged since round 3`.
+- `embed` prints the page an agent shows inside a T3 chat; `url` prints the link for a browser.
+- `markers` lists the markers of the latest round, each with its page, which round's screenshot it is on, where on it,
+  and the image path, plus which pages are approved.
 - `log --post` creates the review log comment on the PR, or updates it if it was posted before.
+- `wait`, `feedback`, `reply`, `comment` and `resolve` are from the earlier, send-based way of working. They still
+  read and write older reviews, but the app no longer sends or takes comments.
 
 A round manifest looks like this. Image paths are relative to the manifest file.
 
@@ -127,15 +122,15 @@ Rules for manifests:
 
 ## In the browser
 
-The page has no buttons beyond what a review needs: **Approve**, the comment box, **Send**, and the rounds (#1, #2,
-…) in the top bar. There is no page list on the side: a picker under the top bar holds the pages of the round, *To
-do* above *Done*. It is built on [Pico CSS](https://picocss.com), which ships inside the package,
-and follows your light or dark setting.
+The page has nothing beyond what a review needs: **Approve**, markers, and the rounds (#1, #2, …) in the top bar. A
+picker under the top bar holds the pages of the round, *To do* above *Done*. It is built on
+[Pico CSS](https://picocss.com), which ships inside the package, and follows your light or dark setting (black inside
+a chat).
 
-- **A gallery of what needs you.** A review opens on the first page that needs you: not approved yet, an answer from
-  the agent to check, or a new reply. *Approve* finishes the page, and so does posting a comment (which marks the page
-  as needing an update); the next page that needs you opens and the finished one moves to *Done* in the picker. Pages that did not
-  change since you approved them last round are done already. <kbd>N</kbd> jumps ahead.
+- **A gallery of what needs you.** A review opens on the first page that needs you. *Approve* finishes a page, and so
+  does putting a marker on it (you will talk about it in the chat); the next page that needs you opens and the finished
+  one moves to *Done*. Pages that did not change since you approved them last round are done already. <kbd>N</kbd>
+  jumps ahead.
 - **Previous and next at your fingertips.** Hovering a screenshot shows ‹ and › at its edges for the previous and
   next page (<kbd>K</kbd> and <kbd>J</kbd> do the same).
 - **A heading that says what this is.** The top bar reads "*T3 thread* · *what this round changes*": the agent sums
@@ -144,24 +139,12 @@ and follows your light or dark setting.
   round), *Previous* (the last round) and *Current*. A click switches in place, so what changed jumps out;
   <kbd>Space</kbd> or <kbd>B</kbd> jumps between current and the last other round you looked at. Areas that changed
   since the last round are outlined on the current one. The `before` screenshots in a manifest are not shown.
-- **Comment while you look, and point at what you mean.** The comment box is always under the page. Press
-  <kbd>Enter</kbd> (or <kbd>G</kbd>) to write; while you write, each click on a screenshot puts a numbered marker on
-  that spot and its number, like `[1]`, in your text where the cursor is, so one comment can point at several spots
-  (also on the before and the after). Delete `[1]` from the text, or click the marker, to take it away.
-  <kbd>Ctrl</kbd>+<kbd>Enter</kbd> posts, and <kbd>Esc</kbd> stops writing, so the keys work again; your text stays,
-  also when you go to another page. Click a marker to open its thread; comments without a marker on screen are listed
-  under the screenshots.
-- **Dictate and point.** With dictation (Wispr Flow, a phone keyboard) the text arrives after you stop talking, so
-  click the spots while you speak and say their number: "the header one is too tall, and this card two…". When the
-  text lands, each marker moves to where you said it: "the header [1] … this card [2]". Digits, English and Dutch
-  number words work, with or without "spot", "marker", "nummer" or "punt" before them; Dutch "een" only counts after
-  one of those, as it is also the word "a". Once you type by hand, the markers stay where you clicked them.
-- **Send when you are done.** *Send to agent* (or *Send to T3 thread*) counts what you have added since you last
-  sent, and takes an optional note. The top bar shows when an agent is waiting for you and when your feedback was
-  delivered.
+- **Point at what you mean.** Click a screenshot to put a numbered marker there, [1], [2], …; click it again to remove
+  it. Numbers are never reused within a round. Then write in the chat; with dictation, "the header 1 is too tall"
+  works as well as "[1]".
 - **Know what's new.** The picker marks pages that *changed* or are *new* since the last round.
 - **Keyboard.** <kbd>J</kbd>/<kbd>K</kbd> next or previous page, <kbd>N</kbd> next page that needs you,
-  <kbd>1</kbd> approve, <kbd>Space</kbd> or <kbd>B</kbd> swap before and after, <kbd>Enter</kbd> write, <kbd>Shift</kbd>+<kbd>S</kbd> send, <kbd>?</kbd> for the list.
+  <kbd>1</kbd> approve, <kbd>Space</kbd> or <kbd>B</kbd> swap with an earlier round, <kbd>?</kbd> for the list.
 
 ## Where the data lives
 
