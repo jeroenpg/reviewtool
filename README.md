@@ -122,8 +122,8 @@ Rules for manifests:
 
 ## In the browser
 
-The page has nothing beyond what a review needs: **Approve**, markers, and the rounds (#1, #2, …) in the top bar. A
-picker under the top bar holds the pages of the round, *To do* above *Done*. It is built on
+The page has one bar on top with nothing beyond what a review needs: the rounds (#1, #2, …), a ☰ button that lists
+the pages of the round (*To do* above *Done*), and **Approve**; markers go on the screenshot. It is built on
 [Pico CSS](https://picocss.com), which ships inside the package, and follows your light or dark setting (black inside
 a chat).
 
@@ -132,7 +132,7 @@ a chat).
   one moves to *Done*. Pages that did not change since you approved them last round are done already. <kbd>N</kbd>
   jumps ahead.
 - **Previous and next at your fingertips.** Hovering a screenshot shows ‹ and › at its edges for the previous and
-  next page (<kbd>K</kbd> and <kbd>J</kbd> do the same).
+  next page (<kbd>←</kbd> and <kbd>→</kbd> do the same, once you have clicked anything in the review).
 - **A heading that says what this is.** The top bar reads "*T3 thread* · *what this round changes*": the agent sums
   up each round in about five words (the round's title).
 - **This round against earlier ones, in one place.** One screenshot at a time, with a bar under it: *#1* (the first
@@ -142,8 +142,8 @@ a chat).
 - **Point at what you mean.** Click a screenshot to put a numbered marker there, [1], [2], …; click it again to remove
   it. Numbers are never reused within a round. Then write in the chat; with dictation, "the header 1 is too tall"
   works as well as "[1]".
-- **Know what's new.** The picker marks pages that *changed* or are *new* since the last round.
-- **Keyboard.** <kbd>J</kbd>/<kbd>K</kbd> next or previous page, <kbd>N</kbd> next page that needs you,
+- **Know what's new.** The page list marks pages that *changed* or are *new* since the last round.
+- **Keyboard.** <kbd>←</kbd>/<kbd>→</kbd> (or <kbd>K</kbd>/<kbd>J</kbd>) previous or next page, <kbd>N</kbd> next page that needs you,
   <kbd>1</kbd> approve, <kbd>Space</kbd> or <kbd>B</kbd> swap with an earlier round, <kbd>?</kbd> for the list.
 
 ## Where the data lives

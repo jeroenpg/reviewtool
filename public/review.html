@@ -42,8 +42,6 @@ else try { const t = localStorage.getItem('reviewtool.theme'); if (t) document.d
   .rail { flex: none; background: var(--pico-background-color); border-bottom: 1px solid var(--pico-muted-border-color); }
   .rail-head { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; padding: .55rem 1.25rem; }
   .changes { font-size: .9em; }
-  .pagenav { display: flex; flex: 1 1 18rem; max-width: 40rem; }
-  .pagenav select { flex: 1; min-width: 0; }
   .work { flex: 1; display: flex; flex-direction: column; min-height: 0; min-width: 0; }
   main { flex: 1; overflow-y: auto; min-width: 0; padding: 1rem 1.25rem 2rem; }
 
@@ -58,6 +56,10 @@ else try { const t = localStorage.getItem('reviewtool.theme'); if (t) document.d
   .page-head hgroup { margin: 0; min-width: 0; }
   .page-head h1 { font-size: 1.35rem; margin: 0; }
   #approveBtn { padding: .35rem 1.1rem; }
+  /* The page list: a native picker behind an icon, so it opens the system list with no layout of its own. */
+  .pagemenu { position: relative; flex: none; display: inline-grid; place-items: center; width: 34px; height: 34px; margin: 0; border-radius: var(--pico-border-radius); color: var(--pico-muted-color); cursor: pointer; }
+  .pagemenu:hover, .pagemenu:focus-within { color: var(--pico-color); background: var(--pico-secondary-background, #8882); }
+  .pagemenu select { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; padding: 0; opacity: 0; cursor: pointer; }
   #approveBtn[aria-pressed="true"] { --pico-background-color: var(--approve) !important; --pico-border-color: var(--approve) !important; --pico-color: #fff !important; }
   .page-head hgroup p { font: .85em ui-monospace, SFMono-Regular, monospace; overflow-wrap: anywhere; }
   .changebar { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem .9rem; margin-top: .6rem; font-size: .9em; color: var(--pico-muted-color); }
@@ -116,25 +118,24 @@ else try { const t = localStorage.getItem('reviewtool.theme'); if (t) document.d
   .chat #composer, .chat #sendBtn, .chat #agentState, .chat #offCanvas { display: none !important; }
   /* Compact, so the whole review fits a short frame above the chat's input: one strip with the page and Approve, and
      the screenshot scaled to the height that is left. */
-  /* Fixed bars (44 + 52 above, 40 below = 136px, which "reviewtool embed" counts on), and the screenshot fills exactly
-     what is left. */
+  /* Fixed bars (44 above, 40 below = 84px, which "reviewtool embed" counts on), and the screenshot fills exactly
+     what is left. One bar on top: the title, the rounds, the page list behind an icon, and Approve. */
   .chat { --bar-h: 44px; }
-  .chat .topbar { height: 44px; min-height: 0; box-sizing: border-box; padding-block: 0; }
-  .chat .rail { height: 52px; box-sizing: border-box; }
-  .chat .rail-head { height: 100%; flex-wrap: nowrap; padding: 0 .75rem; }
-  .chat .pagenav { max-width: none; flex: 1 1 auto; }
-  .chat #roundChanges, .chat #changeBar, .chat .page-head, .chat #note { display: none !important; }
-  .chat #approveBtn { flex: none; padding-block: .35rem; }
+  .chat .topbar { height: 44px; min-height: 0; box-sizing: border-box; padding: 0 .5rem 0 .75rem; gap: .6rem; flex-wrap: nowrap; }
+  .chat .topbar .title { flex: 1 1 auto; }
+  .chat .topbar .progress { order: 0; color: var(--pico-muted-color); }
+  .chat .rail, .chat #roundChanges, .chat #changeBar, .chat .page-head, .chat #note { display: none !important; }
+  .chat #approveBtn { flex: none; margin: 0; padding: .25rem .9rem; }
   .chat main { padding: 0; }
   .chat .canvas { margin-top: 0; }
   .chat .swapbar { border: 0; border-top: 1px solid var(--pico-muted-border-color); border-radius: 0; }
   /* Desktop screenshots run edge to edge; one taller than the frame scrolls inside it. */
   .chat .flip, .chat .flip.phone { max-width: none; }
-  .chat .frame { border: 0; border-radius: 0; background: transparent; height: calc(100vh - 136px); max-height: none; overflow-y: auto; scrollbar-width: none; }
+  .chat .frame { border: 0; border-radius: 0; background: transparent; height: calc(100vh - 84px); max-height: none; overflow-y: auto; scrollbar-width: none; }
   /* Phone screenshots would be very tall at full width: scaled to the height that is left, centred. */
   .chat .flip.phone .frame { overflow: hidden; }
   .chat .flip.phone .stage { width: fit-content; max-width: 100%; margin-inline: auto; }
-  .chat .flip.phone .stage > img { width: auto; max-width: 100%; max-height: calc(100vh - 136px); }
+  .chat .flip.phone .stage > img { width: auto; max-width: 100%; max-height: calc(100vh - 84px); }
   .pin.draft:hover { background: var(--revert); }
   .mark { display: inline-grid; place-items: center; min-width: 1.35em; height: 1.35em; padding: 0 .3em; border-radius: .7em .7em .7em .2em; background: var(--pin); color: #fff; font-size: .78em; font-weight: 700; vertical-align: .08em; cursor: pointer; }
   .resolved .mark { background: #8a9592; }
@@ -185,7 +186,6 @@ else try { const t = localStorage.getItem('reviewtool.theme'); if (t) document.d
     .topbar .progress, .topbar .agentstate { order: 5; }
     .app { display: block; }
     .rail-head { padding-inline: .75rem; }
-    .pagenav { max-width: none; flex-basis: 100%; }
     .work { display: block; }
     main { overflow: visible; padding: .9rem .75rem 1.5rem; }
     .composer { position: sticky; bottom: 0; z-index: 10; padding-inline: .75rem; }
@@ -221,13 +221,14 @@ else try { const t = localStorage.getItem('reviewtool.theme'); if (t) document.d
   <span class="progress" id="progress"><progress id="progressBar" value="0" max="1"></progress><span id="progressText"></span></span>
   <span class="agentstate" id="agentState" hidden><span class="pulse"></span><span id="agentText"></span></span>
   <button id="sendBtn"><span id="sendLabel">Send to agent</span><span class="n" id="sendCount" hidden></span></button>
+  <label class="pagemenu" title="All pages"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg><select id="pageSelect" aria-label="All pages"></select></label>
+  <button class="secondary outline" id="approveBtn" title="Keep this page as it is now (1)">Approve</button>
 </header>
 
 <div class="app">
   <aside class="rail">
     <div class="rail-head">
       <div class="changes" id="roundChanges" hidden></div>
-      <div class="pagenav"><select id="pageSelect" aria-label="Page"></select></div>
     </div>
   </aside>
 
@@ -236,8 +237,6 @@ else try { const t = localStorage.getItem('reviewtool.theme'); if (t) document.d
     <div id="pageView" hidden>
       <div class="page-head">
         <hgroup><div class="crumb" id="crumb" hidden></div><h1 id="title"></h1><p id="route"></p></hgroup>
-        <span class="spacer"></span>
-        <button class="secondary outline" id="approveBtn" title="Keep this page as it is now (1)">Approve</button>
       </div>
       <div class="changebar" id="changeBar" hidden></div>
       <p class="pagenote" id="note" hidden></p>
@@ -270,7 +269,7 @@ else try { const t = localStorage.getItem('reviewtool.theme'); if (t) document.d
   <article>
     <header><strong>Keyboard</strong></header>
     <table>
-      <tr><td><kbd>J</kbd> <kbd>K</kbd></td><td>Next or previous page</td></tr>
+      <tr><td><kbd>←</kbd> <kbd>→</kbd> or <kbd>K</kbd> <kbd>J</kbd></td><td>Previous or next page</td></tr>
       <tr><td><kbd>N</kbd></td><td>Next page that needs you</td></tr>
       <tr><td><kbd>1</kbd></td><td>Approve (again to undo)</td></tr>
       <tr><td><kbd>Space</kbd> or <kbd>B</kbd></td><td>Swap between before and after</td></tr>
@@ -292,10 +291,7 @@ const slug = decodeURIComponent(location.pathname.split('/').filter(Boolean)[1] 
 // Shown inside an agent chat (reviewtool embed): comments go in the chat, so the page approves and marks spots.
 // Everywhere now: the review approves and marks spots, and the feedback is the reviewer's chat message.
 const CHAT = true;
-if (CHAT) {
-  document.documentElement.classList.add('chat');
-  document.querySelector('.rail-head').append($('approveBtn')); // one strip: the page and Approve
-}
+if (CHAT) document.documentElement.classList.add('chat');
 const PIN_LABEL = { before: 'before', after: 'after', previous: 'last round', mobile: 'phone' };
 const VERDICT_TEXT = { approve: 'Approved', update: 'Needs update', revert: 'Revert' };
 
@@ -715,7 +711,7 @@ function neighbours(p) {
 }
 function stepButtons(p) {
   const { prev, next } = neighbours(p);
-  const button = (dir, to, glyph, label) => `<button class="step ${dir}" data-step="${dir}"${to ? ` title="${label}: ${esc(to.title)} (${dir === 'prev' ? 'K' : 'J'})"` : ' hidden'} aria-label="${label}">${glyph}</button>`;
+  const button = (dir, to, glyph, label) => `<button class="step ${dir}" data-step="${dir}"${to ? ` title="${label}: ${esc(to.title)} (${dir === 'prev' ? '←' : '→'})"` : ' hidden'} aria-label="${label}">${glyph}</button>`;
   return button('prev', prev, '‹', 'Previous page') + button('next', next, '›', 'Next page');
 }
 
@@ -1050,7 +1046,7 @@ function renderNoRounds() {
 }
 
 /* ---------- events ---------- */
-$('pageSelect').addEventListener('change', () => go($('pageSelect').value));
+$('pageSelect').addEventListener('change', () => { go($('pageSelect').value); $('pageSelect').blur(); });
 $('rounds').addEventListener('click', (e) => { const b = e.target.closest('[data-round]'); if (b) setRound(Number(b.dataset.round)); });
 $('approveBtn').addEventListener('click', () => setVerdict('approve'));
 $('composeText').addEventListener('beforeinput', () => { composeBefore = $('composeText').value; });
@@ -1136,8 +1132,8 @@ document.addEventListener('keydown', (e) => {
   const i = ps.findIndex((p) => p.id === current);
   const k = e.key;
   if (k === 'Escape') { openThread = null; render(); }
-  else if (k === 'j' || k === 'ArrowDown') { e.preventDefault(); go(ps[i + 1]?.id); }
-  else if (k === 'k' || k === 'ArrowUp') { e.preventDefault(); go(ps[i - 1]?.id); }
+  else if (k === 'j' || k === 'ArrowDown' || k === 'ArrowRight') { e.preventDefault(); go(ps[i + 1]?.id); }
+  else if (k === 'k' || k === 'ArrowUp' || k === 'ArrowLeft') { e.preventDefault(); go(ps[i - 1]?.id); }
   else if (k === 'n') { const n = [...ps.slice(i + 1), ...ps.slice(0, i + 1)].find(needsMe); if (n && n.id !== current) go(n.id); else toast('Nothing else needs you in this round'); }
   else if (k === '1') setVerdict('approve');
   else if (k === ' ' || k === 'b') { e.preventDefault(); swap(); }
