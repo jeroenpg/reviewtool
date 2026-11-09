@@ -57,7 +57,7 @@ else try { const t = localStorage.getItem('reviewtool.theme'); if (t) document.d
   .page-head h1 { font-size: 1.35rem; margin: 0; }
   #approveBtn { padding: .35rem 1.1rem; }
   /* The page list: a native picker behind an icon, so it opens the system list with no layout of its own. */
-  .pagemenu { position: relative; flex: none; display: inline-grid; place-items: center; width: 34px; height: 34px; margin: 0; border-radius: var(--pico-border-radius); color: var(--pico-muted-color); cursor: pointer; }
+  .pagemenu { position: relative; flex: none; display: inline-flex; align-items: center; justify-content: center; gap: .35rem; min-width: 34px; height: 34px; padding: 0 .4rem; margin: 0; font-size: .9em; font-variant-numeric: tabular-nums; white-space: nowrap; border-radius: var(--pico-border-radius); color: var(--pico-muted-color); cursor: pointer; }
   .pagemenu:hover, .pagemenu:focus-within { color: var(--pico-color); background: var(--pico-secondary-background, #8882); }
   .pagemenu select { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; padding: 0; opacity: 0; cursor: pointer; }
   #approveBtn[aria-pressed="true"] { --pico-background-color: var(--approve) !important; --pico-border-color: var(--approve) !important; --pico-color: #fff !important; }
@@ -83,6 +83,7 @@ else try { const t = localStorage.getItem('reviewtool.theme'); if (t) document.d
   .swapbar button[aria-pressed="true"] { color: var(--pico-color); font-weight: 600; background: color-mix(in srgb, var(--pico-muted-border-color) 55%, transparent); }
   .swapbar button small { font-weight: 400; opacity: .7; }
   .swapbar button:disabled { cursor: default; opacity: .5; }
+  .swapbar.solo { display: flex; align-items: center; justify-content: center; font-size: .92em; color: var(--pico-muted-color); }
   .swapbar button:focus-visible { outline: 2px solid var(--pico-primary); outline-offset: -2px; }
   .flip .frame { border-radius: var(--pico-border-radius) var(--pico-border-radius) 0 0; }
   .flip.phone { max-width: 400px; }
@@ -221,7 +222,7 @@ else try { const t = localStorage.getItem('reviewtool.theme'); if (t) document.d
   <span class="progress" id="progress"><progress id="progressBar" value="0" max="1"></progress><span id="progressText"></span></span>
   <span class="agentstate" id="agentState" hidden><span class="pulse"></span><span id="agentText"></span></span>
   <button id="sendBtn"><span id="sendLabel">Send to agent</span><span class="n" id="sendCount" hidden></span></button>
-  <label class="pagemenu" title="All pages"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg><select id="pageSelect" aria-label="All pages"></select></label>
+  <label class="pagemenu"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg><span id="pagePos"></span><select id="pageSelect" aria-label="All pages"></select></label>
   <button class="secondary outline" id="approveBtn" title="Keep this page as it is now (1)">Approve</button>
 </header>
 
@@ -499,7 +500,11 @@ function renderBar() {
   $('progress').hidden = !ps.length;
   $('progressBar').max = Math.max(1, ps.length);
   $('progressBar').value = done;
-  $('progressText').textContent = `${done}/${ps.length} ${CHAT ? 'done' : 'judged'}`;
+  $('progressText').textContent = CHAT ? (done === ps.length ? 'All done' : `${ps.length - done} to do`) : `${done}/${ps.length} judged`;
+  $('progressText').title = `${done} of ${ps.length} pages done`;
+  const at = ps.findIndex((p) => p.id === current);
+  $('pagePos').textContent = at >= 0 ? `${at + 1}/${ps.length}` : '';
+  $('pageSelect').title = at >= 0 ? `Page ${at + 1} of ${ps.length}: ${ps[at].title}. All pages` : 'All pages';
 
   const sub = lastSubmission();
   const newest = data.rounds.at(-1);
@@ -699,8 +704,15 @@ function flipHtml(p, r) {
     : `<button data-show="${k}" disabled title="${esc(r.shots[k].why ?? r.shots[k].label)}">${esc(r.shots[k].label)}</button>`);
   return `<figure class="flip${r.narrow ? ' phone' : ''}" data-show="after" data-views="${shots.join(' ')}">
     <div class="view"><div class="frame" data-img="after" title="Click to mark a spot"><div class="stage">${shots.map(img).join('')}${outlinesHtml(p, 'after')}${shots.map((k) => pinsHtml(p, k)).join('')}</div></div>${stepButtons(p)}</div>
-    <div class="swapbar" role="group" aria-label="Which round">${VIEWS.map(button).join('')}</div>
+    ${shots.length > 1 ? `<div class="swapbar" role="group" aria-label="Which round">${VIEWS.map(button).join('')}</div>` : `<div class="swapbar solo">${esc(soloLabel(p))}</div>`}
   </figure>`;
+}
+
+// A page with only this round's screenshot: nothing to compare, so the bar just says so.
+function soloLabel(p) {
+  if (roundN === 1) return 'Round 1 · nothing earlier to compare';
+  const before = data.rounds.filter((r) => r.n < roundN).some((r) => r.pages.some((x) => x.id === p.id));
+  return before ? `Current · #${roundN} · no earlier screenshot` : `New in #${roundN} · nothing to compare`;
 }
 
 // The page before and after this one, in the order of the round.

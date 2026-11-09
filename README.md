@@ -123,7 +123,8 @@ Rules for manifests:
 ## In the browser
 
 The page has one bar on top with nothing beyond what a review needs: the rounds (#1, #2, …), a ☰ button that lists
-the pages of the round (*To do* above *Done*), and **Approve**; markers go on the screenshot. It is built on
+the pages of the round (*To do* above *Done*) and says which page you are on (12/70), how many pages are still to do,
+and **Approve**; markers go on the screenshot. It is built on
 [Pico CSS](https://picocss.com), which ships inside the package, and follows your light or dark setting (black inside
 a chat).
 
@@ -138,7 +139,8 @@ a chat).
 - **This round against earlier ones, in one place.** One screenshot at a time, with a bar under it: *#1* (the first
   round), *Previous* (the last round) and *Current*. A click switches in place, so what changed jumps out;
   <kbd>Space</kbd> or <kbd>B</kbd> jumps between current and the last other round you looked at. Areas that changed
-  since the last round are outlined on the current one. The `before` screenshots in a manifest are not shown.
+  since the last round are outlined on the current one. A page with nothing earlier to compare (round 1, or a page
+  that is new, such as one you asked for) gets one line instead: "New in #4 · nothing to compare". The `before` screenshots in a manifest are not shown.
 - **Point at what you mean.** Click a screenshot to put a numbered marker there, [1], [2], …; click it again to remove
   it. Numbers are never reused within a round. Then write in the chat; with dictation, "the header 1 is too tall"
   works as well as "[1]".
